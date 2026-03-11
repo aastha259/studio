@@ -1,7 +1,6 @@
-
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChefHat, Mail, Lock, Chrome, Shield } from 'lucide-react';
@@ -20,6 +19,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleLogin = async (role: 'user' | 'admin') => {
     setLoading(true);
@@ -30,7 +34,6 @@ export default function LoginPage() {
             localStorage.setItem('bhartiya_swad_admin', 'true');
           }
 
-          // Force a Firebase Auth session (anonymous if email auth not set up yet)
           await signInWithEmailAndPassword(auth, email, password).catch(() => {
             return signInAnonymously(auth);
           });
@@ -69,6 +72,14 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">

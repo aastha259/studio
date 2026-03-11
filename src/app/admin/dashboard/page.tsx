@@ -22,29 +22,26 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
-export default function AdminDashboardOverview() {
+export default function AdminDashboardPage() {
   const db = useFirestore();
-  const { user } = useUser();
 
-  // Real-time data fetching for stats
-  const ordersQuery = useMemoFirebase(() => user ? collection(db, 'orders') : null, [db, user]);
+  const ordersQuery = useMemoFirebase(() => collection(db, 'orders'), [db]);
   const { data: orders } = useCollection(ordersQuery);
 
-  const usersQuery = useMemoFirebase(() => user ? collection(db, 'users') : null, [db, user]);
+  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
   const { data: users } = useCollection(usersQuery);
 
-  const restaurantsQuery = useMemoFirebase(() => user ? collection(db, 'restaurants') : null, [db, user]);
+  const restaurantsQuery = useMemoFirebase(() => collection(db, 'restaurants'), [db]);
   const { data: restaurants } = useCollection(restaurantsQuery);
 
   const totalRevenue = orders?.reduce((acc, order) => acc + (order.totalAmount || 0), 0) || 0;
   const today = new Date().toISOString().split('T')[0];
   const todayOrders = orders?.filter(order => order.orderDate?.startsWith(today)).length || 0;
 
-  // Derive weekly revenue chart data from real orders
   const weeklyData = useMemo(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const result = days.map(day => ({ name: day, revenue: 0 }));
@@ -71,9 +68,9 @@ export default function AdminDashboardOverview() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-headline font-black mb-2">Executive Summary</h1>
-          <p className="text-muted-foreground">Real-time health check for Bhartiya Swad operations.</p>
+          <p className="text-muted-foreground">Real-time performance metrics for Bhartiya Swad.</p>
         </div>
-        <div className="bg-white px-6 py-3 rounded-2xl shadow-sm flex items-center gap-3">
+        <div className="bg-white px-6 py-3 rounded-2xl shadow-sm flex items-center gap-3 border">
           <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
           <span className="font-bold text-sm">System Live: {today}</span>
         </div>
@@ -81,7 +78,7 @@ export default function AdminDashboardOverview() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
-          <Card key={i} className="border-none shadow-sm rounded-3xl overflow-hidden group hover:shadow-md transition-all bg-white">
+          <Card key={i} className="border-none shadow-sm rounded-3xl overflow-hidden group hover:shadow-md transition-all bg-white border">
             <CardContent className="p-8">
               <div className="flex justify-between items-start mb-4">
                 <div className={cn("p-4 rounded-2xl bg-muted/50 group-hover:scale-110 transition-transform", stat.color)}>
@@ -103,9 +100,9 @@ export default function AdminDashboardOverview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="border-none shadow-sm rounded-3xl p-8 bg-white">
+        <Card className="border shadow-sm rounded-3xl p-8 bg-white">
           <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-xl font-headline font-bold">Daily Revenue Distribution</CardTitle>
+            <CardTitle className="text-xl font-headline font-bold">Revenue Growth</CardTitle>
           </CardHeader>
           <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -129,9 +126,9 @@ export default function AdminDashboardOverview() {
           </div>
         </Card>
 
-        <Card className="border-none shadow-sm rounded-3xl p-8 bg-white">
+        <Card className="border shadow-sm rounded-3xl p-8 bg-white">
           <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-xl font-headline font-bold">Item Performance Index</CardTitle>
+            <CardTitle className="text-xl font-headline font-bold">Sales Distribution</CardTitle>
           </CardHeader>
           <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">

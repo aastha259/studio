@@ -24,15 +24,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, loading, logout } = useAuth();
 
   useEffect(() => {
-    // Admin Route Protection: If not loading and not an admin, redirect home
     if (!loading && (!user || !user.isAdmin)) {
       router.push('/');
     }
   }, [user, loading, router]);
 
-  // Prevent UI flickering while checking auth
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
     </div>
   );
@@ -48,9 +46,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#FDFCFB]">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r hidden md:flex flex-col sticky top-0 h-screen">
+      <aside className="w-72 bg-white border-r hidden md:flex flex-col sticky top-0 h-screen shadow-xl z-20">
         <div className="p-8 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
             <ChefHat className="text-white w-6 h-6" />
@@ -83,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="p-4 border-t">
           <div className="bg-muted/50 rounded-2xl p-4 mb-4">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Logged in as</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Authenticated As</p>
             <p className="text-sm font-black truncate">{user.displayName || user.email}</p>
           </div>
           <Button 
@@ -98,7 +96,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 md:p-12 max-w-7xl mx-auto w-full">
+      <main className="flex-1 p-8 md:p-12 max-w-7xl mx-auto w-full overflow-y-auto">
         {children}
       </main>
     </div>

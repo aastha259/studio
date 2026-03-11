@@ -2,7 +2,7 @@
 "use client"
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   BarChart, 
   Bar, 
@@ -22,7 +22,7 @@ import { collection } from 'firebase/firestore';
 
 const COLORS = ['#E55C0A', '#C40A3A', '#FFD700', '#FFA500', '#4CAF50', '#2196F3'];
 
-export default function SalesAnalyticsPage() {
+export default function AdminSalesPage() {
   const db = useFirestore();
 
   const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
@@ -31,7 +31,6 @@ export default function SalesAnalyticsPage() {
   const categoriesQuery = useMemoFirebase(() => collection(db, 'categories'), [db]);
   const { data: categories } = useCollection(categoriesQuery);
 
-  // Aggregated data for charts
   const categoryData = categories?.map((cat, i) => {
     const totalRev = foods?.filter(f => f.categoryId === cat.id).reduce((acc, f) => acc + (f.totalRevenue || 0), 0) || 0;
     return { name: cat.name, value: totalRev };
@@ -43,20 +42,20 @@ export default function SalesAnalyticsPage() {
     <div className="space-y-12">
       <div>
         <h1 className="text-4xl font-headline font-black mb-2">Sales Analytics</h1>
-        <p className="text-muted-foreground">Detailed breakdown of revenue and item performance.</p>
+        <p className="text-muted-foreground">Detailed performance tracking for dishes and categories.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 border-none shadow-sm rounded-3xl p-8">
+        <Card className="lg:col-span-2 border shadow-sm rounded-3xl p-8 bg-white">
           <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-xl font-headline font-bold">Top Selling Items Performance</CardTitle>
+            <CardTitle className="text-xl font-headline font-bold">Top Dishes by Orders</CardTitle>
           </CardHeader>
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={topSellingItems}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted))" />
                 <XAxis type="number" axisLine={false} tickLine={false} />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={150} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={150} tick={{fontSize: 12, fontWeight: 700}} />
                 <Tooltip 
                   cursor={{ fill: 'transparent' }}
                   contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -67,12 +66,12 @@ export default function SalesAnalyticsPage() {
           </div>
         </Card>
 
-        <Card className="border-none shadow-sm rounded-3xl p-8">
+        <Card className="border shadow-sm rounded-3xl p-8 bg-white">
           <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-xl font-headline font-bold">Category Distribution</CardTitle>
+            <CardTitle className="text-xl font-headline font-bold">Category Shares</CardTitle>
           </CardHeader>
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[400px] flex flex-col justify-between">
+            <ResponsiveContainer width="100%" height="250">
               <PieChart>
                 <Pie
                   data={categoryData}
@@ -105,34 +104,34 @@ export default function SalesAnalyticsPage() {
         </Card>
       </div>
 
-      <Card className="border-none shadow-sm rounded-3xl overflow-hidden">
+      <Card className="border shadow-sm rounded-3xl overflow-hidden bg-white">
         <CardHeader className="p-8 border-b">
-          <CardTitle className="text-xl font-headline font-bold">Item Sales Table</CardTitle>
+          <CardTitle className="text-xl font-headline font-bold">Menu Performance Table</CardTitle>
         </CardHeader>
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead className="font-bold p-6">Food Name</TableHead>
               <TableHead className="font-bold">Category</TableHead>
-              <TableHead className="font-bold">Orders Count</TableHead>
-              <TableHead className="font-bold">Total Revenue</TableHead>
-              <TableHead className="font-bold">Rating</TableHead>
+              <TableHead className="font-bold text-center">Orders</TableHead>
+              <TableHead className="font-bold text-right">Revenue</TableHead>
+              <TableHead className="font-bold text-center pr-6">Rating</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="bg-white">
+          <TableBody>
             {foods?.map((food) => (
-              <TableRow key={food.id} className="hover:bg-muted/10 transition-colors">
+              <TableRow key={food.id} className="hover:bg-muted/5">
                 <TableCell className="p-6 font-bold">{food.name}</TableCell>
                 <TableCell>
                   <Badge variant="secondary" className="rounded-full">
-                    {categories?.find(c => c.id === food.categoryId)?.name || 'Unknown'}
+                    {categories?.find(c => c.id === food.categoryId)?.name || 'Misc'}
                   </Badge>
                 </TableCell>
-                <TableCell className="font-bold">{food.totalOrders || 0}</TableCell>
-                <TableCell className="font-bold text-primary">₹{(food.totalRevenue || 0).toLocaleString()}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 font-bold">
-                    <span className="text-yellow-500">★</span> {food.rating || 'N/A'}
+                <TableCell className="font-bold text-center">{food.totalOrders || 0}</TableCell>
+                <TableCell className="font-bold text-primary text-right">₹{(food.totalRevenue || 0).toLocaleString()}</TableCell>
+                <TableCell className="text-center pr-6">
+                  <div className="flex items-center justify-center gap-1 font-bold">
+                    <span className="text-yellow-500">★</span> {food.rating || '4.5'}
                   </div>
                 </TableCell>
               </TableRow>

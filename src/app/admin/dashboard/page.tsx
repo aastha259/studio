@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function AdminDashboardPage() {
@@ -84,13 +85,13 @@ export default function AdminDashboardPage() {
       {/* Analytics Graph Placeholders */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 border shadow-sm rounded-3xl p-8 bg-white h-[450px] flex flex-col">
-          <CardHeader className="px-0 pt-0 pb-6 flex flex-row items-center justify-between">
-            <CardTitle className="text-xl font-headline font-bold">Revenue Trends</CardTitle>
+          <div className="p-0 pb-6 flex flex-row items-center justify-between">
+            <h3 className="text-xl font-headline font-bold">Revenue Trends</h3>
             <div className="flex gap-2">
               <Badge variant="outline" className="rounded-full px-4 cursor-pointer hover:bg-muted">Weekly</Badge>
               <Badge className="rounded-full px-4 cursor-pointer">Daily</Badge>
             </div>
-          </CardHeader>
+          </div>
           <div className="flex-1 bg-muted/20 rounded-2xl border-2 border-dashed flex items-center justify-center flex-col opacity-60">
             <TrendingUp className="w-12 h-12 mb-4 text-muted-foreground" />
             <p className="font-bold text-muted-foreground">Daily Sales Graph Placeholder</p>
@@ -99,9 +100,9 @@ export default function AdminDashboardPage() {
         </Card>
 
         <Card className="border shadow-sm rounded-3xl p-8 bg-white h-[450px] flex flex-col">
-          <CardHeader className="px-0 pt-0 pb-6">
-            <CardTitle className="text-xl font-headline font-bold">Top Selling Foods</CardTitle>
-          </CardHeader>
+          <div className="p-0 pb-6">
+            <h3 className="text-xl font-headline font-bold">Top Selling Foods</h3>
+          </div>
           <div className="flex-1 bg-muted/20 rounded-2xl border-2 border-dashed flex items-center justify-center flex-col opacity-60">
             <Utensils className="w-12 h-12 mb-4 text-muted-foreground" />
             <p className="font-bold text-muted-foreground text-center px-4">Weekly Revenue Chart Placeholder</p>

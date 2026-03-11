@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -9,6 +10,7 @@ interface User {
   email: string | null;
   displayName: string | null;
   role: Role;
+  isAdmin: boolean;
 }
 
 interface AuthContextType {
@@ -33,11 +35,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (email: string, role: Role) => {
-    const newUser = {
+    const newUser: User = {
       uid: Math.random().toString(36).substring(7),
       email,
       displayName: email.split('@')[0],
-      role
+      role,
+      isAdmin: role === 'admin'
     };
     setUser(newUser);
     localStorage.setItem('bhartiya_swad_user', JSON.stringify(newUser));

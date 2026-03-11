@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -9,17 +10,35 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = (role: 'user' | 'admin') => {
-    login(email || 'user@example.com', role);
-    if (role === 'admin') router.push('/admin');
-    else router.push('/dashboard');
+    if (role === 'admin') {
+      if (email === 'xyz@admin.com' && password === '12345') {
+        login(email, 'admin');
+        toast({
+          title: "Admin Access Granted",
+          description: "Welcome to the management console."
+        });
+        router.push('/admin');
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Access Denied",
+          description: "Invalid admin email or security token."
+        });
+      }
+    } else {
+      login(email || 'user@example.com', 'user');
+      router.push('/dashboard');
+    }
   };
 
   return (

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -7,19 +8,16 @@ import {
   Plus, 
   Trash2, 
   Edit3, 
-  LayoutDashboard, 
   ShoppingBag, 
   Users, 
   TrendingUp,
-  LogOut,
-  Save,
-  X
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Dialog, 
   DialogContent, 
@@ -52,7 +50,10 @@ export default function AdminDashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') router.push('/login');
+    // Admin Route Protection: Redirect non-admins to homepage
+    if (!user || !user.isAdmin) {
+      router.push('/');
+    }
   }, [user, router]);
 
   const handleAddFood = () => {
@@ -65,7 +66,7 @@ export default function AdminDashboard() {
     setFoods(foods.filter(f => f.id !== id));
   };
 
-  if (!user || user.role !== 'admin') return null;
+  if (!user || !user.isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
             <p className="text-sm font-bold">{user.displayName}</p>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">Super Admin</p>
           </div>
-          <Button variant="ghost" onClick={() => logout()} className="text-destructive font-bold">
+          <Button variant="ghost" onClick={() => { logout(); router.push('/'); }} className="text-destructive font-bold">
             <LogOut className="w-5 h-5 mr-2" />
             Logout
           </Button>

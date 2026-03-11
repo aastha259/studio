@@ -24,8 +24,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, loading, logout } = useAuth();
 
   useEffect(() => {
-    if (!loading && (!user || !user.isAdmin)) {
-      router.push('/');
+    // If we've finished loading and there's no user, or the user is not an admin, redirect.
+    if (!loading) {
+      if (!user || !user.isAdmin) {
+        router.push('/');
+      }
     }
   }, [user, loading, router]);
 
@@ -35,6 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
   
+  // Prevent flashing content before redirect
   if (!user || !user.isAdmin) return null;
 
   const navItems = [

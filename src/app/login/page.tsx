@@ -25,16 +25,13 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (role === 'admin') {
-        // Strict Admin Credential Check
         if (email === 'xyz@admin.com' && password === '12345') {
-          // Store admin session flag as requested
           if (typeof window !== 'undefined') {
             localStorage.setItem('bhartiya_swad_admin', 'true');
           }
 
-          // Attempt actual Firebase sign-in
+          // Force a Firebase Auth session (anonymous if email auth not set up yet)
           await signInWithEmailAndPassword(auth, email, password).catch(() => {
-            // Fallback for prototype if user doesn't exist in Auth yet
             return signInAnonymously(auth);
           });
           
@@ -43,10 +40,7 @@ export default function LoginPage() {
             description: "Welcome to the management console."
           });
           
-          // Force a small delay to ensure AuthContext updates before redirect
-          setTimeout(() => {
-            router.push('/admin/dashboard');
-          }, 500);
+          router.push('/admin/dashboard');
         } else {
           toast({
             variant: "destructive",
@@ -55,7 +49,6 @@ export default function LoginPage() {
           });
         }
       } else {
-        // Normal User Flow
         if (typeof window !== 'undefined') {
           localStorage.removeItem('bhartiya_swad_admin');
         }

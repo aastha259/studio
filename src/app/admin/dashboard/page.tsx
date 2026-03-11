@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
 import { 
   BarChart, 
@@ -41,21 +42,37 @@ const COLORS = ['#E55C0A', '#C40A3A', '#FFD700', '#FFA500', '#4CAF50', '#2196F3'
 
 export default function AdminDashboardPage() {
   const db = useFirestore();
+  const { user } = useAuth();
 
-  // Firestore Data Fetching
-  const ordersQuery = useMemoFirebase(() => collection(db, 'orders'), [db]);
+  // Firestore Data Fetching - Only run if admin is verified
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user?.isAdmin) return null;
+    return collection(db, 'orders');
+  }, [db, user?.isAdmin]);
   const { data: orders } = useCollection(ordersQuery);
 
-  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
+  const usersQuery = useMemoFirebase(() => {
+    if (!user?.isAdmin) return null;
+    return collection(db, 'users');
+  }, [db, user?.isAdmin]);
   const { data: users } = useCollection(usersQuery);
 
-  const restaurantsQuery = useMemoFirebase(() => collection(db, 'restaurants'), [db]);
+  const restaurantsQuery = useMemoFirebase(() => {
+    if (!user?.isAdmin) return null;
+    return collection(db, 'restaurants');
+  }, [db, user?.isAdmin]);
   const { data: restaurants } = useCollection(restaurantsQuery);
 
-  const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
+  const foodsQuery = useMemoFirebase(() => {
+    if (!user?.isAdmin) return null;
+    return collection(db, 'foods');
+  }, [db, user?.isAdmin]);
   const { data: foods } = useCollection(foodsQuery);
 
-  const categoriesQuery = useMemoFirebase(() => collection(db, 'categories'), [db]);
+  const categoriesQuery = useMemoFirebase(() => {
+    if (!user?.isAdmin) return null;
+    return collection(db, 'categories');
+  }, [db, user?.isAdmin]);
   const { data: categories } = useCollection(categoriesQuery);
 
   // Derived Summary Stats
@@ -96,12 +113,6 @@ export default function AdminDashboardPage() {
     }).filter(d => d.value > 0).slice(0, 5);
   }, [categories, foods]);
 
-  // Top Selling Foods
-  const topSellingFoods = useMemo(() => {
-    if (!foods) return [];
-    return [...foods].sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0)).slice(0, 5);
-  }, [foods]);
-
   // Recent Orders (Last 5)
   const recentOrders = useMemo(() => {
     if (!orders) return [];
@@ -117,6 +128,8 @@ export default function AdminDashboardPage() {
     if (!users) return [];
     return [...users].sort((a, b) => (b.totalMoneySpent || 0) - (a.totalMoneySpent || 0)).slice(0, 5);
   }, [users]);
+
+  if (!user?.isAdmin) return null;
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500">

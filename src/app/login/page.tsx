@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -8,13 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useAuth as useFirebaseService } from '@/firebase';
-import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { useAuth as useFirebaseService, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const auth = useFirebaseService();
+  const db = useFirestore();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,20 +33,40 @@ export default function LoginPage() {
     try {
       if (role === 'admin') {
         if (email === 'xyz@admin.com' && password === '12345') {
+          // Attempt to sign in with email/pass to ensure correct claims (email)
+          let userCredential;
+          try {
+            userCredential = await signInWithEmailAndPassword(auth, email, password);
+          } catch (err: any) {
+            // If user doesn't exist, bootstrap the admin user
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+              userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            } else {
+              throw err;
+            }
+          }
+
+          // Persist admin session flag for UI logic
           if (typeof window !== 'undefined') {
             localStorage.setItem('bhartiya_swad_admin', 'true');
           }
 
-          await signInWithEmailAndPassword(auth, email, password).catch(() => {
-            return signInAnonymously(auth);
-          });
+          // Ensure admin_roles record exists
+          await setDoc(doc(db, 'admin_roles', userCredential.user.uid), {
+            email: userCredential.user.email,
+            role: 'admin',
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
           
           toast({
             title: "Admin Access Granted",
             description: "Welcome to the management console."
           });
           
-          router.push('/admin/dashboard');
+          // Small delay to ensure state propagates
+          setTimeout(() => {
+            router.push('/admin/dashboard');
+          }, 500);
         } else {
           toast({
             variant: "destructive",
@@ -73,16 +96,10 @@ export default function LoginPage() {
     }
   };
 
-  if (!isMounted) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  if (!isMounted) return null;
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden" suppressHydrationWarning>
       <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
         <div className="grid grid-cols-12 gap-4 h-full w-full rotate-12 scale-150">
           {Array.from({ length: 48 }).map((_, i) => (

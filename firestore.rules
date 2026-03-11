@@ -14,18 +14,15 @@ rules_version = '2';
  * - Private User Data: /users and /orders are secured via path-based ownership or 
  *   internal document fields (denormalization).
  * - Administrative Control: Global admin privileges are determined by the existence of 
- *   a UID in the /admin_roles collection (Existence-Based Access Control).
+ *   a UID in the /admin_roles collection or a hardcoded bootstrap email.
  *
  * Key Security Decisions:
  * - Admin Independence: Admin checks utilize the `exists()` function on a dedicated 
- *   /admin_roles path, ensuring that admin status is decoupled from the user's profile data.
+ *   /admin_roles path, and a bootstrap check for the primary admin email.
  * - Denormalization for Auth: Ownership fields (like userId) are strictly enforced in 
  *   the Order and User collections to allow for O(1) security checks without recursive lookups.
  * - Hierarchy-Based Permissions: Access to subcollections (like /orderItems) is inherited 
  *   from the parent /orders document logic for consistency and performance.
- * - Prototyping Flexibility: While authorization is strictly enforced, the rules allow 
- *   for evolving data shapes by not restricting specific field types outside of 
- *   relational identifiers (IDs).
  */
 
 service cloud.firestore {
@@ -41,11 +38,14 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the user has a document in the admin_roles collection.
-     * This is the source of truth for administrative privileges.
+     * @description Checks if the user has a document in the admin_roles collection
+     * or matches the bootstrap admin email.
      */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid)) ||
+        request.auth.token.email == 'xyz@admin.com'
+      );
     }
 
     /**
@@ -55,17 +55,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // The function `isExistingOwner` was identified as unused and containing an "Invalid variable name: resource" warning.
-    // As it was not being used anywhere in the rules, it has been removed to resolve these issues.
-
     // --- Collection Rules ---
 
     /**
      * @description User profiles containing roles and customer insights.
-     * @path /users/{userId}
-     * @allow get, list, create, update: if isOwner(userId) || isAdmin()
-     * @deny create: if request.auth.uid != userId (prevents identity spoofing)
-     * @principle Ownership Pattern: Restricts private data to the user or an administrator.
      */
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isAdmin();
@@ -76,22 +69,14 @@ service cloud.firestore {
 
     /**
      * @description Secure collection where document existence grants admin privileges.
-     * @path /admin_roles/{adminId}
-     * @allow get, list, create, update, delete: if isAdmin()
-     * @deny any access if not already an admin (initial admin must be set via Firebase Console).
-     * @principle DBAC (Database Access Control): Existence over content for high-performance auth.
      */
     match /admin_roles/{adminId} {
-      allow get, list, create, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow create, update, delete: if isAdmin() || (isSignedIn() && request.auth.token.email == 'xyz@admin.com');
     }
 
     /**
      * @description Publicly viewable restaurant listings.
-     * @path /restaurants/{restaurantId}
-     * @allow get, list: if true
-     * @allow create, update, delete: if isAdmin()
-     * @deny write: if not an admin.
-     * @principle Public Read / Admin Write: Facilitates open browsing with protected management.
      */
     match /restaurants/{restaurantId} {
       allow get, list: if true;
@@ -100,11 +85,6 @@ service cloud.firestore {
 
     /**
      * @description Food categories for site navigation.
-     * @path /categories/{categoryId}
-     * @allow get, list: if true
-     * @allow create, update, delete: if isAdmin()
-     * @deny write: if not an admin.
-     * @principle Public Read / Admin Write: Ensures only authorized staff manage taxonomy.
      */
     match /categories/{categoryId} {
       allow get, list: if true;
@@ -113,11 +93,6 @@ service cloud.firestore {
 
     /**
      * @description Individual food items, prices, and trending status.
-     * @path /foods/{foodId}
-     * @allow get, list: if true
-     * @allow create, update, delete: if isAdmin()
-     * @deny write: if not an admin.
-     * @principle Public Read / Admin Write: Centralizes menu management to administrators.
      */
     match /foods/{foodId} {
       allow get, list: if true;
@@ -126,24 +101,13 @@ service cloud.firestore {
 
     /**
      * @description Customer orders. Users manage their own; admins monitor all.
-     * @path /orders/{orderId}
-     * @allow get, list: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin()
-     * @allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid
-     * @deny update: if not an admin (status changes are restricted to admin dashboard).
-     * @principle Denormalized Ownership: Uses internal userId for O(1) authorization checks.
      */
     match /orders/{orderId} {
       allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
-      allow list: if (isSignedIn() && request.query.limit <= 100) && (isAdmin() || (resource == null || resource.data.userId == request.auth.uid));
+      allow list: if (isSignedIn() && (isAdmin() || (resource == null || resource.data.userId == request.auth.uid)));
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
 
-      /**
-       * @description Line items for a specific order.
-       * @path /orders/{orderId}/orderItems/{orderItemId}
-       * @allow get, list: if (isSignedIn() && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid) || isAdmin()
-       * @principle Inherited Authorization: Subcollection access is derived from parent ownership.
-       */
       match /orderItems/{orderItemId} {
         allow get, list: if (isSignedIn() && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid) || isAdmin();
         allow create: if isSignedIn() && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid;

@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "cat-north-indian",
+      "description": "North Indian Cuisine",
+      "imageUrl": "https://picsum.photos/seed/north/400/400",
+      "imageHint": "indian curry"
+    },
+    {
+      "id": "cat-south-indian",
+      "description": "South Indian Cuisine",
+      "imageUrl": "https://picsum.photos/seed/south/400/400",
+      "imageHint": "dosa idli"
+    },
+    {
+      "id": "cat-street-food",
+      "description": "Indian Street Food",
+      "imageUrl": "https://picsum.photos/seed/street/400/400",
+      "imageHint": "chaat samosa"
+    },
+    {
+      "id": "cat-fast-food",
+      "description": "Fast Food",
+      "imageUrl": "https://picsum.photos/seed/fast/400/400",
+      "imageHint": "burger fries"
+    },
+    {
+      "id": "cat-chinese",
+      "description": "Indo-Chinese Cuisine",
+      "imageUrl": "https://picsum.photos/seed/chinese/400/400",
+      "imageHint": "noodles manchurian"
+    },
+    {
+      "id": "cat-biryani",
+      "description": "Authentic Biryani",
+      "imageUrl": "https://picsum.photos/seed/biryani/400/400",
+      "imageHint": "biryani rice"
+    },
+    {
+      "id": "cat-sweets",
+      "description": "Sweets & Desserts",
+      "imageUrl": "https://picsum.photos/seed/sweets/400/400",
+      "imageHint": "indian sweets"
+    },
+    {
+      "id": "cat-beverages",
+      "description": "Beverages",
+      "imageUrl": "https://picsum.photos/seed/drinks/400/400",
+      "imageHint": "lassi tea"
+    }
+  ]
 }

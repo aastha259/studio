@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { 
   Search, 
   ShoppingCart, 
@@ -12,7 +13,15 @@ import {
   LogOut,
   MapPin,
   Utensils,
-  Loader2
+  Loader2,
+  UtensilsCrossed,
+  Soup,
+  Store,
+  Pizza,
+  Beef,
+  Flame,
+  IceCreamCone,
+  Coffee
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,6 +41,18 @@ import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+
+const categoriesConfig = [
+  { name: 'North Indian', icon: UtensilsCrossed, image: 'cat-north-indian' },
+  { name: 'South Indian', icon: Soup, image: 'cat-south-indian' },
+  { name: 'Street Food', icon: Store, image: 'cat-street-food' },
+  { name: 'Fast Food', icon: Pizza, image: 'cat-fast-food' },
+  { name: 'Chinese', icon: Beef, image: 'cat-chinese' },
+  { name: 'Biryani', icon: Flame, image: 'cat-biryani' },
+  { name: 'Sweets & Desserts', icon: IceCreamCone, image: 'cat-sweets' },
+  { name: 'Beverages', icon: Coffee, image: 'cat-beverages' },
+];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -48,11 +69,6 @@ export default function DashboardPage() {
   const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
   const { data: allFoods, isLoading: foodsLoading } = useCollection(foodsQuery);
 
-  // Fetch categories
-  const categoriesQuery = useMemoFirebase(() => collection(db, 'categories'), [db]);
-  const { data: categoriesData } = useCollection(categoriesQuery);
-  const categories = ['All', ...(categoriesData?.map(c => c.name) || [])];
-
   useEffect(() => {
     if (!user) router.push('/login');
   }, [user, router]);
@@ -64,7 +80,6 @@ export default function DashboardPage() {
       
       setLoadingRecs(true);
       try {
-        // 1. Get the last 5 orders for this user
         const ordersRef = collection(db, 'orders');
         const q = query(
           ordersRef, 
@@ -76,7 +91,6 @@ export default function DashboardPage() {
         
         const history: { name: string; category?: string }[] = [];
         
-        // 2. For each order, get the items to build a history profile
         for (const orderDoc of orderSnap.docs) {
           const itemsRef = collection(db, 'orders', orderDoc.id, 'orderItems');
           const itemsSnap = await getDocs(itemsRef);
@@ -89,7 +103,6 @@ export default function DashboardPage() {
           });
         }
 
-        // 3. Call AI flow with real history (fall back to trending if no history)
         const result = await personalizedFoodRecommendations({
           userFoodHistory: history.length > 0 ? history : [],
           availableFoods: allFoods.map(f => ({
@@ -132,7 +145,7 @@ export default function DashboardPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-xl font-bold hidden md:block">Bhartiya Swad</span>
+            <span className="font-headline text-xl font-bold hidden md:block text-foreground">Bhartiya Swad</span>
           </div>
 
           <div className="flex-1 max-w-xl relative">
@@ -222,25 +235,55 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      {/* Hero Section / Categories */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-12">
-          <h2 className="text-2xl font-headline font-black mb-6 flex items-center gap-2">
-            What's on your <span className="text-primary italic">mind</span>?
+        
+        {/* Explore Categories Section */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-headline font-black mb-6 text-foreground">
+            Explore <span className="text-primary italic">Categories</span>
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-            {categories.map((cat) => (
-              <Button
-                key={cat}
-                variant={selectedCategory === cat ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(cat)}
-                className={`rounded-full px-8 h-12 font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'shadow-lg shadow-primary/20' : ''}`}
-              >
-                {cat}
-              </Button>
-            ))}
+          <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
+            <div 
+              onClick={() => setSelectedCategory('All')}
+              className={`flex-shrink-0 w-32 snap-start cursor-pointer group transition-all ${selectedCategory === 'All' ? 'scale-105' : ''}`}
+            >
+              <div className={`aspect-square rounded-[2rem] flex items-center justify-center border-4 transition-all duration-300 ${selectedCategory === 'All' ? 'border-primary bg-primary shadow-xl shadow-primary/20' : 'border-white bg-white hover:border-primary/20 shadow-sm'}`}>
+                <Utensils className={`w-10 h-10 transition-colors ${selectedCategory === 'All' ? 'text-white' : 'text-primary'}`} />
+              </div>
+              <p className={`text-center mt-3 font-bold text-sm ${selectedCategory === 'All' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`}>All Dishes</p>
+            </div>
+            
+            {categoriesConfig.map((cat) => {
+              const placeholder = PlaceHolderImages.find(img => img.id === cat.image);
+              const isActive = selectedCategory === cat.name;
+              
+              return (
+                <div 
+                  key={cat.name}
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`flex-shrink-0 w-32 snap-start cursor-pointer group transition-all ${isActive ? 'scale-105' : ''}`}
+                >
+                  <div className={`relative aspect-square rounded-[2rem] overflow-hidden border-4 transition-all duration-300 shadow-sm ${isActive ? 'border-primary shadow-xl shadow-primary/20' : 'border-white hover:border-primary/20'}`}>
+                    {placeholder && (
+                      <Image 
+                        src={placeholder.imageUrl} 
+                        alt={cat.name} 
+                        fill 
+                        className={`object-cover transition-transform duration-500 group-hover:scale-110 ${isActive ? 'opacity-40 grayscale-0' : 'opacity-80 grayscale-[20%]'}`} 
+                        data-ai-hint={placeholder.imageHint}
+                      />
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <cat.icon className={`w-10 h-10 drop-shadow-lg transition-colors ${isActive ? 'text-white' : 'text-white'}`} />
+                    </div>
+                  </div>
+                  <p className={`text-center mt-3 font-bold text-sm ${isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`}>{cat.name}</p>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </section>
 
         {/* Recommendations Section */}
         {(recommendations.length > 0 || loadingRecs) && (
@@ -251,7 +294,7 @@ export default function DashboardPage() {
                   <Sparkles className="w-8 h-8 text-primary animate-pulse" />
                   Recommended For You
                 </h2>
-                <p className="text-muted-foreground mt-1">Tailored tastes based on your order history</p>
+                <p className="text-muted-foreground mt-1 font-medium">Tailored tastes based on your order history</p>
               </div>
               {loadingRecs && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
             </div>
@@ -276,7 +319,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-headline font-black flex items-center gap-3">
               <TrendingUp className="w-8 h-8 text-accent" />
-              Popular Dishes
+              {selectedCategory === 'All' ? 'Popular Dishes' : `${selectedCategory} Specials`}
             </h2>
           </div>
           
@@ -296,7 +339,7 @@ export default function DashboardPage() {
         {!foodsLoading && filteredFoods.length === 0 && (
           <div className="text-center py-20">
             <Utensils className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
-            <p className="text-xl text-muted-foreground font-bold">No dishes found matching your search</p>
+            <p className="text-xl text-muted-foreground font-bold">No dishes found matching your selection</p>
           </div>
         )}
       </main>

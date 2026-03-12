@@ -78,22 +78,22 @@ export default function AdminDatabasePage() {
 
       // 2. Define Sample Foods
       const sampleFoods = [
-        { name: 'Paneer Butter Masala', price: 280, cat: 'North Indian', desc: 'Creamy tomato gravy with soft cottage cheese cubes.', seed: '10' },
-        { name: 'Masala Dosa', price: 120, cat: 'South Indian', desc: 'Crispy fermented crepe with spicy potato masala filling.', seed: '11' },
-        { name: 'Chole Bhature', price: 150, cat: 'Street Food', desc: 'Spicy chickpea curry served with fluffy deep-fried leavened bread.', seed: '12' },
-        { name: 'Butter Chicken', price: 350, cat: 'North Indian', desc: 'Classic tandoori chicken simmered in a rich makhani gravy.', seed: '13' },
-        { name: 'Veg Biryani', price: 220, cat: 'Biryani', desc: 'Fragrant long-grain basmati rice cooked with garden-fresh vegetables.', seed: '14' },
-        { name: 'Chicken Biryani', price: 320, cat: 'Biryani', desc: 'Authentic Hyderabadi style slow-cooked chicken and rice.', seed: '15' },
-        { name: 'Pani Puri', price: 60, cat: 'Street Food', desc: 'Tangy and spicy flavored water filled in crispy wheat puris.', seed: '16' },
-        { name: 'Samosa', price: 40, cat: 'Street Food', desc: 'Triangular pastry filled with spiced potatoes and green peas.', seed: '17' },
-        { name: 'Pav Bhaji', price: 140, cat: 'Street Food', desc: 'Spicy mashed vegetable curry served with butter-toasted buns.', seed: '18' },
-        { name: 'Vada Pav', price: 50, cat: 'Street Food', desc: 'The iconic Mumbai spicy potato fritter burger.', seed: '19' },
-        { name: 'Margherita Pizza', price: 250, cat: 'Fast Food', desc: 'Classic sourdough base topped with fresh mozzarella and basil.', seed: '20' },
-        { name: 'Hakka Noodles', price: 180, cat: 'Chinese', desc: 'Wok-tossed stir-fried noodles with crunchy vegetables.', seed: '21' },
-        { name: 'Gulab Jamun', price: 80, cat: 'Sweets & Desserts', desc: 'Deep-fried milk solids balls soaked in rose-flavored sugar syrup.', seed: '22' },
-        { name: 'Rasgulla', price: 70, cat: 'Sweets & Desserts', desc: 'Soft and spongy cottage cheese balls in light sugar syrup.', seed: '23' },
-        { name: 'Cold Coffee', price: 100, cat: 'Beverages', desc: 'Rich and creamy chilled coffee topped with chocolate syrup.', seed: '24' },
-        { name: 'Mango Lassi', price: 90, cat: 'Beverages', desc: 'Smooth and refreshing traditional yogurt drink with Alphonso mango.', seed: '25' },
+        { name: 'Paneer Butter Masala', price: 280, cat: 'North Indian', desc: 'Creamy tomato gravy with soft cottage cheese cubes.', seed: '10', trending: true },
+        { name: 'Masala Dosa', price: 120, cat: 'South Indian', desc: 'Crispy fermented crepe with spicy potato masala filling.', seed: '11', trending: true },
+        { name: 'Chole Bhature', price: 150, cat: 'Street Food', desc: 'Spicy chickpea curry served with fluffy deep-fried leavened bread.', seed: '12', trending: false },
+        { name: 'Butter Chicken', price: 350, cat: 'North Indian', desc: 'Classic tandoori chicken simmered in a rich makhani gravy.', seed: '13', trending: true },
+        { name: 'Veg Biryani', price: 220, cat: 'Biryani', desc: 'Fragrant long-grain basmati rice cooked with garden-fresh vegetables.', seed: '14', trending: false },
+        { name: 'Chicken Biryani', price: 320, cat: 'Biryani', desc: 'Authentic Hyderabadi style slow-cooked chicken and rice.', seed: '15', trending: true },
+        { name: 'Pani Puri', price: 60, cat: 'Street Food', desc: 'Tangy and spicy flavored water filled in crispy wheat puris.', seed: '16', trending: true },
+        { name: 'Samosa', price: 40, cat: 'Street Food', desc: 'Triangular pastry filled with spiced potatoes and green peas.', seed: '17', trending: false },
+        { name: 'Pav Bhaji', price: 140, cat: 'Street Food', desc: 'Spicy mashed vegetable curry served with butter-toasted buns.', seed: '18', trending: true },
+        { name: 'Vada Pav', price: 50, cat: 'Street Food', desc: 'The iconic Mumbai spicy potato fritter burger.', seed: '19', trending: false },
+        { name: 'Margherita Pizza', price: 250, cat: 'Fast Food', desc: 'Classic sourdough base topped with fresh mozzarella and basil.', seed: '20', trending: false },
+        { name: 'Hakka Noodles', price: 180, cat: 'Chinese', desc: 'Wok-tossed stir-fried noodles with crunchy vegetables.', seed: '21', trending: false },
+        { name: 'Gulab Jamun', price: 80, cat: 'Sweets & Desserts', desc: 'Deep-fried milk solids balls soaked in rose-flavored sugar syrup.', seed: '22', trending: false },
+        { name: 'Rasgulla', price: 70, cat: 'Sweets & Desserts', desc: 'Soft and spongy cottage cheese balls in light sugar syrup.', seed: '23', trending: false },
+        { name: 'Cold Coffee', price: 100, cat: 'Beverages', desc: 'Rich and creamy chilled coffee topped with chocolate syrup.', seed: '24', trending: false },
+        { name: 'Mango Lassi', price: 90, cat: 'Beverages', desc: 'Smooth and refreshing traditional yogurt drink with Alphonso mango.', seed: '25', trending: false },
       ];
 
       for (const item of sampleFoods) {
@@ -110,7 +110,7 @@ export default function AdminDatabasePage() {
             restaurantId: restaurants?.[0]?.id || 'admin-root',
             imageURL: `https://picsum.photos/seed/food-${item.seed}/600/400`,
             rating: parseFloat((4.2 + Math.random() * 0.7).toFixed(1)),
-            trending: Math.random() > 0.7,
+            trending: item.trending,
             totalOrders: Math.floor(Math.random() * 50),
             totalRevenue: 0
           });

@@ -69,6 +69,12 @@ export default function DashboardPage() {
   const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
   const { data: allFoods, isLoading: foodsLoading } = useCollection(foodsQuery);
 
+  // Memoized query for trending items
+  const trendingQuery = useMemoFirebase(() => {
+    return query(collection(db, 'foods'), where('trending', '==', true), limit(4));
+  }, [db]);
+  const { data: trendingFoods } = useCollection(trendingQuery);
+
   useEffect(() => {
     if (!user) router.push('/login');
   }, [user, router]);
@@ -285,8 +291,25 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* Trending Now Section */}
+        {trendingFoods && trendingFoods.length > 0 && selectedCategory === 'All' && (
+          <section className="mb-16">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-headline font-black flex items-center gap-3">
+                <Flame className="w-8 h-8 text-accent animate-bounce" />
+                Trending <span className="text-accent underline decoration-4 underline-offset-8">Now</span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {trendingFoods.map(food => (
+                <FoodCard key={food.id} food={food} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Recommendations Section */}
-        {(recommendations.length > 0 || loadingRecs) && (
+        {(recommendations.length > 0 || loadingRecs) && selectedCategory === 'All' && (
           <div className="mb-16 bg-gradient-to-br from-primary/5 to-accent/5 p-8 rounded-[2.5rem] border border-primary/10 relative overflow-hidden">
             <div className="flex items-center justify-between mb-8">
               <div>

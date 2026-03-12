@@ -9,7 +9,6 @@ import {
   BarChart3, 
   Users, 
   Database, 
-  Sparkles, 
   LogOut,
   ChefHat,
   ChevronRight,
@@ -33,7 +32,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!loading) {
-      // Strict Admin Check: If not logged in or not an admin, redirect to homepage
       if (!user || !user.isAdmin) {
         router.push('/');
       }
@@ -44,27 +42,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="font-bold text-muted-foreground text-sm">Verifying Admin Access...</p>
+        <p className="font-bold text-muted-foreground text-sm font-headline">Authenticating Admin...</p>
       </div>
     </div>
   );
   
-  // Prevent flashing content if unauthorized
   if (!user || !user.isAdmin) return null;
 
   const navItems = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Sales Analytics', href: '/admin/sales', icon: BarChart3 },
     { name: 'Customers', href: '/admin/customers', icon: Users },
-    { name: 'Database Management', href: '/admin/database', icon: Database },
-    { name: 'Recommendations', href: '/admin/recommendations', icon: Sparkles },
-    { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
     { name: 'Restaurants', href: '/admin/restaurants', icon: Store },
+    { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
+    { name: 'Database', href: '/admin/database', icon: Database },
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#FDFBF9]">
-      {/* Fixed Left Sidebar */}
+    <div className="flex min-h-screen bg-background selection:bg-primary selection:text-white">
+      {/* Fixed Sidebar */}
       <aside className="w-72 bg-white border-r hidden md:flex flex-col sticky top-0 h-screen shadow-sm z-30">
         <div className="p-8 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
@@ -72,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex flex-col">
             <span className="font-headline text-lg font-black leading-tight">Bhartiya Swad</span>
-            <span className="text-[10px] uppercase tracking-tighter font-bold text-primary">Admin Panel</span>
+            <span className="text-[10px] uppercase tracking-widest font-bold text-accent">Admin Hub</span>
           </div>
         </div>
 
@@ -86,11 +82,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className={cn(
                     "w-full justify-start h-12 rounded-xl px-4 transition-all group",
                     isActive 
-                      ? "bg-primary text-white font-bold hover:bg-primary hover:text-white" 
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-primary"
+                      ? "bg-primary text-white font-bold shadow-md hover:bg-primary hover:text-white" 
+                      : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
                   )}
                 >
-                  <item.icon className={cn("w-5 h-5 mr-3", isActive ? "text-white" : "text-muted-foreground group-hover:text-primary")} />
+                  <item.icon className={cn("w-5 h-5 mr-3 transition-colors", isActive ? "text-white" : "text-muted-foreground group-hover:text-primary")} />
                   <span className="text-sm">{item.name}</span>
                   {isActive && <ChevronRight className="ml-auto w-4 h-4" />}
                 </Button>
@@ -102,18 +98,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-6 border-t mt-auto">
           <Button 
             variant="ghost" 
-            className="w-full justify-start text-destructive hover:bg-destructive/5 rounded-xl h-12 px-4"
+            className="w-full justify-start text-destructive hover:bg-destructive/5 rounded-xl h-12 px-4 transition-colors"
             onClick={() => { logout(); router.push('/'); }}
           >
             <LogOut className="w-5 h-5 mr-3" />
-            <span className="text-sm font-bold">Logout</span>
+            <span className="text-sm font-bold">Sign Out</span>
           </Button>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Navigation Bar */}
+        {/* Top Header Bar */}
         <header className="h-20 bg-white border-b sticky top-0 z-20 px-8 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-6 flex-1">
             <div className="md:hidden">
@@ -124,24 +120,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="relative w-full max-w-md hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Search analytics, customers, orders..." 
-                className="pl-10 h-11 bg-muted/30 border-none rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+                placeholder="Search database..." 
+                className="pl-10 h-11 bg-muted/30 border-none rounded-xl focus-visible:ring-1 focus-visible:ring-primary transition-all"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary">
+            <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-white"></span>
             </Button>
             
-            <div className="flex items-center gap-3 pl-6 border-l">
+            <div className="flex items-center gap-3 pl-6 border-l ml-4">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-black">{user.displayName || 'Administrator'}</p>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Global Admin</p>
+                <p className="text-sm font-black text-foreground">{user.displayName || 'Administrator'}</p>
+                <p className="text-[10px] text-accent font-black uppercase tracking-widest">System Admin</p>
               </div>
-              <Avatar className="h-10 w-10 border-2 border-primary/10">
+              <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-sm">
                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} />
                 <AvatarFallback><UserIcon /></AvatarFallback>
               </Avatar>
@@ -150,7 +146,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-8 md:p-12">
+        <main className="flex-1 p-8 md:p-12 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

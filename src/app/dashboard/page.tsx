@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +11,8 @@ import {
   Sparkles, 
   LogOut,
   MapPin,
-  Utensils
+  Utensils,
+  Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,42 +30,78 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
-
-// Mock Data
-const ALL_FOODS = [
-  { id: '1', name: 'Paneer Butter Masala', price: 220, category: 'North Indian', rating: 4.8, trending: true, imageURL: 'https://picsum.photos/seed/pbm/600/400' },
-  { id: '2', name: 'Masala Dosa', price: 120, category: 'South Indian', rating: 4.6, trending: true, imageURL: 'https://picsum.photos/seed/dosa/600/400' },
-  { id: '3', name: 'Vada Pav', price: 40, category: 'Street Food', rating: 4.9, trending: true, imageURL: 'https://picsum.photos/seed/vada/600/400' },
-  { id: '4', name: 'Gulab Jamun', price: 80, category: 'Sweets', rating: 4.7, trending: false, imageURL: 'https://picsum.photos/seed/gulab/600/400' },
-  { id: '5', name: 'Butter Chicken', price: 350, category: 'North Indian', rating: 4.9, trending: true, imageURL: 'https://picsum.photos/seed/chicken/600/400' },
-  { id: '6', name: 'Chole Bhature', price: 150, category: 'North Indian', rating: 4.5, trending: false, imageURL: 'https://picsum.photos/seed/chole/600/400' },
-  { id: '7', name: 'Pav Bhaji', price: 110, category: 'Street Food', rating: 4.6, trending: true, imageURL: 'https://picsum.photos/seed/pav/600/400' },
-  { id: '8', name: 'Mango Lassi', price: 90, category: 'Beverages', rating: 4.8, trending: false, imageURL: 'https://picsum.photos/seed/lassi/600/400' },
-];
-
-const CATEGORIES = ['All', 'North Indian', 'South Indian', 'Street Food', 'Fast Food', 'Sweets', 'Beverages'];
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { items, removeFromCart, totalPrice, clearCart } = useCart();
+  const db = useFirestore();
+  
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
+  // Fetch all available foods from Firestore
+  const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
+  const { data: allFoods, isLoading: foodsLoading } = useCollection(foodsQuery);
+
+  // Fetch categories
+  const categoriesQuery = useMemoFirebase(() => collection(db, 'categories'), [db]);
+  const { data: categoriesData } = useCollection(categoriesQuery);
+  const categories = ['All', ...(categoriesData?.map(c => c.name) || [])];
+
   useEffect(() => {
     if (!user) router.push('/login');
   }, [user, router]);
 
+  // Fetch real order history and generate AI recommendations
   useEffect(() => {
-    async function getRecommendations() {
+    async function getPersonalizedRecommendations() {
+      if (!user?.uid || !allFoods || allFoods.length === 0) return;
+      
       setLoadingRecs(true);
       try {
+        // 1. Get the last 5 orders for this user
+        const ordersRef = collection(db, 'orders');
+        const q = query(
+          ordersRef, 
+          where('userId', '==', user.uid), 
+          orderBy('orderDate', 'desc'), 
+          limit(5)
+        );
+        const orderSnap = await getDocs(q);
+        
+        const history: { name: string; category?: string }[] = [];
+        
+        // 2. For each order, get the items to build a history profile
+        for (const orderDoc of orderSnap.docs) {
+          const itemsRef = collection(db, 'orders', orderDoc.id, 'orderItems');
+          const itemsSnap = await getDocs(itemsRef);
+          itemsSnap.forEach(itemDoc => {
+            const itemData = itemDoc.data();
+            history.push({
+              name: itemData.foodName,
+              category: allFoods.find(f => f.id === itemData.foodId)?.category
+            });
+          });
+        }
+
+        // 3. Call AI flow with real history (fall back to trending if no history)
         const result = await personalizedFoodRecommendations({
-          userFoodHistory: [{ name: 'Paneer Butter Masala', category: 'North Indian' }],
-          availableFoods: ALL_FOODS
+          userFoodHistory: history.length > 0 ? history : [],
+          availableFoods: allFoods.map(f => ({
+            id: f.id,
+            name: f.name,
+            price: f.price,
+            category: f.category,
+            rating: f.rating,
+            imageURL: f.imageURL
+          }))
         });
+        
         setRecommendations(result.recommendations);
       } catch (e) {
         console.error("Failed to fetch recommendations", e);
@@ -71,10 +109,13 @@ export default function DashboardPage() {
         setLoadingRecs(false);
       }
     }
-    getRecommendations();
-  }, []);
 
-  const filteredFoods = ALL_FOODS.filter(food => {
+    if (allFoods) {
+      getPersonalizedRecommendations();
+    }
+  }, [user?.uid, allFoods, db]);
+
+  const filteredFoods = (allFoods || []).filter(food => {
     const matchesSearch = food.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || food.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -188,7 +229,7 @@ export default function DashboardPage() {
             What's on your <span className="text-primary italic">mind</span>?
           </h2>
           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <Button
                 key={cat}
                 variant={selectedCategory === cat ? 'default' : 'outline'}
@@ -202,22 +243,31 @@ export default function DashboardPage() {
         </div>
 
         {/* Recommendations Section */}
-        {recommendations.length > 0 && (
-          <div className="mb-16 bg-gradient-to-br from-primary/5 to-accent/5 p-8 rounded-[2.5rem] border border-primary/10">
+        {(recommendations.length > 0 || loadingRecs) && (
+          <div className="mb-16 bg-gradient-to-br from-primary/5 to-accent/5 p-8 rounded-[2.5rem] border border-primary/10 relative overflow-hidden">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-headline font-black flex items-center gap-3">
                   <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-                  AI Recommended for You
+                  Recommended For You
                 </h2>
-                <p className="text-muted-foreground mt-1">Based on your tastes and favorites</p>
+                <p className="text-muted-foreground mt-1">Tailored tastes based on your order history</p>
               </div>
+              {loadingRecs && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
             </div>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {recommendations.map(food => (
                 <FoodCard key={food.id} food={food} />
               ))}
             </div>
+            
+            {!loadingRecs && recommendations.length === 0 && (
+              <div className="py-12 text-center opacity-40">
+                <Utensils className="w-12 h-12 mx-auto mb-4" />
+                <p className="font-bold">Order more to unlock personalized suggestions!</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -226,17 +276,24 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-headline font-black flex items-center gap-3">
               <TrendingUp className="w-8 h-8 text-accent" />
-              Trending Now
+              Popular Dishes
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {filteredFoods.map(food => (
-              <FoodCard key={food.id} food={food} />
-            ))}
-          </div>
+          
+          {foodsLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {filteredFoods.map(food => (
+                <FoodCard key={food.id} food={food} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {filteredFoods.length === 0 && (
+        {!foodsLoading && filteredFoods.length === 0 && (
           <div className="text-center py-20">
             <Utensils className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
             <p className="text-xl text-muted-foreground font-bold">No dishes found matching your search</p>

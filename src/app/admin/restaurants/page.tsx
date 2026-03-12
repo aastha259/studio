@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -12,9 +11,7 @@ import {
   Star, 
   Phone, 
   MapPin, 
-  Loader2,
-  ChevronRight,
-  ExternalLink
+  Loader2
 } from 'lucide-react';
 import { 
   Card, 
@@ -44,7 +41,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 export default function AdminRestaurantsPage() {
   const db = useFirestore();
@@ -74,7 +71,7 @@ export default function AdminRestaurantsPage() {
       address: formData.get('address') as string,
       phone: formData.get('phone') as string,
       email: formData.get('email') as string,
-      imageURL: formData.get('imageURL') as string || `https://picsum.photos/seed/${Date.now()}/600/400`,
+      imageURL: formData.get('imageURL') as string || `https://picsum.photos/seed/restaurant-${Date.now()}/600/400`,
       averageRating: parseFloat(formData.get('rating') as string) || 0,
       totalOrders: 0,
       totalRevenue: 0
@@ -90,7 +87,7 @@ export default function AdminRestaurantsPage() {
   };
 
   const handleDeleteRestaurant = async (id: string) => {
-    if (confirm('Are you sure you want to remove this restaurant partner? All associated data will remain in logs but the restaurant will be unlisted.')) {
+    if (confirm('Are you sure you want to remove this restaurant partner?')) {
       await deleteDoc(doc(db, 'restaurants', id));
     }
   };
@@ -104,7 +101,7 @@ export default function AdminRestaurantsPage() {
             <Store className="w-10 h-10 text-primary" />
             Partner Network
           </h1>
-          <p className="text-muted-foreground font-medium">Manage restaurant locations, performance, and digital menus.</p>
+          <p className="text-muted-foreground font-medium">Manage restaurant locations and performance.</p>
         </div>
         
         <Dialog open={isAddOpen || !!editingRestaurant} onOpenChange={(open) => {
@@ -194,10 +191,9 @@ export default function AdminRestaurantsPage() {
                   <TableRow key={res.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
                     <TableCell className="px-10 py-6">
                       <div className="flex items-center gap-4">
-                        <Avatar className="h-14 w-14 rounded-2xl border-2 border-primary/10 shadow-sm">
-                          <AvatarImage src={res.imageURL} className="object-cover" />
-                          <AvatarFallback className="bg-primary/5 text-primary font-black"><Store /></AvatarFallback>
-                        </Avatar>
+                        <div className="h-16 w-16 rounded-2xl border-2 border-primary/10 shadow-md overflow-hidden bg-muted">
+                          <img src={res.imageURL} className="object-cover w-full h-full" alt={res.name} />
+                        </div>
                         <div className="flex flex-col">
                           <span className="font-black text-lg text-foreground">{res.name}</span>
                           <span className="text-xs text-muted-foreground flex items-center gap-1 font-bold">
@@ -262,7 +258,6 @@ export default function AdminRestaurantsPage() {
                     <div className="flex flex-col items-center opacity-30">
                       <Store className="w-20 h-20 mb-4" />
                       <p className="text-xl font-black italic">No partner restaurants found</p>
-                      <p className="text-sm">Try expanding your search or onboard a new partner.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -284,10 +279,9 @@ export default function AdminRestaurantsPage() {
         <DialogContent className="sm:max-w-[800px] rounded-[2.5rem] p-0 overflow-hidden border-none max-h-[85vh] flex flex-col">
           <div className="bg-primary p-10 text-white relative">
             <div className="flex items-center gap-6">
-              <Avatar className="h-20 w-20 rounded-3xl border-4 border-white/20 shadow-2xl">
-                <AvatarImage src={viewingMenu?.imageURL} className="object-cover" />
-                <AvatarFallback className="bg-white/10 text-white"><Store /></AvatarFallback>
-              </Avatar>
+              <div className="h-24 w-24 rounded-3xl border-4 border-white/20 shadow-2xl overflow-hidden bg-white/10">
+                <img src={viewingMenu?.imageURL} className="object-cover w-full h-full" alt={viewingMenu?.name} />
+              </div>
               <div>
                 <h2 className="text-4xl font-headline font-black leading-tight">{viewingMenu?.name}</h2>
                 <p className="text-white/70 font-bold flex items-center gap-2 mt-1">
@@ -295,14 +289,9 @@ export default function AdminRestaurantsPage() {
                 </p>
               </div>
             </div>
-            <div className="absolute bottom-0 right-10 translate-y-1/2">
-              <Button className="rounded-2xl bg-white text-primary hover:bg-white/90 font-black h-14 px-8 shadow-2xl">
-                <Plus className="w-6 h-6 mr-2" /> Add Menu Item
-              </Button>
-            </div>
           </div>
           
-          <div className="flex-1 p-10 overflow-y-auto pt-16 bg-offwhite/50">
+          <div className="flex-1 p-10 overflow-y-auto bg-offwhite/50">
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b pb-4">
                 <h3 className="text-xl font-headline font-black text-foreground">Digital Menu Catalog</h3>
@@ -315,7 +304,7 @@ export default function AdminRestaurantsPage() {
                 {allFoods?.filter(f => f.restaurantId === viewingMenu?.id).map((food) => (
                   <div key={food.id} className="bg-white border p-4 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted border">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted border shadow-sm">
                         <img src={food.imageURL} alt={food.name} className="object-cover w-full h-full" />
                       </div>
                       <div>
@@ -326,22 +315,8 @@ export default function AdminRestaurantsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-                        <Edit className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
                   </div>
                 ))}
-                {allFoods?.filter(f => f.restaurantId === viewingMenu?.id).length === 0 && (
-                  <div className="col-span-2 py-12 text-center border-2 border-dashed rounded-3xl opacity-30">
-                    <Utensils className="w-12 h-12 mx-auto mb-3" />
-                    <p className="font-bold">This restaurant hasn't uploaded any menu items yet.</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>

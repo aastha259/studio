@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -52,7 +51,6 @@ export default function AdminDatabasePage() {
   const handleBootstrap = async () => {
     setIsBootstrapping(true);
     try {
-      // 1. Define Categories
       const categoryNames = [
         'North Indian', 'South Indian', 'Street Food', 'Fast Food',
         'Chinese', 'Biryani', 'Sweets & Desserts', 'Beverages'
@@ -61,7 +59,6 @@ export default function AdminDatabasePage() {
       const categoryMap: Record<string, string> = {};
       
       for (const name of categoryNames) {
-        // Check if category already exists
         const q = query(collection(db, 'categories'), where('name', '==', name));
         const snap = await getDocs(q);
         
@@ -76,28 +73,26 @@ export default function AdminDatabasePage() {
         }
       }
 
-      // 2. Define Sample Foods
       const sampleFoods = [
-        { name: 'Paneer Butter Masala', price: 280, cat: 'North Indian', desc: 'Creamy tomato gravy with soft cottage cheese cubes.', seed: '10', trending: true },
-        { name: 'Masala Dosa', price: 120, cat: 'South Indian', desc: 'Crispy fermented crepe with spicy potato masala filling.', seed: '11', trending: true },
-        { name: 'Chole Bhature', price: 150, cat: 'Street Food', desc: 'Spicy chickpea curry served with fluffy deep-fried leavened bread.', seed: '12', trending: false },
-        { name: 'Butter Chicken', price: 350, cat: 'North Indian', desc: 'Classic tandoori chicken simmered in a rich makhani gravy.', seed: '13', trending: true },
-        { name: 'Veg Biryani', price: 220, cat: 'Biryani', desc: 'Fragrant long-grain basmati rice cooked with garden-fresh vegetables.', seed: '14', trending: false },
-        { name: 'Chicken Biryani', price: 320, cat: 'Biryani', desc: 'Authentic Hyderabadi style slow-cooked chicken and rice.', seed: '15', trending: true },
-        { name: 'Pani Puri', price: 60, cat: 'Street Food', desc: 'Tangy and spicy flavored water filled in crispy wheat puris.', seed: '16', trending: true },
-        { name: 'Samosa', price: 40, cat: 'Street Food', desc: 'Triangular pastry filled with spiced potatoes and green peas.', seed: '17', trending: false },
-        { name: 'Pav Bhaji', price: 140, cat: 'Street Food', desc: 'Spicy mashed vegetable curry served with butter-toasted buns.', seed: '18', trending: true },
-        { name: 'Vada Pav', price: 50, cat: 'Street Food', desc: 'The iconic Mumbai spicy potato fritter burger.', seed: '19', trending: false },
-        { name: 'Margherita Pizza', price: 250, cat: 'Fast Food', desc: 'Classic sourdough base topped with fresh mozzarella and basil.', seed: '20', trending: false },
-        { name: 'Hakka Noodles', price: 180, cat: 'Chinese', desc: 'Wok-tossed stir-fried noodles with crunchy vegetables.', seed: '21', trending: false },
-        { name: 'Gulab Jamun', price: 80, cat: 'Sweets & Desserts', desc: 'Deep-fried milk solids balls soaked in rose-flavored sugar syrup.', seed: '22', trending: false },
-        { name: 'Rasgulla', price: 70, cat: 'Sweets & Desserts', desc: 'Soft and spongy cottage cheese balls in light sugar syrup.', seed: '23', trending: false },
-        { name: 'Cold Coffee', price: 100, cat: 'Beverages', desc: 'Rich and creamy chilled coffee topped with chocolate syrup.', seed: '24', trending: false },
-        { name: 'Mango Lassi', price: 90, cat: 'Beverages', desc: 'Smooth and refreshing traditional yogurt drink with Alphonso mango.', seed: '25', trending: false },
+        { name: 'Paneer Butter Masala', price: 280, cat: 'North Indian', desc: 'Creamy tomato gravy with soft cottage cheese cubes.', seed: 'paneer-butter', trending: true },
+        { name: 'Masala Dosa', price: 120, cat: 'South Indian', desc: 'Crispy fermented crepe with spicy potato masala filling.', seed: 'dosa-plate', trending: true },
+        { name: 'Chole Bhature', price: 150, cat: 'Street Food', desc: 'Spicy chickpea curry served with fluffy deep-fried leavened bread.', seed: 'chole-bhature', trending: false },
+        { name: 'Butter Chicken', price: 350, cat: 'North Indian', desc: 'Classic tandoori chicken simmered in a rich makhani gravy.', seed: 'butter-chicken', trending: true },
+        { name: 'Veg Biryani', price: 220, cat: 'Biryani', desc: 'Fragrant long-grain basmati rice cooked with garden-fresh vegetables.', seed: 'veg-biryani', trending: false },
+        { name: 'Chicken Biryani', price: 320, cat: 'Biryani', desc: 'Authentic Hyderabadi style slow-cooked chicken and rice.', seed: 'chicken-biryani', trending: true },
+        { name: 'Pani Puri', price: 60, cat: 'Street Food', desc: 'Tangy and spicy flavored water filled in crispy wheat puris.', seed: 'pani-puri', trending: true },
+        { name: 'Samosa', price: 40, cat: 'Street Food', desc: 'Triangular pastry filled with spiced potatoes and green peas.', seed: 'samosa-dish', trending: false },
+        { name: 'Pav Bhaji', price: 140, cat: 'Street Food', desc: 'Spicy mashed vegetable curry served with butter-toasted buns.', seed: 'pav-bhaji', trending: true },
+        { name: 'Vada Pav', price: 50, cat: 'Street Food', desc: 'The iconic Mumbai spicy potato fritter burger.', seed: 'vada-pav', trending: false },
+        { name: 'Margherita Pizza', price: 250, cat: 'Fast Food', desc: 'Classic sourdough base topped with fresh mozzarella and basil.', seed: 'margherita', trending: false },
+        { name: 'Hakka Noodles', price: 180, cat: 'Chinese', desc: 'Wok-tossed stir-fried noodles with crunchy vegetables.', seed: 'noodles-wok', trending: false },
+        { name: 'Gulab Jamun', price: 80, cat: 'Sweets & Desserts', desc: 'Deep-fried milk solids balls soaked in rose-flavored sugar syrup.', seed: 'gulab-jamun', trending: false },
+        { name: 'Rasgulla', price: 70, cat: 'Sweets & Desserts', desc: 'Soft and spongy cottage cheese balls in light sugar syrup.', seed: 'rasgulla', trending: false },
+        { name: 'Cold Coffee', price: 100, cat: 'Beverages', desc: 'Rich and creamy chilled coffee topped with chocolate syrup.', seed: 'cold-coffee', trending: false },
+        { name: 'Mango Lassi', price: 90, cat: 'Beverages', desc: 'Smooth and refreshing traditional yogurt drink with Alphonso mango.', seed: 'mango-lassi', trending: false },
       ];
 
       for (const item of sampleFoods) {
-        // Check if food already exists
         const q = query(collection(db, 'foods'), where('name', '==', item.name));
         const snap = await getDocs(q);
         
@@ -108,7 +103,7 @@ export default function AdminDatabasePage() {
             description: item.desc,
             categoryId: categoryMap[item.cat],
             restaurantId: restaurants?.[0]?.id || 'admin-root',
-            imageURL: `https://picsum.photos/seed/food-${item.seed}/600/400`,
+            imageURL: `https://picsum.photos/seed/${item.seed}/800/600`,
             rating: parseFloat((4.2 + Math.random() * 0.7).toFixed(1)),
             trending: item.trending,
             totalOrders: Math.floor(Math.random() * 50),
@@ -119,7 +114,7 @@ export default function AdminDatabasePage() {
 
       toast({
         title: "Database Initialized",
-        description: "Signature dishes and categories have been added to the system."
+        description: "Signature dishes and categories have been added with high-quality visuals."
       });
     } catch (e: any) {
       toast({
@@ -141,7 +136,7 @@ export default function AdminDatabasePage() {
       categoryId: formData.get('categoryId') as string,
       restaurantId: restaurants?.[0]?.id || 'admin-root',
       description: formData.get('description') as string,
-      imageURL: `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/600/400`,
+      imageURL: `https://picsum.photos/seed/${Math.floor(Math.random() * 10000)}/800/600`,
       rating: 4.5,
       trending: formData.get('trending') === 'on',
       totalOrders: 0,
@@ -265,7 +260,7 @@ export default function AdminDatabasePage() {
                   <TableRow key={food.id} className="hover:bg-muted/5 transition-colors">
                     <TableCell className="p-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border bg-muted shrink-0">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border bg-muted shrink-0 shadow-sm">
                           <img src={food.imageURL} alt={food.name} className="object-cover w-full h-full" />
                         </div>
                         <span className="font-bold">{food.name}</span>

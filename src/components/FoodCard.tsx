@@ -3,11 +3,13 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Star, Plus, Leaf, Beef } from 'lucide-react';
+import { Star, ShoppingCart, Leaf, Beef } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/lib/contexts/cart-context';
+import { useAuth } from '@/lib/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 interface FoodCardProps {
@@ -26,6 +28,17 @@ interface FoodCardProps {
 
 export default function FoodCard({ food }: FoodCardProps) {
   const { addToCart } = useCart();
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleOrderNow = () => {
+    if (!user) {
+      // Preserve the current path to return to after login
+      router.push('/login?callbackUrl=/menu');
+      return;
+    }
+    addToCart(food);
+  };
 
   return (
     <div className="group h-full">
@@ -82,18 +95,18 @@ export default function FoodCard({ food }: FoodCardProps) {
           )}
 
           {/* Footer Section */}
-          <div className="mt-auto pt-4 border-t border-dashed border-muted flex items-center justify-between">
+          <div className="mt-auto pt-4 border-t border-dashed border-muted flex items-center justify-between gap-4">
             <div className="flex flex-col">
               <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5 opacity-60">Price</span>
               <span className="text-2xl font-headline font-black text-foreground">₹{food.price}</span>
             </div>
             
             <Button 
-              size="icon" 
-              onClick={() => addToCart(food)}
-              className="rounded-2xl w-12 h-12 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all hover:scale-110 active:scale-95 group/btn"
+              onClick={handleOrderNow}
+              className="flex-1 rounded-2xl h-12 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.05] active:scale-95 group/btn"
             >
-              <Plus className="w-6 h-6 transition-transform group-hover/btn:rotate-90" />
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Order Now
             </Button>
           </div>
         </div>

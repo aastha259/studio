@@ -25,7 +25,8 @@ import {
   X,
   Star,
   Leaf,
-  LayoutDashboard
+  LayoutDashboard,
+  User as UserIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -89,14 +90,13 @@ export default function MenuPage() {
   }, [db]);
   const { data: trendingFoods } = useCollection(trendingQuery);
 
-  useEffect(() => {
-    if (!user) router.push('/login');
-  }, [user, router]);
-
   // AI Recommendations
   useEffect(() => {
     async function getPersonalizedRecommendations() {
-      if (!user?.uid || !allFoods || allFoods.length === 0) return;
+      if (!user?.uid || !allFoods || allFoods.length === 0) {
+        setRecommendations([]);
+        return;
+      }
       
       setLoadingRecs(true);
       try {
@@ -166,14 +166,12 @@ export default function MenuPage() {
     setSelectedCategory('All');
   };
 
-  if (!user) return null;
-
   return (
     <div className="min-h-screen bg-background selection:bg-primary selection:text-white">
       {/* Navigation Header */}
       <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <Link href="/dashboard" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105">
               <ChefHat className="text-white w-6 h-6" />
             </div>
@@ -181,10 +179,12 @@ export default function MenuPage() {
           </Link>
 
           <div className="flex-1 max-w-xl flex gap-4">
-            <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3">
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </Link>
+            {user && (
+              <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3">
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </Link>
+            )}
             <Link href="/menu" className="flex items-center gap-2 text-sm font-black text-primary transition-colors px-3 border-b-2 border-primary">
               <Utensils className="w-4 h-4" />
               Menu
@@ -202,71 +202,80 @@ export default function MenuPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5">
-                  <ShoppingCart className="w-6 h-6" />
-                  {items.length > 0 && (
-                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-background animate-in zoom-in">
-                      {items.reduce((acc, i) => acc + i.quantity, 0)}
-                    </span>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem] border-none">
-                <SheetHeader className="pb-6 border-b">
-                  <SheetTitle className="text-2xl font-headline flex items-center gap-2">
-                    <ShoppingCart className="w-6 h-6 text-primary" />
-                    Your Basket
-                  </SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="flex-1 py-6">
-                  {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center opacity-40 py-20">
-                      <Utensils className="w-20 h-20 mb-4" />
-                      <p className="font-bold text-lg">Empty Basket</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-center animate-in slide-in-from-right-4">
-                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-muted relative border shadow-sm">
-                            <img src={item.imageURL} alt={item.name} className="object-cover w-full h-full" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-bold text-sm">{item.name}</h4>
-                            <p className="text-primary font-black">₹{item.price}</p>
-                            <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">Qty: {item.quantity}</span>
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-destructive hover:bg-destructive/5 font-bold">Remove</Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-                {items.length > 0 && (
-                  <SheetFooter className="pt-6 border-t flex-col sm:flex-col gap-4">
-                    <div className="flex justify-between items-center w-full">
-                      <span className="text-lg font-bold">Subtotal</span>
-                      <span className="text-2xl font-headline font-black text-primary">₹{totalPrice}</span>
-                    </div>
-                    <Button 
-                      className="w-full h-14 bg-primary text-lg font-black rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform"
-                      onClick={() => {
-                        alert("Bhartiya Swad: Order Placed Successfully!");
-                        clearCart();
-                      }}
-                    >
-                      Place Order
+            {user ? (
+              <>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5">
+                      <ShoppingCart className="w-6 h-6" />
+                      {items.length > 0 && (
+                        <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-background animate-in zoom-in">
+                          {items.reduce((acc, i) => acc + i.quantity, 0)}
+                        </span>
+                      )}
                     </Button>
-                  </SheetFooter>
-                )}
-              </SheetContent>
-            </Sheet>
-
-            <Button variant="ghost" size="icon" onClick={() => logout()} className="rounded-full hover:bg-destructive/5 hover:text-destructive">
-              <LogOut className="w-5 h-5" />
-            </Button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem] border-none">
+                    <SheetHeader className="pb-6 border-b">
+                      <SheetTitle className="text-2xl font-headline flex items-center gap-2">
+                        <ShoppingCart className="w-6 h-6 text-primary" />
+                        Your Basket
+                      </SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="flex-1 py-6">
+                      {items.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center opacity-40 py-20">
+                          <Utensils className="w-20 h-20 mb-4" />
+                          <p className="font-bold text-lg">Empty Basket</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {items.map((item) => (
+                            <div key={item.id} className="flex gap-4 items-center animate-in slide-in-from-right-4">
+                              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-muted relative border shadow-sm">
+                                <img src={item.imageURL} alt={item.name} className="object-cover w-full h-full" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-sm">{item.name}</h4>
+                                <p className="text-primary font-black">₹{item.price}</p>
+                                <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">Qty: {item.quantity}</span>
+                              </div>
+                              <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-destructive hover:bg-destructive/5 font-bold">Remove</Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                    {items.length > 0 && (
+                      <SheetFooter className="pt-6 border-t flex-col sm:flex-col gap-4">
+                        <div className="flex justify-between items-center w-full">
+                          <span className="text-lg font-bold">Subtotal</span>
+                          <span className="text-2xl font-headline font-black text-primary">₹{totalPrice}</span>
+                        </div>
+                        <Button 
+                          className="w-full h-14 bg-primary text-lg font-black rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform"
+                          onClick={() => {
+                            alert("Bhartiya Swad: Order Placed Successfully!");
+                            clearCart();
+                          }}
+                        >
+                          Place Order
+                        </Button>
+                      </SheetFooter>
+                    )}
+                  </SheetContent>
+                </Sheet>
+                <Button variant="ghost" size="icon" onClick={() => logout()} className="rounded-full hover:bg-destructive/5 hover:text-destructive">
+                  <LogOut className="w-5 h-5" />
+                </Button>
+              </>
+            ) : (
+              <Link href="/login?callbackUrl=/menu">
+                <Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90">
+                  Login to Order
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </nav>
@@ -294,8 +303,8 @@ export default function MenuPage() {
           </section>
         )}
 
-        {/* 2. Recommended For You Section */}
-        {(recommendations.length > 0 || loadingRecs) && (
+        {/* 2. Recommended For You Section (Only if logged in) */}
+        {user && (recommendations.length > 0 || loadingRecs) && (
           <section className="bg-gradient-to-br from-primary/5 to-accent/5 p-12 rounded-[3rem] border border-primary/10 relative overflow-hidden animate-in fade-in duration-1000">
             <div className="flex items-center justify-between mb-10">
               <div>
@@ -481,7 +490,8 @@ export default function MenuPage() {
           <p className="text-muted-foreground font-medium mb-8 max-w-md mx-auto">Bringing the authentic taste of Indian heritage to your modern lifestyle.</p>
           <div className="flex justify-center gap-8 text-sm font-bold text-muted-foreground">
             <Link href="/menu" className="hover:text-primary">Menu</Link>
-            <Link href="/dashboard" className="hover:text-primary">Dashboard</Link>
+            {user && <Link href="/dashboard" className="hover:text-primary">Dashboard</Link>}
+            {!user && <Link href="/login" className="hover:text-primary">Login</Link>}
             <Link href="#" className="hover:text-primary">Privacy Policy</Link>
             <Link href="#" className="hover:text-primary">Terms of Service</Link>
           </div>

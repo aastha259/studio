@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react';
@@ -19,11 +20,14 @@ export default function LandingPage() {
           <span className="font-headline text-2xl font-bold tracking-tight">Bhartiya Swad</span>
         </div>
         <div className="flex gap-4">
+          <Link href="/menu">
+            <Button variant="ghost" className="font-bold text-primary hover:bg-primary/5">Explore Menu</Button>
+          </Link>
           <Link href="/login">
             <Button variant="ghost" className="font-medium">Login</Button>
           </Link>
           <Link href="/login">
-            <Button className="bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20">Sign Up</Button>
+            <Button className="bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20 font-bold px-6">Sign Up</Button>
           </Link>
         </div>
       </header>
@@ -38,20 +42,22 @@ export default function LandingPage() {
           Taste of <span className="text-primary italic">India</span> at Your <span className="text-accent underline decoration-4 underline-offset-8">Doorstep</span>
         </h1>
         
-        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed font-medium">
           Bhartiya Swad brings you the most authentic flavors from the streets of Mumbai to the heart of Delhi. Authentic, Fresh, and Delivered Fast.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
           <Link href="/login">
-            <Button size="lg" className="h-16 px-10 text-lg rounded-full shadow-2xl shadow-primary/40 bg-primary hover:bg-primary/90 group">
-              Order Now 
+            <Button size="lg" className="h-16 px-10 text-lg rounded-full shadow-2xl shadow-primary/40 bg-primary hover:bg-primary/90 group font-black">
+              Start Your Order 
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
-          <Button size="lg" variant="outline" className="h-16 px-10 text-lg rounded-full backdrop-blur-sm border-2">
-            View Menu
-          </Button>
+          <Link href="/menu">
+            <Button size="lg" variant="outline" className="h-16 px-10 text-lg rounded-full backdrop-blur-sm border-2 font-black hover:bg-white hover:text-primary transition-all">
+              View Menu
+            </Button>
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-24">
@@ -71,8 +77,8 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <footer className="fixed bottom-6 text-sm text-muted-foreground/60 font-medium">
-        © 2025 Bhartiya Swad. Made with ❤️ for Indian Food Lovers.
+      <footer className="fixed bottom-6 text-sm text-muted-foreground/60 font-black uppercase tracking-[0.2em]">
+        © 2025 Bhartiya Swad. Pure Indian Taste.
       </footer>
     </div>
   );

@@ -7,18 +7,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Plus, Search, Database } from 'lucide-react';
+import { Trash2, Plus, Search, Database, Sparkles, Loader2 } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc, updateDoc, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminDatabasePage() {
   const db = useFirestore();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
 
   const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
   const { data: foods } = useCollection(foodsQuery);
@@ -32,12 +35,10 @@ export default function AdminDatabasePage() {
   const categoriesQuery = useMemoFirebase(() => collection(db, 'categories'), [db]);
   const { data: categories } = useCollection(categoriesQuery);
 
-  const ordersQuery = useMemoFirebase(() => collection(db, 'orders'), [db]);
-  const { data: orders } = useCollection(ordersQuery);
-
   const handleDelete = async (collName: string, id: string) => {
     if (confirm(`Are you sure you want to delete this document from ${collName}?`)) {
       await deleteDoc(doc(db, collName, id));
+      toast({ title: "Deleted", description: "Document removed successfully." });
     }
   };
 
@@ -45,6 +46,89 @@ export default function AdminDatabasePage() {
     const price = parseFloat(newPrice);
     if (!isNaN(price)) {
       await updateDoc(doc(db, 'foods', id), { price });
+    }
+  };
+
+  const handleBootstrap = async () => {
+    setIsBootstrapping(true);
+    try {
+      // 1. Define Categories
+      const categoryNames = [
+        'North Indian', 'South Indian', 'Street Food', 'Fast Food',
+        'Chinese', 'Biryani', 'Sweets & Desserts', 'Beverages'
+      ];
+      
+      const categoryMap: Record<string, string> = {};
+      
+      for (const name of categoryNames) {
+        // Check if category already exists
+        const q = query(collection(db, 'categories'), where('name', '==', name));
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+          const docRef = await addDoc(collection(db, 'categories'), {
+            name,
+            description: `Authentic ${name} dishes from across India.`
+          });
+          categoryMap[name] = docRef.id;
+        } else {
+          categoryMap[name] = snap.docs[0].id;
+        }
+      }
+
+      // 2. Define Sample Foods
+      const sampleFoods = [
+        { name: 'Paneer Butter Masala', price: 280, cat: 'North Indian', desc: 'Creamy tomato gravy with soft cottage cheese cubes.', seed: '10' },
+        { name: 'Masala Dosa', price: 120, cat: 'South Indian', desc: 'Crispy fermented crepe with spicy potato masala filling.', seed: '11' },
+        { name: 'Chole Bhature', price: 150, cat: 'Street Food', desc: 'Spicy chickpea curry served with fluffy deep-fried leavened bread.', seed: '12' },
+        { name: 'Butter Chicken', price: 350, cat: 'North Indian', desc: 'Classic tandoori chicken simmered in a rich makhani gravy.', seed: '13' },
+        { name: 'Veg Biryani', price: 220, cat: 'Biryani', desc: 'Fragrant long-grain basmati rice cooked with garden-fresh vegetables.', seed: '14' },
+        { name: 'Chicken Biryani', price: 320, cat: 'Biryani', desc: 'Authentic Hyderabadi style slow-cooked chicken and rice.', seed: '15' },
+        { name: 'Pani Puri', price: 60, cat: 'Street Food', desc: 'Tangy and spicy flavored water filled in crispy wheat puris.', seed: '16' },
+        { name: 'Samosa', price: 40, cat: 'Street Food', desc: 'Triangular pastry filled with spiced potatoes and green peas.', seed: '17' },
+        { name: 'Pav Bhaji', price: 140, cat: 'Street Food', desc: 'Spicy mashed vegetable curry served with butter-toasted buns.', seed: '18' },
+        { name: 'Vada Pav', price: 50, cat: 'Street Food', desc: 'The iconic Mumbai spicy potato fritter burger.', seed: '19' },
+        { name: 'Margherita Pizza', price: 250, cat: 'Fast Food', desc: 'Classic sourdough base topped with fresh mozzarella and basil.', seed: '20' },
+        { name: 'Hakka Noodles', price: 180, cat: 'Chinese', desc: 'Wok-tossed stir-fried noodles with crunchy vegetables.', seed: '21' },
+        { name: 'Gulab Jamun', price: 80, cat: 'Sweets & Desserts', desc: 'Deep-fried milk solids balls soaked in rose-flavored sugar syrup.', seed: '22' },
+        { name: 'Rasgulla', price: 70, cat: 'Sweets & Desserts', desc: 'Soft and spongy cottage cheese balls in light sugar syrup.', seed: '23' },
+        { name: 'Cold Coffee', price: 100, cat: 'Beverages', desc: 'Rich and creamy chilled coffee topped with chocolate syrup.', seed: '24' },
+        { name: 'Mango Lassi', price: 90, cat: 'Beverages', desc: 'Smooth and refreshing traditional yogurt drink with Alphonso mango.', seed: '25' },
+      ];
+
+      for (const item of sampleFoods) {
+        // Check if food already exists
+        const q = query(collection(db, 'foods'), where('name', '==', item.name));
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+          await addDoc(collection(db, 'foods'), {
+            name: item.name,
+            price: item.price,
+            description: item.desc,
+            categoryId: categoryMap[item.cat],
+            restaurantId: restaurants?.[0]?.id || 'admin-root',
+            imageURL: `https://picsum.photos/seed/food-${item.seed}/600/400`,
+            rating: parseFloat((4.2 + Math.random() * 0.7).toFixed(1)),
+            trending: Math.random() > 0.7,
+            totalOrders: Math.floor(Math.random() * 50),
+            totalRevenue: 0
+          });
+        }
+      }
+
+      toast({
+        title: "Database Initialized",
+        description: "Signature dishes and categories have been added to the system."
+      });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Bootstrap Failed",
+        description: e.message
+      });
+    } finally {
+      setIsBootstrapping(false);
     }
   };
 
@@ -65,6 +149,7 @@ export default function AdminDatabasePage() {
     };
     await addDoc(collection(db, 'foods'), newFood);
     setIsAddFoodOpen(false);
+    toast({ title: "Item Added", description: `${newFood.name} is now live.` });
   };
 
   const handleAddCategory = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -76,6 +161,7 @@ export default function AdminDatabasePage() {
     };
     await addDoc(collection(db, 'categories'), newCat);
     setIsAddCategoryOpen(false);
+    toast({ title: "Category Created", description: `${newCat.name} is now available.` });
   };
 
   return (
@@ -88,14 +174,25 @@ export default function AdminDatabasePage() {
           </h1>
           <p className="text-muted-foreground">Direct administrative access to all system data.</p>
         </div>
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Filter collection..." 
-            className="pl-10 h-11 bg-white rounded-xl border shadow-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <Button 
+            variant="outline" 
+            onClick={handleBootstrap} 
+            disabled={isBootstrapping}
+            className="rounded-xl border-primary text-primary hover:bg-primary/5 font-bold h-11"
+          >
+            {isBootstrapping ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Bootstrap Menu
+          </Button>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Filter collection..." 
+              className="pl-10 h-11 bg-white rounded-xl border shadow-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -166,7 +263,14 @@ export default function AdminDatabasePage() {
               <TableBody>
                 {foods?.filter(f => f.name.toLowerCase().includes(search.toLowerCase())).map((food) => (
                   <TableRow key={food.id} className="hover:bg-muted/5 transition-colors">
-                    <TableCell className="p-6 font-bold">{food.name}</TableCell>
+                    <TableCell className="p-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border bg-muted shrink-0">
+                          <img src={food.imageURL} alt={food.name} className="object-cover w-full h-full" />
+                        </div>
+                        <span className="font-bold">{food.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="rounded-full">
                         {categories?.find(c => c.id === food.categoryId)?.name || 'Misc'}

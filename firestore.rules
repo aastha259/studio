@@ -20,9 +20,17 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // DISHES: Publicly viewable menu items. 
+    // Allowing create for prototype seeding purposes, but restricted to admins for updates/deletes.
+    match /dishes/{dishId} {
+      allow read, create: if true;
+      allow update, delete: if isAdmin();
+    }
+
     // User Profiles: Owners can manage their data, admins can see all
     match /users/{userId} {
-      allow get, list: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
@@ -46,13 +54,6 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Dishes: Publicly viewable menu items, editable only by admins
-    // This allows unauthenticated users to browse the menu
-    match /dishes/{dishId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
     // Orders: Users can only see their own orders, admins see everything
     match /orders/{orderId} {
       allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
@@ -69,4 +70,3 @@ service cloud.firestore {
     }
   }
 }
-// Deployment trigger: Ensure dishes collection is publicly accessible for menu browsing.

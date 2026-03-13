@@ -52,7 +52,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { seedMenuData } from '@/app/admin/database/page';
+import { seedMenuData, CATEGORIES_DATA } from '@/app/admin/database/page';
 import { useToast } from '@/hooks/use-toast';
 
 const categoriesConfig = [
@@ -75,7 +75,7 @@ const categoriesConfig = [
 
 export default function MenuPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const { items, removeFromCart, totalPrice, clearCart } = useCart();
   const db = useFirestore();
   const { toast } = useToast();
@@ -99,15 +99,15 @@ export default function MenuPage() {
 
   // Fetch all available dishes
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
-  const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
+  const { data: allDishes, isLoading: dishesLoading, error: dishesError } = useCollection(dishesQuery);
 
-  // Auto-seed if database is empty
+  // Auto-seed if database is empty and we're not loading anymore
   useEffect(() => {
-    if (mounted && !dishesLoading && allDishes && allDishes.length === 0 && !isSeeding) {
+    if (mounted && !dishesLoading && !dishesError && allDishes && allDishes.length === 0 && !isSeeding) {
       setIsSeeding(true);
       seedMenuData(db, null).finally(() => setIsSeeding(false));
     }
-  }, [allDishes, dishesLoading, db, mounted, isSeeding]);
+  }, [allDishes, dishesLoading, dishesError, db, mounted, isSeeding]);
 
   // Trending items based on totalOrders frequency
   const trendingQuery = useMemoFirebase(() => {
@@ -165,8 +165,8 @@ export default function MenuPage() {
         setLoadingRecs(false);
       }
     }
-    if (allDishes && user) getPersonalizedRecommendations();
-  }, [user?.uid, allDishes, db]);
+    if (mounted && allDishes && user) getPersonalizedRecommendations();
+  }, [user?.uid, allDishes, db, mounted]);
 
   // Filtering Logic
   const filteredDishes = useMemo(() => {
@@ -191,6 +191,8 @@ export default function MenuPage() {
     setSelectedCategory('All');
   };
 
+  if (!mounted) return null;
+
   return (
     <div className="min-h-screen bg-background selection:bg-primary selection:text-white" suppressHydrationWarning>
       <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b px-6 py-4">
@@ -203,7 +205,7 @@ export default function MenuPage() {
           </Link>
 
           <div className="flex-1 max-w-xl flex gap-4">
-            {mounted && user && (
+            {user && (
               <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3">
                 <LayoutDashboard className="w-4 h-4" />
                 Dashboard
@@ -226,9 +228,7 @@ export default function MenuPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {!mounted ? (
-              <div className="w-10 h-10" />
-            ) : user ? (
+            {user ? (
               <>
                 <Sheet>
                   <SheetTrigger asChild>
@@ -297,14 +297,14 @@ export default function MenuPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-24">
-        {isSeeding && (
+        {(isSeeding || dishesLoading) && (
           <div className="flex items-center justify-center gap-4 p-8 bg-primary/10 rounded-3xl animate-pulse">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="font-black text-primary">Initializing Restaurant Database (Adding 200+ dishes)...</p>
+            <p className="font-black text-primary">{dishesLoading ? 'Loading Dishes...' : 'Initializing Menu Repository (200+ dishes)...'}</p>
           </div>
         )}
 
-        {trendingDishes && trendingDishes.length > 0 && !isSeeding && (
+        {trendingDishes && trendingDishes.length > 0 && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <h2 className="text-4xl font-headline font-black mb-8 flex items-center gap-3">
               <Flame className="w-10 h-10 text-accent animate-bounce" />
@@ -318,7 +318,7 @@ export default function MenuPage() {
           </section>
         )}
 
-        {mounted && user && (recommendations.length > 0 || loadingRecs) && !isSeeding && (
+        {user && recommendations.length > 0 && (
           <section className="bg-gradient-to-br from-primary/5 to-accent/5 p-12 rounded-[3rem] border border-primary/10 animate-in fade-in duration-1000">
             <h2 className="text-4xl font-headline font-black mb-10 flex items-center gap-4">
               <Sparkles className="w-10 h-10 text-primary animate-pulse" />
@@ -393,21 +393,20 @@ export default function MenuPage() {
 
         <section id="full-menu" className="pt-12 border-t border-dashed">
           <h3 className="text-3xl font-headline font-black mb-12">Complete Menu</h3>
-          {dishesLoading ? (
-            <div className="flex flex-col items-center justify-center py-32 gap-4"><Loader2 className="w-12 h-12 animate-spin text-primary" /><p className="font-bold text-muted-foreground">Loading dishes...</p></div>
-          ) : (
+          {filteredDishes.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
               {filteredDishes.map(dish => (
                 <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />
               ))}
             </div>
-          )}
-          {!dishesLoading && filteredDishes.length === 0 && (
-            <div className="text-center py-40 bg-muted/20 rounded-[3rem] border-2 border-dashed border-muted flex flex-col items-center">
-              <UtensilsCrossed className="w-24 h-24 mb-6 text-muted-foreground opacity-20" />
-              <p className="text-3xl text-foreground font-black">No matches found</p>
-              <Button variant="outline" className="mt-10 rounded-2xl h-14 px-8 font-black border-primary text-primary" onClick={resetFilters}>Reset Filters</Button>
-            </div>
+          ) : (
+            !dishesLoading && (
+              <div className="text-center py-40 bg-muted/20 rounded-[3rem] border-2 border-dashed border-muted flex flex-col items-center">
+                <UtensilsCrossed className="w-24 h-24 mb-6 text-muted-foreground opacity-20" />
+                <p className="text-3xl text-foreground font-black">No matches found</p>
+                <Button variant="outline" className="mt-10 rounded-2xl h-14 px-8 font-black border-primary text-primary" onClick={resetFilters}>Reset Filters</Button>
+              </div>
+            )
           )}
         </section>
       </main>

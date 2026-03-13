@@ -3,7 +3,6 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-const CATEGORIES_DATA = [
+export const CATEGORIES_DATA = [
   { name: 'Pizza', search: 'pizza' },
   { name: 'Burgers', search: 'burger' },
   { name: 'Biryani', search: 'biryani' },
@@ -34,7 +33,7 @@ const CATEGORIES_DATA = [
 ];
 
 const DISH_TEMPLATES: Record<string, string[]> = {
-  'Pizza': ['Margherita', 'Farmhouse', 'Paneer Tikka', 'Veggie Delight', 'Cheese Burst', 'Classic Veg', 'Double Cheese', 'Corn & Cheese', 'Capsicum Special', 'Mushroom Lovers', 'Onion Ring', 'Garden Fresh', 'Spicy Paneer', 'Ultimate Veg', 'Double Paneer'],
+  'Pizza': ['Margherita Pizza', 'Farmhouse Pizza', 'Paneer Tikka Pizza', 'Veggie Delight Pizza', 'Cheese Burst Pizza', 'Classic Veg Pizza', 'Double Cheese Pizza', 'Corn & Cheese Pizza', 'Capsicum Special Pizza', 'Mushroom Lovers Pizza', 'Garden Fresh Pizza', 'Spicy Paneer Pizza', 'Ultimate Veg Pizza', 'Double Paneer Pizza', 'Saffron Special Pizza'],
   'Biryani': ['Hyderabadi Veg Biryani', 'Paneer Dum Biryani', 'Mushroom Biryani', 'Kolkata Style Veg Biryani', 'Lucknowi Tarkari Biryani', 'Subz-e-Biryani', 'Veg Pulao Special', 'Jackfruit Biryani', 'Soya Biryani', 'Mixed Bean Biryani', 'Kashmiri Veg Biryani', 'Ambur Veg Biryani', 'Thalassery Veg Biryani', 'Sindhi Veg Biryani', 'Malabar Veg Biryani'],
   'North Indian': ['Paneer Butter Masala', 'Dal Makhani', 'Shahi Paneer', 'Malai Kofta', 'Mix Veg', 'Palak Paneer', 'Chole Masala', 'Kadai Paneer', 'Jeera Aloo', 'Aloo Gobi', 'Baingan Bharta', 'Navratan Korma', 'Dum Aloo', 'Matar Paneer', 'Kadai Vegetable'],
   'South Indian': ['Masala Dosa', 'Idli Sambhar', 'Medu Vada', 'Uttapam', 'Rava Dosa', 'Onion Dosa', 'Paper Plain Dosa', 'Ghee Roast Dosa', 'Paniyaram', 'Lemon Rice', 'Curd Rice', 'Appam', 'Upma', 'Ven Pongal', 'Bisi Bele Bath'],
@@ -67,7 +66,8 @@ export async function seedMenuData(db: any, toast: any) {
           rating: parseFloat((4.0 + Math.random() * 0.9).toFixed(1)),
           isVeg: !name.toLowerCase().includes('chicken') && !name.toLowerCase().includes('mutton'),
           createdAt: new Date().toISOString(),
-          totalOrders: Math.floor(Math.random() * 500)
+          totalOrders: Math.floor(Math.random() * 500),
+          totalRevenue: 0
         });
         totalCreated++;
       }
@@ -119,7 +119,8 @@ export default function AdminDatabasePage() {
       rating: 4.5,
       isVeg: formData.get('isVeg') === 'on',
       createdAt: new Date().toISOString(),
-      totalOrders: 0
+      totalOrders: 0,
+      totalRevenue: 0
     };
     await addDoc(collection(db, 'dishes'), newDish);
     setIsAddDishOpen(false);
@@ -134,7 +135,7 @@ export default function AdminDatabasePage() {
             <Database className="w-10 h-10 text-primary" />
             Dish Repository
           </h1>
-          <p className="text-muted-foreground font-medium">Manage and seed your 500+ dish database here.</p>
+          <p className="text-muted-foreground font-medium">Manage and seed your 200+ dish database here.</p>
         </div>
         <div className="flex items-center gap-4 w-full md:w-auto">
           <Button 

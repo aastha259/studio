@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -21,7 +22,13 @@ import {
   Coffee,
   Filter,
   Star,
-  LayoutDashboard
+  LayoutDashboard,
+  CircleDot,
+  Container,
+  Clock,
+  Navigation,
+  GlassWater,
+  Ham
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -47,13 +54,20 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 
 const categoriesConfig = [
+  { name: 'Pizza', icon: Pizza, image: 'cat-pizza' },
+  { name: 'Burgers', icon: Ham, image: 'cat-burgers' },
+  { name: 'Biryani', icon: Flame, image: 'cat-biryani' },
   { name: 'North Indian', icon: UtensilsCrossed, image: 'cat-north-indian' },
   { name: 'South Indian', icon: Soup, image: 'cat-south-indian' },
-  { name: 'Street Food', icon: Store, image: 'cat-street-food' },
-  { name: 'Fast Food', icon: Pizza, image: 'cat-fast-food' },
   { name: 'Chinese', icon: Beef, image: 'cat-chinese' },
-  { name: 'Biryani', icon: Flame, image: 'cat-biryani' },
-  { name: 'Sweets & Desserts', icon: IceCreamCone, image: 'cat-sweets' },
+  { name: 'Fast Food', icon: CircleDot, image: 'cat-fast-food' },
+  { name: 'Sandwiches', icon: Container, image: 'cat-sandwiches' },
+  { name: 'Rolls & Wraps', icon: Navigation, image: 'cat-rolls' },
+  { name: 'Pasta', icon: Utensils, image: 'cat-pasta' },
+  { name: 'Salads', icon: Star, image: 'cat-salads' },
+  { name: 'Street Food', icon: Store, image: 'cat-street-food' },
+  { name: 'Desserts', icon: IceCreamCone, image: 'cat-sweets' },
+  { name: 'Ice Cream', icon: IceCreamCone, image: 'cat-icecream' },
   { name: 'Beverages', icon: Coffee, image: 'cat-beverages' },
 ];
 
@@ -86,7 +100,7 @@ export default function MenuPage() {
 
   // Trending items based on totalOrders frequency
   const trendingQuery = useMemoFirebase(() => {
-    return query(collection(db, 'foods'), orderBy('totalOrders', 'desc'), limit(4));
+    return query(collection(db, 'foods'), orderBy('totalOrders', 'desc'), limit(8));
   }, [db]);
   const { data: trendingFoods } = useCollection(trendingQuery);
 
@@ -167,7 +181,7 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background selection:bg-primary selection:text-white">
+    <div className="min-h-screen bg-background selection:bg-primary selection:text-white" suppressHydrationWarning>
       {/* Navigation Header */}
       <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
@@ -193,7 +207,7 @@ export default function MenuPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Find your favorite dish..." 
+                placeholder="Search hundreds of dishes..." 
                 className="pl-10 h-11 bg-muted/50 border-none rounded-2xl w-full"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -294,7 +308,7 @@ export default function MenuPage() {
                   <Flame className="w-10 h-10 text-accent animate-bounce" />
                   Trending <span className="text-primary italic">Dishes</span>
                 </h2>
-                <p className="text-muted-foreground mt-2 font-medium">The most popular choices from our community.</p>
+                <p className="text-muted-foreground mt-2 font-medium">Bestsellers based on customer choices.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -314,7 +328,7 @@ export default function MenuPage() {
                   <Sparkles className="w-10 h-10 text-primary animate-pulse" />
                   Recommended <span className="text-accent underline decoration-4 underline-offset-8">For You</span>
                 </h2>
-                <p className="text-muted-foreground mt-2 font-medium">Crafted by AI based on your unique flavor profile.</p>
+                <p className="text-muted-foreground mt-2 font-medium">AI-curated selections based on your favorites.</p>
               </div>
               {loadingRecs && <Loader2 className="w-8 h-8 animate-spin text-primary" />}
             </div>
@@ -338,16 +352,16 @@ export default function MenuPage() {
           <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
             <div>
               <h2 className="text-4xl font-headline font-black">
-                Browse <span className="text-primary italic">Categories</span>
+                Explore <span className="text-primary italic">Menu</span>
               </h2>
-              <p className="text-muted-foreground mt-2 font-medium">Discover flavors across the rich tapestry of India.</p>
+              <p className="text-muted-foreground mt-2 font-medium">Browse by cuisine and dietary choice.</p>
             </div>
             
             <Sheet open={showFilters} onOpenChange={setShowFilters}>
               <SheetTrigger asChild>
                 <Button variant="outline" className="h-12 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-bold">
                   <Filter className="w-5 h-5" />
-                  Refine Menu
+                  Refine Results
                   {activeFilterCount > 0 && (
                     <Badge className="bg-white text-primary ml-2 rounded-full px-2">{activeFilterCount}</Badge>
                   )}
@@ -357,7 +371,7 @@ export default function MenuPage() {
                 <SheetHeader className="pb-8 border-b">
                   <SheetTitle className="text-3xl font-headline font-black flex items-center gap-3">
                     <Filter className="w-8 h-8 text-primary" />
-                    Advanced Filters
+                    Menu Filters
                   </SheetTitle>
                 </SheetHeader>
                 <div className="py-10 space-y-12">
@@ -379,7 +393,7 @@ export default function MenuPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Min Star Rating</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Min Rating</label>
                     <div className="grid grid-cols-4 gap-2">
                       {[3, 4, 4.5, 4.8].map((r) => (
                         <Button 
@@ -396,7 +410,7 @@ export default function MenuPage() {
                 </div>
                 <SheetFooter className="flex-col gap-4 pt-8 border-t mt-auto">
                   <Button variant="ghost" className="w-full text-muted-foreground font-black uppercase tracking-widest text-[10px]" onClick={resetFilters}>Clear All</Button>
-                  <Button className="w-full h-16 rounded-2xl font-black text-xl shadow-xl shadow-primary/20" onClick={() => setShowFilters(false)}>View Results</Button>
+                  <Button className="w-full h-16 rounded-2xl font-black text-xl shadow-xl shadow-primary/20" onClick={() => setShowFilters(false)}>Apply Filters</Button>
                 </SheetFooter>
               </SheetContent>
             </Sheet>
@@ -410,7 +424,7 @@ export default function MenuPage() {
               <div className={`aspect-square rounded-[2.5rem] flex items-center justify-center border-4 transition-all duration-500 ${selectedCategory === 'All' ? 'border-primary bg-primary shadow-2xl shadow-primary/30' : 'border-white bg-white hover:border-primary/20 shadow-md'}`}>
                 <Utensils className={`w-12 h-12 transition-colors duration-500 ${selectedCategory === 'All' ? 'text-white' : 'text-primary'}`} />
               </div>
-              <p className={`text-center mt-4 font-black text-sm uppercase tracking-wider ${selectedCategory === 'All' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`}>Full Menu</p>
+              <p className={`text-center mt-4 font-black text-sm uppercase tracking-wider ${selectedCategory === 'All' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`}>All Foods</p>
             </div>
             
             {categoriesConfig.map((cat) => {
@@ -452,17 +466,17 @@ export default function MenuPage() {
                 {search || activeFilterCount > 0 ? (
                   <>Match <span className="text-primary italic">Results</span></>
                 ) : (
-                  selectedCategory === 'All' ? 'Signature Collection' : `${selectedCategory} Specials`
+                  selectedCategory === 'All' ? 'The Complete Menu' : `${selectedCategory} Collection`
                 )}
               </h3>
-              <p className="text-muted-foreground mt-1 font-medium">{filteredFoods.length} exquisite dishes found</p>
+              <p className="text-muted-foreground mt-1 font-medium">{filteredFoods.length} items available</p>
             </div>
           </div>
           
           {foodsLoading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-primary" />
-              <p className="font-bold text-muted-foreground animate-pulse">Prepping the kitchen...</p>
+              <p className="font-bold text-muted-foreground animate-pulse">Loading delicious options...</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
@@ -475,9 +489,9 @@ export default function MenuPage() {
           {!foodsLoading && filteredFoods.length === 0 && (
             <div className="text-center py-40 bg-muted/20 rounded-[3rem] border-2 border-dashed border-muted flex flex-col items-center">
               <UtensilsCrossed className="w-24 h-24 mb-6 text-muted-foreground opacity-20" />
-              <p className="text-3xl text-foreground font-black">No flavors match your search</p>
-              <p className="text-muted-foreground mt-2 max-w-sm font-medium">Our chefs are always adding new dishes. Try broadening your criteria!</p>
-              <Button variant="outline" className="mt-10 rounded-2xl h-14 px-8 font-black border-primary text-primary hover:bg-primary hover:text-white" onClick={resetFilters}>Reset Filters</Button>
+              <p className="text-3xl text-foreground font-black">Nothing found</p>
+              <p className="text-muted-foreground mt-2 max-w-sm font-medium">Try resetting your filters or adjusting your search.</p>
+              <Button variant="outline" className="mt-10 rounded-2xl h-14 px-8 font-black border-primary text-primary hover:bg-primary hover:text-white" onClick={resetFilters}>Reset All Filters</Button>
             </div>
           )}
         </section>
@@ -489,15 +503,13 @@ export default function MenuPage() {
             <ChefHat className="text-primary w-8 h-8" />
             <span className="text-2xl font-headline font-black">Bhartiya Swad</span>
           </div>
-          <p className="text-muted-foreground font-medium mb-8 max-w-md mx-auto">Bringing the authentic taste of Indian heritage to your modern lifestyle.</p>
+          <p className="text-muted-foreground font-medium mb-8 max-w-md mx-auto">The ultimate Indian food delivery experience.</p>
           <div className="flex justify-center gap-8 text-sm font-bold text-muted-foreground">
-            <Link href="/menu" className="hover:text-primary">Menu</Link>
-            {mounted && user && <Link href="/dashboard" className="hover:text-primary">Dashboard</Link>}
-            {mounted && !user && <Link href="/login" className="hover:text-primary">Login</Link>}
-            <Link href="#" className="hover:text-primary">Privacy Policy</Link>
-            <Link href="#" className="hover:text-primary">Terms of Service</Link>
+            <Link href="/menu" className="hover:text-primary">Full Menu</Link>
+            <Link href="#" className="hover:text-primary">Privacy</Link>
+            <Link href="#" className="hover:text-primary">Terms</Link>
           </div>
-          <p className="mt-12 text-[10px] uppercase tracking-widest font-black text-muted-foreground/40">© 2025 Bhartiya Swad. Authentic & Pure.</p>
+          <p className="mt-12 text-[10px] uppercase tracking-widest font-black text-muted-foreground/40">© 2025 Bhartiya Swad. Authentic & Sharp.</p>
         </div>
       </footer>
     </div>

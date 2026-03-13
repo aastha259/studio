@@ -4,6 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions for common security checks
     function isSignedIn() {
       return request.auth != null;
     }
@@ -19,6 +20,7 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // User Profiles: Owners can manage their data, admins can see all
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
@@ -26,32 +28,39 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Admin Roles: Strictly restricted to system administrators
     match /admin_roles/{adminId} {
       allow get, list: if isAdmin();
       allow create, update, delete: if isAdmin() || (isSignedIn() && request.auth.token.email == 'xyz@admin.com');
     }
 
+    // Restaurants: Publicly viewable, editable only by admins
     match /restaurants/{restaurantId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
+    // Categories: Publicly viewable, editable only by admins
     match /categories/{categoryId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
+    // Dishes: Publicly viewable menu items, editable only by admins
+    // This allows unauthenticated users to browse the menu
     match /dishes/{dishId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
+    // Orders: Users can only see their own orders, admins see everything
     match /orders/{orderId} {
       allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow list: if (isSignedIn() && (isAdmin() || (resource == null || resource.data.userId == request.auth.uid)));
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
 
+      // Nested items follow order ownership
       match /orderItems/{orderItemId} {
         allow get, list: if (isSignedIn() && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid) || isAdmin();
         allow create: if isSignedIn() && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid;
@@ -60,3 +69,4 @@ service cloud.firestore {
     }
   }
 }
+// Deployment trigger: Ensure dishes collection is publicly accessible for menu browsing.

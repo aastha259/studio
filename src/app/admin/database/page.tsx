@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -5,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Plus, Search, Database, Sparkles, Loader2, BookOpen } from 'lucide-react';
+import { Trash2, Plus, Search, Database, Sparkles, Loader2, BookOpen, RefreshCw } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc, addDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +14,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-export const AUTHENTIC_CATEGORIES = [
-  'Starters',
-  'Main Course - Veg',
-  'Main Course - Non-Veg',
-  'Breads',
-  'Rice & Biryani',
+export const MENU_CATEGORIES = [
+  'Pizza',
+  'Burgers',
+  'Biryani',
+  'North Indian',
+  'South Indian',
+  'Chinese',
+  'Fast Food',
   'Street Food',
+  'Sandwiches',
+  'Rolls & Wraps',
+  'Pasta',
+  'Salads',
   'Desserts',
+  'Ice Cream',
   'Beverages'
 ];
 
@@ -41,42 +49,42 @@ export default function AdminDatabasePage() {
     }
   };
 
-  const handleUploadAuthenticMenu = async () => {
+  const handleSyncDishes = async () => {
     setIsSeeding(true);
     try {
-      const response = await fetch('/menu.json');
-      const menuData = await response.json();
-      
       const batch = writeBatch(db);
       let addedCount = 0;
 
-      for (const item of menuData) {
-        // Check if dish already exists by name to avoid duplicates
-        const q = query(collection(db, 'dishes'), where('name', '==', item.name));
-        const snap = await getDocs(q);
-        
-        if (snap.empty) {
-          const newDocRef = doc(collection(db, 'dishes'));
-          batch.set(newDocRef, {
-            name: item.name,
-            category: item.category,
-            price: item.price,
-            description: item.description,
-            image: item.image_url,
-            rating: 4.5,
-            isVeg: item.isVegetarian,
-            createdAt: new Date().toISOString(),
-            totalOrders: 0,
-            totalRevenue: 0
-          });
-          addedCount++;
+      for (const category of MENU_CATEGORIES) {
+        // Create 5 sample items per category for quick population
+        for (let i = 1; i <= 5; i++) {
+          const name = `${category} Special ${i}`;
+          const q = query(collection(db, 'dishes'), where('name', '==', name));
+          const snap = await getDocs(q);
+          
+          if (snap.empty) {
+            const newDocRef = doc(collection(db, 'dishes'));
+            batch.set(newDocRef, {
+              name,
+              category,
+              price: 150 + (i * 50),
+              description: `A delicious and authentic ${category} dish prepared with fresh ingredients.`,
+              image: `https://picsum.photos/seed/${category}${i}/800/600`,
+              rating: 4.0 + (Math.random()),
+              isVeg: true,
+              createdAt: new Date().toISOString(),
+              totalOrders: 0,
+              totalRevenue: 0
+            });
+            addedCount++;
+          }
         }
       }
 
       await batch.commit();
-      toast({ title: "Menu Uploaded", description: `Successfully added ${addedCount} authentic Indian dishes.` });
+      toast({ title: "Menu Synced", description: `Successfully added ${addedCount} dishes to the catalog.` });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Upload Failed", description: e.message });
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
       setIsSeeding(false);
     }
@@ -90,7 +98,7 @@ export default function AdminDatabasePage() {
       price: parseFloat(formData.get('price') as string),
       category: formData.get('category') as string,
       description: formData.get('description') as string,
-      image: `https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=800&q=60`,
+      image: `https://picsum.photos/seed/${Date.now()}/800/600`,
       rating: 4.5,
       isVeg: formData.get('isVeg') === 'on',
       createdAt: new Date().toISOString(),
@@ -110,17 +118,17 @@ export default function AdminDatabasePage() {
             <Database className="w-10 h-10 text-primary" />
             Mega Repository
           </h1>
-          <p className="text-muted-foreground font-medium">Manage your authentic Bhartiya Swad menu repository.</p>
+          <p className="text-muted-foreground font-medium">Manage your Bhartiya Swad menu repository.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
           <Button 
             variant="outline" 
-            onClick={handleUploadAuthenticMenu} 
+            onClick={handleSyncDishes} 
             disabled={isSeeding}
             className="rounded-xl border-primary text-primary hover:bg-primary/5 font-bold h-11"
           >
-            {isSeeding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <BookOpen className="w-4 h-4 mr-2" />}
-            Import Authentic Dataset
+            {isSeeding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            Sync Sample Catalog
           </Button>
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
@@ -150,7 +158,7 @@ export default function AdminDatabasePage() {
               <form onSubmit={handleAddDish} className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Dish Name</Label>
-                  <Input id="name" name="name" required placeholder="e.g. Paneer Tikka" className="rounded-xl" />
+                  <Input id="name" name="name" required placeholder="e.g. Special Pizza" className="rounded-xl" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -160,7 +168,7 @@ export default function AdminDatabasePage() {
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
                     <select name="category" className="w-full h-10 px-3 border rounded-xl bg-white text-sm" required>
-                      {AUTHENTIC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>

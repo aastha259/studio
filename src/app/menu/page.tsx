@@ -1,8 +1,8 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { 
   Search, 
   ShoppingCart, 
@@ -11,24 +11,21 @@ import {
   LogOut,
   Utensils,
   Loader2,
-  UtensilsCrossed,
+  Pizza,
+  Ham as BurgerIcon,
   Soup,
   Store,
-  Pizza,
   Beef,
   Flame,
   IceCreamCone,
   Coffee,
   Filter,
-  Star,
   LayoutDashboard,
   CircleDot,
   Container,
-  Clock,
-  Navigation,
   GlassWater,
-  Ham,
-  Leaf
+  Leaf,
+  UtensilsCrossed
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -49,27 +46,32 @@ import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
 const categoriesConfig = [
-  { name: 'Starters', icon: Flame },
-  { name: 'Main Course - Veg', icon: Leaf },
-  { name: 'Main Course - Non-Veg', icon: Beef },
-  { name: 'Breads', icon: Container },
-  { name: 'Rice & Biryani', icon: Soup },
+  { name: 'Pizza', icon: Pizza },
+  { name: 'Burgers', icon: BurgerIcon },
+  { name: 'Biryani', icon: Soup },
+  { name: 'North Indian', icon: Flame },
+  { name: 'South Indian', icon: CircleDot },
+  { name: 'Chinese', icon: Container },
+  { name: 'Fast Food', icon: Utensils },
   { name: 'Street Food', icon: Store },
+  { name: 'Sandwiches', icon: GlassWater },
+  { name: 'Rolls & Wraps', icon: Beef },
+  { name: 'Pasta', icon: UtensilsCrossed },
+  { name: 'Salads', icon: Leaf },
   { name: 'Desserts', icon: IceCreamCone },
+  { name: 'Ice Cream', icon: IceCreamCone },
   { name: 'Beverages', icon: Coffee },
 ];
 
 export default function MenuPage() {
   const router = useRouter();
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { items, removeFromCart, totalPrice, clearCart } = useCart();
   const db = useFirestore();
-  const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
@@ -168,7 +170,7 @@ export default function MenuPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Search authentic flavors..." 
+                placeholder="Search flavors..." 
                 className="pl-10 h-11 bg-muted/50 border-none rounded-2xl w-full"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -246,7 +248,7 @@ export default function MenuPage() {
 
         <section>
           <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
-            <div><h2 className="text-4xl font-headline font-black">Authentic Categories</h2><p className="text-muted-foreground mt-2 font-medium">Regional specialties from across India.</p></div>
+            <div><h2 className="text-4xl font-headline font-black">Browse Categories</h2><p className="text-muted-foreground mt-2 font-medium">Explore flavors by category.</p></div>
             <Sheet open={showFilters} onOpenChange={setShowFilters}>
               <SheetTrigger asChild>
                 <Button variant="outline" className="h-12 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-bold"><Filter className="w-5 h-5" /> Filter Menu</Button>
@@ -294,11 +296,11 @@ export default function MenuPage() {
         </section>
 
         <section id="full-menu" className="pt-12 border-t border-dashed">
-          <h3 className="text-3xl font-headline font-black mb-12">Authentic Catalog</h3>
+          <h3 className="text-3xl font-headline font-black mb-12">Full Menu</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
             {filteredDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
             {filteredDishes.length === 0 && !dishesLoading && (
-              <div className="col-span-full text-center py-20 opacity-40 italic font-bold">No matching flavors found in our kitchen.</div>
+              <div className="col-span-full text-center py-20 opacity-40 italic font-bold">No dishes found matching your criteria.</div>
             )}
           </div>
         </section>

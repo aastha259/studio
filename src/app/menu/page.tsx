@@ -52,6 +52,8 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
+import { seedMenuData } from '@/app/admin/database/page';
+import { useToast } from '@/hooks/use-toast';
 
 const categoriesConfig = [
   { name: 'Pizza', icon: Pizza, image: 'cat-pizza' },
@@ -76,6 +78,7 @@ export default function MenuPage() {
   const { user, logout } = useAuth();
   const { items, removeFromCart, totalPrice, clearCart } = useCart();
   const db = useFirestore();
+  const { toast } = useToast();
   
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
@@ -88,6 +91,7 @@ export default function MenuPage() {
 
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -96,6 +100,14 @@ export default function MenuPage() {
   // Fetch all available dishes
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
+
+  // Auto-seed if database is empty
+  useEffect(() => {
+    if (mounted && !dishesLoading && allDishes && allDishes.length === 0 && !isSeeding) {
+      setIsSeeding(true);
+      seedMenuData(db, null).finally(() => setIsSeeding(false));
+    }
+  }, [allDishes, dishesLoading, db, mounted, isSeeding]);
 
   // Trending items based on totalOrders frequency
   const trendingQuery = useMemoFirebase(() => {
@@ -277,7 +289,7 @@ export default function MenuPage() {
               </>
             ) : (
               <Link href="/login?callbackUrl=/menu">
-                <Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90">Login</Button>
+                <Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90">Login to Order</Button>
               </Link>
             )}
           </div>
@@ -285,7 +297,14 @@ export default function MenuPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-24">
-        {trendingDishes && trendingDishes.length > 0 && (
+        {isSeeding && (
+          <div className="flex items-center justify-center gap-4 p-8 bg-primary/10 rounded-3xl animate-pulse">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <p className="font-black text-primary">Initializing Restaurant Database (Adding 200+ dishes)...</p>
+          </div>
+        )}
+
+        {trendingDishes && trendingDishes.length > 0 && !isSeeding && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <h2 className="text-4xl font-headline font-black mb-8 flex items-center gap-3">
               <Flame className="w-10 h-10 text-accent animate-bounce" />
@@ -299,7 +318,7 @@ export default function MenuPage() {
           </section>
         )}
 
-        {mounted && user && (recommendations.length > 0 || loadingRecs) && (
+        {mounted && user && (recommendations.length > 0 || loadingRecs) && !isSeeding && (
           <section className="bg-gradient-to-br from-primary/5 to-accent/5 p-12 rounded-[3rem] border border-primary/10 animate-in fade-in duration-1000">
             <h2 className="text-4xl font-headline font-black mb-10 flex items-center gap-4">
               <Sparkles className="w-10 h-10 text-primary animate-pulse" />

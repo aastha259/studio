@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -28,7 +27,8 @@ import {
   Clock,
   Navigation,
   GlassWater,
-  Ham
+  Ham,
+  Leaf
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -50,27 +50,18 @@ import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { seedMenuData, CATEGORIES_DATA } from '@/app/admin/database/page';
 import { useToast } from '@/hooks/use-toast';
 
 const categoriesConfig = [
-  { name: 'Pizza', icon: Pizza, image: 'cat-pizza' },
-  { name: 'Burgers', icon: Ham, image: 'cat-burgers' },
-  { name: 'Biryani', icon: Flame, image: 'cat-biryani' },
-  { name: 'North Indian', icon: UtensilsCrossed, image: 'cat-north-indian' },
-  { name: 'South Indian', icon: Soup, image: 'cat-south-indian' },
-  { name: 'Chinese', icon: Beef, image: 'cat-chinese' },
-  { name: 'Fast Food', icon: CircleDot, image: 'cat-fast-food' },
-  { name: 'Street Food', icon: Store, image: 'cat-street-food' },
-  { name: 'Rolls & Wraps', icon: Navigation, image: 'cat-rolls' },
-  { name: 'Sandwiches', icon: Container, image: 'cat-sandwiches' },
-  { name: 'Pasta', icon: Utensils, image: 'cat-pasta' },
-  { name: 'Salads', icon: Star, image: 'cat-salads' },
-  { name: 'Desserts', icon: IceCreamCone, image: 'cat-sweets' },
-  { name: 'Ice Cream', icon: IceCreamCone, image: 'cat-icecream' },
-  { name: 'Beverages', icon: Coffee, image: 'cat-beverages' },
+  { name: 'Starters', icon: Flame },
+  { name: 'Main Course - Veg', icon: Leaf },
+  { name: 'Main Course - Non-Veg', icon: Beef },
+  { name: 'Breads', icon: Container },
+  { name: 'Rice & Biryani', icon: Soup },
+  { name: 'Street Food', icon: Store },
+  { name: 'Desserts', icon: IceCreamCone },
+  { name: 'Beverages', icon: Coffee },
 ];
 
 export default function MenuPage() {
@@ -91,31 +82,19 @@ export default function MenuPage() {
 
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch all available dishes
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
-  const { data: allDishes, isLoading: dishesLoading, error: dishesError } = useCollection(dishesQuery);
+  const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
 
-  // Auto-seed if database is empty
-  useEffect(() => {
-    if (mounted && !dishesLoading && !dishesError && allDishes && allDishes.length === 0 && !isSeeding) {
-      setIsSeeding(true);
-      seedMenuData(db).finally(() => setIsSeeding(false));
-    }
-  }, [allDishes, dishesLoading, dishesError, db, mounted, isSeeding]);
-
-  // Trending items
   const trendingQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), orderBy('totalOrders', 'desc'), limit(8));
   }, [db]);
   const { data: trendingDishes } = useCollection(trendingQuery);
 
-  // AI Recommendations
   useEffect(() => {
     async function getPersonalizedRecommendations() {
       if (!user?.uid || !allDishes || allDishes.length === 0) {
@@ -125,30 +104,8 @@ export default function MenuPage() {
       
       setLoadingRecs(true);
       try {
-        const ordersRef = collection(db, 'orders');
-        const q = query(
-          ordersRef, 
-          where('userId', '==', user.uid), 
-          orderBy('orderDate', 'desc'), 
-          limit(5)
-        );
-        const orderSnap = await getDocs(q);
-        
-        const history: { name: string; category?: string }[] = [];
-        for (const orderDoc of orderSnap.docs) {
-          const itemsRef = collection(db, 'orders', orderDoc.id, 'orderItems');
-          const itemsSnap = await getDocs(itemsRef);
-          itemsSnap.forEach(itemDoc => {
-            const itemData = itemDoc.data();
-            history.push({
-              name: itemData.foodName,
-              category: allDishes.find(f => f.id === itemData.dishId)?.category
-            });
-          });
-        }
-
         const result = await personalizedFoodRecommendations({
-          userFoodHistory: history.length > 0 ? history : [],
+          userFoodHistory: [],
           availableFoods: allDishes.map(f => ({
             id: f.id,
             name: f.name,
@@ -168,7 +125,6 @@ export default function MenuPage() {
     if (mounted && allDishes && user) getPersonalizedRecommendations();
   }, [user?.uid, allDishes, db, mounted]);
 
-  // Filtering Logic
   const filteredDishes = useMemo(() => {
     return (allDishes || []).filter(dish => {
       const matchesSearch = dish.name.toLowerCase().includes(search.toLowerCase());
@@ -212,7 +168,7 @@ export default function MenuPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Search 250+ dishes..." 
+                placeholder="Search authentic flavors..." 
                 className="pl-10 h-11 bg-muted/50 border-none rounded-2xl w-full"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -263,10 +219,10 @@ export default function MenuPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-24">
-        {(isSeeding || dishesLoading) && (
+        {dishesLoading && (
           <div className="flex items-center justify-center gap-4 p-8 bg-primary/10 rounded-3xl animate-pulse">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="font-black text-primary">{dishesLoading ? 'Fetching Menu...' : 'Populating 250+ Dish Database...'}</p>
+            <p className="font-black text-primary">Exploring the kitchen...</p>
           </div>
         )}
 
@@ -290,7 +246,7 @@ export default function MenuPage() {
 
         <section>
           <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
-            <div><h2 className="text-4xl font-headline font-black">Explore Categories</h2><p className="text-muted-foreground mt-2 font-medium">Browse by your favorite cuisine.</p></div>
+            <div><h2 className="text-4xl font-headline font-black">Authentic Categories</h2><p className="text-muted-foreground mt-2 font-medium">Regional specialties from across India.</p></div>
             <Sheet open={showFilters} onOpenChange={setShowFilters}>
               <SheetTrigger asChild>
                 <Button variant="outline" className="h-12 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-bold"><Filter className="w-5 h-5" /> Filter Menu</Button>
@@ -328,9 +284,8 @@ export default function MenuPage() {
             </div>
             {categoriesConfig.map((cat) => (
               <div key={cat.name} onClick={() => setSelectedCategory(cat.name)} className={`flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-500 ${selectedCategory === cat.name ? 'scale-110' : ''}`}>
-                <div className={`relative aspect-square rounded-[2.5rem] overflow-hidden border-4 transition-all duration-500 shadow-md ${selectedCategory === cat.name ? 'border-primary shadow-2xl' : 'border-white'}`}>
-                  <Image src={PlaceHolderImages.find(img => img.id === cat.image)?.imageUrl || ''} alt={cat.name} fill className={`object-cover ${selectedCategory === cat.name ? 'opacity-30' : 'opacity-70'}`} />
-                  <div className="absolute inset-0 flex items-center justify-center"><cat.icon className={cn("w-12 h-12 text-white drop-shadow-2xl")} /></div>
+                <div className={`relative aspect-square rounded-[2.5rem] overflow-hidden border-4 transition-all duration-500 shadow-md ${selectedCategory === cat.name ? 'border-primary shadow-2xl' : 'border-white bg-white'}`}>
+                  <div className="absolute inset-0 flex items-center justify-center bg-primary/5"><cat.icon className={cn("w-12 h-12", selectedCategory === cat.name ? "text-primary scale-110" : "text-muted-foreground")} /></div>
                 </div>
                 <p className={`text-center mt-4 font-black text-sm uppercase ${selectedCategory === cat.name ? 'text-primary' : 'text-muted-foreground'}`}>{cat.name}</p>
               </div>
@@ -339,11 +294,11 @@ export default function MenuPage() {
         </section>
 
         <section id="full-menu" className="pt-12 border-t border-dashed">
-          <h3 className="text-3xl font-headline font-black mb-12">Complete Menu</h3>
+          <h3 className="text-3xl font-headline font-black mb-12">Authentic Catalog</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
             {filteredDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
             {filteredDishes.length === 0 && !dishesLoading && (
-              <div className="col-span-full text-center py-20 opacity-40 italic font-bold">No matching dishes found in our menu.</div>
+              <div className="col-span-full text-center py-20 opacity-40 italic font-bold">No matching flavors found in our kitchen.</div>
             )}
           </div>
         </section>

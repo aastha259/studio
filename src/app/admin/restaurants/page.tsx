@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -54,9 +55,9 @@ export default function AdminRestaurantsPage() {
   const restaurantsQuery = useMemoFirebase(() => collection(db, 'restaurants'), [db]);
   const { data: restaurants, isLoading } = useCollection(restaurantsQuery);
 
-  // Fetch Foods (for menu counts/management)
-  const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
-  const { data: allFoods } = useCollection(foodsQuery);
+  // Fetch Dishes
+  const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
+  const { data: allDishes } = useCollection(dishesQuery);
 
   const filteredRestaurants = restaurants?.filter(r => 
     r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -185,7 +186,7 @@ export default function AdminRestaurantsPage() {
             </TableHeader>
             <TableBody>
               {filteredRestaurants.map((res) => {
-                const restaurantMenu = allFoods?.filter(f => f.restaurantId === res.id) || [];
+                const restaurantMenu = allDishes?.filter(f => f.restaurantId === res.id) || [];
                 
                 return (
                   <TableRow key={res.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
@@ -296,16 +297,16 @@ export default function AdminRestaurantsPage() {
               <div className="flex items-center justify-between border-b pb-4">
                 <h3 className="text-xl font-headline font-black text-foreground">Digital Menu Catalog</h3>
                 <Badge variant="outline" className="rounded-full px-4 py-1 font-black">
-                  {allFoods?.filter(f => f.restaurantId === viewingMenu?.id).length || 0} ITEMS TOTAL
+                  {allDishes?.filter(f => f.restaurantId === viewingMenu?.id).length || 0} ITEMS TOTAL
                 </Badge>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {allFoods?.filter(f => f.restaurantId === viewingMenu?.id).map((food) => (
+                {allDishes?.filter(f => f.restaurantId === viewingMenu?.id).map((food) => (
                   <div key={food.id} className="bg-white border p-4 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted border shadow-sm">
-                        <img src={food.imageURL} alt={food.name} className="object-cover w-full h-full" />
+                        <img src={food.image || food.imageURL} alt={food.name} className="object-cover w-full h-full" />
                       </div>
                       <div>
                         <p className="font-black text-foreground leading-none">{food.name}</p>

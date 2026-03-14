@@ -19,20 +19,27 @@ export default function AdminRecommendationsPage() {
   const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
   const { data: users } = useCollection(usersQuery);
 
-  const foodsQuery = useMemoFirebase(() => collection(db, 'foods'), [db]);
-  const { data: foods } = useCollection(foodsQuery);
+  const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
+  const { data: dishes } = useCollection(dishesQuery);
 
   const generateForUser = async (userId: string, userName: string) => {
     setLoadingMap(prev => ({ ...prev, [userId]: true }));
     try {
       const mockHistory = [
-        { name: 'Paneer Butter Masala', category: 'North Indian' },
-        { name: 'Masala Dosa', category: 'South Indian' }
+        { name: 'Paneer Butter Masala', category: 'NORTH_INDIAN' },
+        { name: 'Masala Dosa', category: 'SOUTH_INDIAN' }
       ];
 
       const result = await personalizedFoodRecommendations({
         userFoodHistory: mockHistory,
-        availableFoods: foods || []
+        availableFoods: dishes?.map(d => ({
+          id: d.id,
+          name: d.name,
+          price: d.price,
+          category: d.category,
+          rating: d.rating,
+          imageURL: d.image
+        })) || []
       });
 
       setActiveRecs(prev => ({ ...prev, [userId]: result.recommendations }));
@@ -69,7 +76,7 @@ export default function AdminRecommendationsPage() {
               <Button 
                 className="w-full bg-primary hover:bg-primary/90 rounded-xl h-12 font-bold shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 onClick={() => generateForUser(user.id, user.displayName)}
-                disabled={loadingMap[user.id] || !foods}
+                disabled={loadingMap[user.id] || !dishes}
               >
                 {loadingMap[user.id] ? (
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />

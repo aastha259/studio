@@ -20,8 +20,8 @@ import {
   LayoutDashboard,
   CircleDot,
   Leaf,
-  Soup,
-  Plus
+  ChevronRight,
+  Pizza
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -42,18 +42,16 @@ import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, writeBatch, getDocs, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 const categoriesConfig = [
-  { name: 'PIZZAS', icon: CircleDot },
+  { name: 'PIZZAS', icon: Pizza },
   { name: 'BURGERS', icon: Beef },
   { name: 'NORTH_INDIAN', icon: Leaf },
   { name: 'SOUTH_INDIAN', icon: CircleDot },
-  { name: 'CHINESE', icon: Flame },
   { name: 'STREET_FOOD', icon: Store },
   { name: 'DESSERTS', icon: IceCreamCone },
-  { name: 'ICE_CREAM', icon: IceCreamCone },
   { name: 'BEVERAGES', icon: Coffee },
 ];
 
@@ -68,10 +66,8 @@ export default function MenuPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   
   const [isVegOnly, setIsVegOnly] = useState<boolean | null>(null);
-  const [maxPrice, setMaxPrice] = useState(800);
-  const [minRating, setMinRating] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(1000);
   const [showFilters, setShowFilters] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -79,11 +75,6 @@ export default function MenuPage() {
 
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
-
-  const trendingQuery = useMemoFirebase(() => {
-    return query(collection(db, 'dishes'), orderBy('totalOrders', 'desc'), limit(8));
-  }, [db]);
-  const { data: trendingDishes } = useCollection(trendingQuery);
 
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
@@ -98,7 +89,7 @@ export default function MenuPage() {
       setLoadingRecs(true);
       try {
         const result = await personalizedFoodRecommendations({
-          userFoodHistory: [],
+          userFoodHistory: [], // In a real app, this would be fetched from orders
           availableFoods: allDishes.map(f => ({
             id: f.id,
             name: f.name,
@@ -124,16 +115,14 @@ export default function MenuPage() {
       const matchesCategory = selectedCategory === 'All' || dish.category === selectedCategory;
       const matchesVeg = isVegOnly === null ? true : dish.isVeg === isVegOnly;
       const matchesPrice = dish.price <= maxPrice;
-      const matchesRating = dish.rating >= minRating;
 
-      return matchesSearch && matchesCategory && matchesVeg && matchesPrice && matchesRating;
+      return matchesSearch && matchesCategory && matchesVeg && matchesPrice;
     });
-  }, [allDishes, search, selectedCategory, isVegOnly, maxPrice, minRating]);
+  }, [allDishes, search, selectedCategory, isVegOnly, maxPrice]);
 
   const resetFilters = () => {
     setIsVegOnly(null);
-    setMaxPrice(800);
-    setMinRating(0);
+    setMaxPrice(1000);
     setSearch('');
     setSelectedCategory('All');
   };
@@ -141,28 +130,23 @@ export default function MenuPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-background" suppressHydrationWarning>
-      <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b px-6 py-4">
+    <div className="min-h-screen bg-[#FDFCFB]" suppressHydrationWarning>
+      {/* Top Navigation */}
+      <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg"><ChefHat className="text-white w-6 h-6" /></div>
-            <span className="font-headline text-xl font-bold hidden md:block text-foreground">Bhartiya Swad</span>
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+              <ChefHat className="text-white w-6 h-6" />
+            </div>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
           </Link>
 
           <div className="flex-1 max-w-xl flex gap-4">
-            {user && (
-              <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3">
-                <LayoutDashboard className="w-4 h-4" /> Dashboard
-              </Link>
-            )}
-            <Link href="/menu" className="flex items-center gap-2 text-sm font-black text-primary transition-colors px-3 border-b-2 border-primary">
-              <Utensils className="w-4 h-4" /> Menu
-            </Link>
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
                 placeholder="Search authentic dishes..." 
-                className="pl-10 h-11 bg-muted/50 border-none rounded-2xl w-full"
+                className="pl-11 h-11 bg-muted/40 border-none rounded-2xl focus-visible:ring-primary/20 w-full"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -170,145 +154,241 @@ export default function MenuPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {user ? (
-              <>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" className="relative p-2 rounded-full">
-                      <ShoppingCart className="w-6 h-6" />
-                      {items.length > 0 && <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center">{items.reduce((acc, i) => acc + i.quantity, 0)}</span>}
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem] border-none">
-                    <SheetHeader className="pb-6 border-b"><SheetTitle className="text-2xl font-headline flex items-center gap-2"><ShoppingCart className="w-6 h-6 text-primary" /> Basket</SheetTitle></SheetHeader>
-                    <ScrollArea className="flex-1 py-6">
-                      {items.length === 0 ? <div className="h-full flex flex-col items-center justify-center opacity-40 py-20"><Utensils className="w-20 h-20 mb-4" /><p className="font-bold">Empty</p></div> : (
-                        <div className="space-y-6">
-                          {items.map((item) => (
-                            <div key={item.id} className="flex gap-4 items-center">
-                              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-muted relative border"><img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" /></div>
-                              <div className="flex-1"><h4 className="font-bold text-sm">{item.name}</h4><p className="text-primary font-black">₹{item.price}</p></div>
-                              <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-destructive font-bold">Remove</Button>
-                            </div>
-                          ))}
+            {user && (
+              <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3">
+                <LayoutDashboard className="w-5 h-5" />
+              </Link>
+            )}
+            
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group">
+                  <ShoppingCart className="w-6 h-6 group-hover:text-primary transition-colors" />
+                  {items.length > 0 && (
+                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                      {items.reduce((acc, i) => acc + i.quantity, 0)}
+                    </span>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem] border-none shadow-2xl">
+                <SheetHeader className="pb-6 border-b">
+                  <SheetTitle className="text-2xl font-headline font-black flex items-center gap-3">
+                    <ShoppingCart className="w-8 h-8 text-primary" /> Basket
+                  </SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="flex-1 py-8">
+                  {items.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20">
+                      <Utensils className="w-20 h-20 mb-6" />
+                      <p className="font-black text-xl italic text-center">Your basket is empty!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {items.map((item) => (
+                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all">
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white relative border shadow-sm">
+                            <img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-black text-sm">{item.name}</h4>
+                            <p className="text-primary font-black">₹{item.price}</p>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-destructive font-bold hover:bg-destructive/5">
+                            Remove
+                          </Button>
                         </div>
-                      )}
-                    </ScrollArea>
-                    {items.length > 0 && (
-                      <SheetFooter className="pt-6 border-t flex-col sm:flex-col gap-4">
-                        <div className="flex justify-between items-center w-full"><span className="text-lg font-bold">Total</span><span className="text-2xl font-headline font-black text-primary">₹{totalPrice}</span></div>
-                        <Button className="w-full h-14 bg-primary text-lg font-black rounded-2xl shadow-xl" onClick={() => { alert("Order Placed!"); clearCart(); }}>Checkout</Button>
-                      </SheetFooter>
-                    )}
-                  </SheetContent>
-                </Sheet>
-                <Button variant="ghost" size="icon" onClick={() => logout()} className="rounded-full hover:bg-destructive/5 hover:text-destructive"><LogOut className="w-5 h-5" /></Button>
-              </>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+                {items.length > 0 && (
+                  <SheetFooter className="pt-8 border-t flex-col sm:flex-col gap-6">
+                    <div className="flex justify-between items-center w-full">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Total</span>
+                        <span className="text-3xl font-headline font-black text-primary">₹{totalPrice}</span>
+                      </div>
+                    </div>
+                    <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20" onClick={() => { alert("Order Placed!"); clearCart(); }}>
+                      Place Order
+                    </Button>
+                  </SheetFooter>
+                )}
+              </SheetContent>
+            </Sheet>
+
+            {user ? (
+              <Button variant="ghost" size="icon" onClick={() => logout()} className="rounded-full hover:bg-destructive/5 hover:text-destructive">
+                <LogOut className="w-5 h-5" />
+              </Button>
             ) : (
-              <Link href="/login?callbackUrl=/menu"><Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90">Login</Button></Link>
+              <Link href="/login?callbackUrl=/menu">
+                <Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90">Login</Button>
+              </Link>
             )}
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 py-12 space-y-24">
-        {allDishes?.length === 0 && !dishesLoading && (
-          <div className="bg-primary/5 p-12 rounded-[3rem] border border-dashed border-primary/20 flex flex-col items-center gap-6 text-center">
-            <ChefHat className="w-20 h-20 text-primary opacity-40" />
-            <div>
-              <h2 className="text-3xl font-headline font-black mb-2 text-foreground">The kitchen is empty!</h2>
-              <p className="text-muted-foreground">Visit the Admin Hub to bootstrap your 500+ dish repository.</p>
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
+        {/* Category Header & Filters */}
+        <div className="space-y-10">
+          <div className="flex flex-col md:flex-row justify-between items-end gap-6">
+            <div className="space-y-2">
+              <h1 className="text-5xl font-headline font-black text-foreground tracking-tight">Full Menu</h1>
+              <p className="text-lg text-muted-foreground font-medium">Explore our curated selection of authentic Indian flavors.</p>
             </div>
-            <Link href="/admin/database">
-              <Button className="h-14 px-10 rounded-2xl font-black bg-primary text-lg shadow-xl">Go to Admin Hub</Button>
-            </Link>
-          </div>
-        )}
-
-        {dishesLoading && (
-          <div className="flex items-center justify-center gap-4 p-8 bg-primary/10 rounded-3xl animate-pulse">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="font-black text-primary">Exploring the kitchen...</p>
-          </div>
-        )}
-
-        {trendingDishes && trendingDishes.length > 0 && (
-          <section>
-            <h2 className="text-4xl font-headline font-black mb-8 flex items-center gap-3"><Flame className="w-10 h-10 text-accent animate-bounce" /> Trending Now</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {trendingDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
-            </div>
-          </section>
-        )}
-
-        {user && recommendations.length > 0 && (
-          <section className="bg-primary/5 p-12 rounded-[3rem] border border-primary/10">
-            <h2 className="text-4xl font-headline font-black mb-10 flex items-center gap-4"><Sparkles className="w-10 h-10 text-primary animate-pulse" /> Recommended For You</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {recommendations.map(dish => <FoodCard key={dish.id} food={dish} />)}
-            </div>
-          </section>
-        )}
-
-        <section>
-          <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
-            <div><h2 className="text-4xl font-headline font-black text-foreground">Browse Categories</h2><p className="text-muted-foreground mt-2 font-medium">Authentic Indian flavors categorized for you.</p></div>
+            
             <Sheet open={showFilters} onOpenChange={setShowFilters}>
               <SheetTrigger asChild>
-                <Button variant="outline" className="h-12 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-bold"><Filter className="w-5 h-5" /> Filter Menu</Button>
+                <Button variant="outline" className="h-14 px-8 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-black shadow-sm">
+                  <Filter className="w-5 h-5" /> Filter Selection
+                </Button>
               </SheetTrigger>
-              <SheetContent className="rounded-l-[2.5rem] border-none">
-                <SheetHeader className="pb-8 border-b"><SheetTitle className="text-3xl font-headline font-black flex items-center gap-3"><Filter className="w-8 h-8 text-primary" /> Filters</SheetTitle></SheetHeader>
-                <div className="py-10 space-y-12">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Type</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button variant={isVegOnly === null ? 'default' : 'outline'} onClick={() => setIsVegOnly(null)} className="rounded-xl font-bold">All</Button>
-                      <Button variant={isVegOnly === true ? 'default' : 'outline'} onClick={() => setIsVegOnly(true)} className={cn("rounded-xl font-bold", isVegOnly === true && "bg-green-600")}>Veg</Button>
-                      <Button variant={isVegOnly === false ? 'default' : 'outline'} onClick={() => setIsVegOnly(false)} className={cn("rounded-xl font-bold", isVegOnly === false && "bg-red-600")}>Non-Veg</Button>
+              <SheetContent className="rounded-l-[3rem] border-none shadow-2xl p-10">
+                <SheetHeader className="pb-8 border-b">
+                  <SheetTitle className="text-3xl font-headline font-black flex items-center gap-3">
+                    <Filter className="w-8 h-8 text-primary" /> Refine Menu
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="py-12 space-y-12">
+                  <div className="space-y-6">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Dietary Preference</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Button variant={isVegOnly === null ? 'default' : 'outline'} onClick={() => setIsVegOnly(null)} className="rounded-2xl h-12 font-bold">All</Button>
+                      <Button variant={isVegOnly === true ? 'default' : 'outline'} onClick={() => setIsVegOnly(true)} className={cn("rounded-2xl h-12 font-bold", isVegOnly === true && "bg-green-600 border-green-600 hover:bg-green-700")}>Veg</Button>
+                      <Button variant={isVegOnly === false ? 'default' : 'outline'} onClick={() => setIsVegOnly(false)} className={cn("rounded-2xl h-12 font-bold", isVegOnly === false && "bg-red-600 border-red-600 hover:bg-red-700")}>Non-Veg</Button>
                     </div>
                   </div>
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Max Price</label><span className="font-headline font-black text-2xl text-primary">₹{maxPrice}</span></div>
-                    <Slider value={[maxPrice]} max={800} step={10} onValueChange={([val]) => setMaxPrice(val)} />
+                  
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Max Price (₹)</label>
+                      <span className="font-headline font-black text-3xl text-primary">₹{maxPrice}</span>
+                    </div>
+                    <Slider value={[maxPrice]} max={1000} step={50} onValueChange={([val]) => setMaxPrice(val)} className="py-4" />
                   </div>
                 </div>
-                <SheetFooter className="flex-col gap-4 pt-8 border-t mt-auto">
-                  <Button variant="ghost" className="w-full text-muted-foreground font-black" onClick={resetFilters}>Reset</Button>
-                  <Button className="w-full h-16 rounded-2xl font-black text-xl" onClick={() => setShowFilters(false)}>Apply</Button>
-                </SheetFooter>
+                <div className="pt-8 border-t flex flex-col gap-4">
+                  <Button variant="ghost" className="w-full text-muted-foreground font-black" onClick={resetFilters}>Clear All</Button>
+                  <Button className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20" onClick={() => setShowFilters(false)}>Show Results</Button>
+                </div>
               </SheetContent>
             </Sheet>
           </div>
 
-          <div className="flex gap-8 overflow-x-auto pb-10 no-scrollbar snap-x">
-            <div onClick={() => setSelectedCategory('All')} className={`flex-shrink-0 w-40 snap-start cursor-pointer group transition-all duration-500 ${selectedCategory === 'All' ? 'scale-110' : ''}`}>
-              <div className={`aspect-square rounded-[2.5rem] flex items-center justify-center border-4 transition-all duration-500 ${selectedCategory === 'All' ? 'border-primary bg-primary shadow-2xl' : 'border-white bg-white shadow-md'}`}>
-                <Utensils className={`w-12 h-12 transition-colors duration-500 ${selectedCategory === 'All' ? 'text-white' : 'text-primary'}`} />
+          {/* Horizontal Category Scroller */}
+          <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
+            <div 
+              onClick={() => setSelectedCategory('All')} 
+              className={cn(
+                "flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-300",
+                selectedCategory === 'All' ? 'scale-105' : 'hover:scale-102'
+              )}
+            >
+              <div className={cn(
+                "aspect-square rounded-[2.5rem] flex items-center justify-center border-4 transition-all duration-500",
+                selectedCategory === 'All' ? 'border-primary bg-primary shadow-2xl' : 'border-white bg-white shadow-md'
+              )}>
+                <Utensils className={cn("w-10 h-10 transition-colors duration-500", selectedCategory === 'All' ? 'text-white' : 'text-primary')} />
               </div>
-              <p className={`text-center mt-4 font-black text-xs uppercase tracking-widest ${selectedCategory === 'All' ? 'text-primary' : 'text-muted-foreground'}`}>All</p>
+              <p className={cn(
+                "text-center mt-4 font-black text-[10px] uppercase tracking-widest",
+                selectedCategory === 'All' ? 'text-primary' : 'text-muted-foreground'
+              )}>All Dishes</p>
             </div>
+            
             {categoriesConfig.map((cat) => (
-              <div key={cat.name} onClick={() => setSelectedCategory(cat.name)} className={`flex-shrink-0 w-40 snap-start cursor-pointer group transition-all duration-500 ${selectedCategory === cat.name ? 'scale-110' : ''}`}>
-                <div className={`relative aspect-square rounded-[2.5rem] overflow-hidden border-4 transition-all duration-500 shadow-md ${selectedCategory === cat.name ? 'border-primary shadow-2xl' : 'border-white bg-white'}`}>
-                  <div className="absolute inset-0 flex items-center justify-center bg-primary/5"><cat.icon className={cn("w-12 h-12", selectedCategory === cat.name ? "text-primary scale-110" : "text-muted-foreground")} /></div>
+              <div 
+                key={cat.name} 
+                onClick={() => setSelectedCategory(cat.name)} 
+                className={cn(
+                  "flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-300",
+                  selectedCategory === cat.name ? 'scale-105' : 'hover:scale-102'
+                )}
+              >
+                <div className={cn(
+                  "aspect-square rounded-[2.5rem] flex items-center justify-center border-4 transition-all duration-500",
+                  selectedCategory === cat.name ? 'border-primary bg-primary shadow-2xl' : 'border-white bg-white shadow-md'
+                )}>
+                  <cat.icon className={cn("w-10 h-10 transition-colors duration-500", selectedCategory === cat.name ? 'text-white' : 'text-primary')} />
                 </div>
-                <p className={`text-center mt-4 font-black text-xs uppercase tracking-widest ${selectedCategory === cat.name ? 'text-primary' : 'text-muted-foreground'}`}>{cat.name.replace('_', ' ')}</p>
+                <p className={cn(
+                  "text-center mt-4 font-black text-[10px] uppercase tracking-widest",
+                  selectedCategory === cat.name ? 'text-primary' : 'text-muted-foreground'
+                )}>{cat.name.replace('_', ' ')}</p>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Dish Grid */}
+        <section className="space-y-12">
+          {dishesLoading ? (
+            <div className="flex flex-col items-center justify-center py-32 gap-6 opacity-40">
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+              <p className="font-black text-xl italic">Opening the pantry...</p>
+            </div>
+          ) : (
+            <>
+              {filteredDishes.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                  {filteredDishes.map(dish => (
+                    <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-40 bg-white rounded-[4rem] border border-dashed border-primary/10">
+                  <div className="max-w-md mx-auto space-y-6">
+                    <div className="w-24 h-24 bg-muted/30 rounded-full flex items-center justify-center mx-auto">
+                      <Search className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-3xl font-headline font-black text-foreground">No matches found</h3>
+                    <p className="text-muted-foreground font-medium">Try adjusting your filters or search keywords to find what you're craving.</p>
+                    <Button variant="outline" onClick={resetFilters} className="rounded-2xl h-12 px-8 font-black border-primary text-primary">Reset All Filters</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </section>
 
-        <section id="full-menu" className="pt-12 border-t border-dashed">
-          <h3 className="text-3xl font-headline font-black mb-12 text-foreground">Full Menu</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
-            {filteredDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
-            {filteredDishes.length === 0 && !dishesLoading && allDishes?.length! > 0 && (
-              <div className="col-span-full text-center py-20 opacity-40 italic font-bold">No dishes found matching your criteria.</div>
-            )}
+        {/* Empty Repository State (Seeding Prompt) */}
+        {!dishesLoading && allDishes?.length === 0 && (
+          <div className="bg-primary/5 p-16 rounded-[4rem] border border-dashed border-primary/20 flex flex-col items-center gap-8 text-center">
+            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center">
+              <ChefHat className="w-12 h-12 text-primary" />
+            </div>
+            <div className="max-w-lg space-y-4">
+              <h2 className="text-4xl font-headline font-black text-foreground">Our kitchen is just getting started!</h2>
+              <p className="text-lg text-muted-foreground font-medium">It looks like the repository hasn't been synced yet. Visit the Admin Portal to bootstrap the menu with 500+ authentic items.</p>
+            </div>
+            <Link href="/admin/database">
+              <Button className="h-16 px-12 rounded-3xl font-black bg-primary text-xl shadow-2xl shadow-primary/20 hover:scale-105 transition-all">
+                Go to Admin Repository <ChevronRight className="ml-2 w-6 h-6" />
+              </Button>
+            </Link>
           </div>
-        </section>
+        )}
       </main>
+
+      <footer className="bg-white border-t py-20 px-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+          <div className="flex flex-col items-center md:items-start gap-4">
+            <div className="flex items-center gap-3">
+              <ChefHat className="text-primary w-8 h-8" />
+              <span className="font-headline text-2xl font-black">Bhartiya Swad</span>
+            </div>
+            <p className="text-muted-foreground font-medium max-w-xs text-center md:text-left opacity-70">Authentic Indian culinary experiences delivered directly to your home.</p>
+          </div>
+          <div className="flex gap-10">
+            <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">Menu</Button>
+            <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">Locations</Button>
+            <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">About Us</Button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

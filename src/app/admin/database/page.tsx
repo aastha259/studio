@@ -21,7 +21,7 @@ export const MENU_CATEGORIES = [
   'NORTH_INDIAN',
   'SOUTH_INDIAN',
   'STREET_FOOD',
-  'DESSERTS_ICE_CREAM',
+  'DESSERTS',
   'BEVERAGES'
 ];
 
@@ -49,45 +49,45 @@ export default function AdminDatabasePage() {
     try {
       const templates: Record<string, { count: number; prefixes: string[]; items: string[]; keywords: string[] }> = {
         PIZZAS: {
-          count: 65,
-          prefixes: ['Artisanal', 'Classic', 'Double Cheese', 'Spicy', 'Tandoori', 'Peri Peri', 'Garden', 'Gourmet', 'Wood-fired', 'Spicy'],
-          items: ['Margherita', 'Paneer Tikka', 'Veggie Delight', 'Farmhouse', 'Mexican Green Wave', 'Cheese N Corn', 'Mushroom Special', 'Hawaiian', 'Zesty Veg'],
+          count: 75,
+          prefixes: ['Artisanal', 'Classic', 'Double Cheese', 'Spicy', 'Tandoori', 'Peri Peri', 'Garden', 'Gourmet', 'Wood-fired'],
+          items: ['Margherita', 'Paneer Tikka', 'Veggie Delight', 'Farmhouse', 'Mexican Green Wave', 'Cheese N Corn', 'Mushroom Special', 'Hawaiian'],
           keywords: ['pizza', 'cheese']
         },
         BURGERS: {
-          count: 65,
-          prefixes: ['Maharaja', 'Spicy', 'Crispy', 'Supreme', 'Giant', 'Zesty', 'Grilled', 'Smoky', 'Double', 'Royal'],
-          items: ['Veggie Burger', 'Aloo Tikki', 'Paneer Burger', 'Cheese Lava', 'Mexican Burger', 'Schezwan Burger', 'Garden Burger', 'Monster Veg'],
+          count: 75,
+          prefixes: ['Maharaja', 'Spicy', 'Crispy', 'Supreme', 'Giant', 'Zesty', 'Grilled', 'Smoky', 'Double'],
+          items: ['Veggie Burger', 'Aloo Tikki', 'Paneer Burger', 'Cheese Lava', 'Mexican Burger', 'Schezwan Burger', 'Garden Burger'],
           keywords: ['burger', 'sandwich']
         },
         NORTH_INDIAN: {
-          count: 85,
-          prefixes: ['Shahi', 'Kadai', 'Butter', 'Dal', 'Paneer', 'Dum', 'Malai', 'Special', 'Makhani', 'Dhaba Style'],
-          items: ['Makhani', 'Masala', 'Kofta', 'Tadka', 'Gravy', 'Do Pyaza', 'Pasanda', 'Korma', 'Handi Paneer'],
+          count: 90,
+          prefixes: ['Shahi', 'Kadai', 'Butter', 'Dal', 'Paneer', 'Dum', 'Malai', 'Special', 'Makhani'],
+          items: ['Makhani', 'Masala', 'Kofta', 'Tadka', 'Gravy', 'Do Pyaza', 'Pasanda', 'Korma'],
           keywords: ['curry', 'indian-food']
         },
         SOUTH_INDIAN: {
-          count: 85,
-          prefixes: ['Mysore', 'Rava', 'Masala', 'Ghee Roast', 'Onion', 'Gunpowder', 'Paper', 'Neer', 'Malabar'],
-          items: ['Dosa', 'Idli', 'Uttapam', 'Vada', 'Appam', 'Paniyaram', 'Parotta', 'Karam Dosa'],
+          count: 90,
+          prefixes: ['Mysore', 'Rava', 'Masala', 'Ghee Roast', 'Onion', 'Gunpowder', 'Paper', 'Neer'],
+          items: ['Dosa', 'Idli', 'Uttapam', 'Vada', 'Appam', 'Paniyaram', 'Parotta'],
           keywords: ['dosa', 'idli']
         },
         STREET_FOOD: {
-          count: 85,
-          prefixes: ['Bombay', 'Delhi', 'Special', 'Masala', 'Tangy', 'Crunchy', 'Street Style', 'Vada', 'Samosa'],
-          items: ['Pav Bhaji', 'Vada Pav', 'Pani Puri', 'Bhel Puri', 'Samosa Chaat', 'Aloo Tikki', 'Dabeli', 'Misal Pav'],
+          count: 90,
+          prefixes: ['Bombay', 'Delhi', 'Special', 'Masala', 'Tangy', 'Crunchy', 'Street Style', 'Vada'],
+          items: ['Pav Bhaji', 'Vada Pav', 'Pani Puri', 'Bhel Puri', 'Samosa Chaat', 'Aloo Tikki', 'Dabeli'],
           keywords: ['chaat', 'street-food']
         },
-        DESSERTS_ICE_CREAM: {
-          count: 65,
-          prefixes: ['Sweet', 'Royal', 'Hot', 'Gulab', 'Rich', 'Kesari', 'Belgian', 'Natural', 'Creamy', 'Exotic'],
-          items: ['Jamun', 'Rasmalai', 'Halwa', 'Ladoo', 'Jalebi', 'Rabri', 'Chocolate', 'Vanilla', 'Mango', 'Butterscotch'],
+        DESSERTS: {
+          count: 80,
+          prefixes: ['Sweet', 'Royal', 'Hot', 'Gulab', 'Rich', 'Kesari', 'Belgian', 'Natural'],
+          items: ['Jamun', 'Rasmalai', 'Halwa', 'Ladoo', 'Jalebi', 'Rabri', 'Chocolate Ice Cream', 'Vanilla Scoop', 'Mango Kulfi'],
           keywords: ['dessert', 'ice-cream']
         },
         BEVERAGES: {
-          count: 85,
-          prefixes: ['Fresh', 'Chilled', 'Masala', 'Sweet', 'Zesty', 'Organic', 'Fruit', 'Cold', 'Iced'],
-          items: ['Lassi', 'Coffee', 'Tea', 'Shake', 'Mojito', 'Lemonade', 'Juice', 'Smoothie', 'Frappe'],
+          count: 80,
+          prefixes: ['Fresh', 'Chilled', 'Masala', 'Sweet', 'Zesty', 'Organic', 'Fruit', 'Cold'],
+          items: ['Lassi', 'Coffee', 'Tea', 'Shake', 'Mojito', 'Lemonade', 'Juice', 'Smoothie'],
           keywords: ['beverage', 'drink']
         }
       };
@@ -106,17 +106,15 @@ export default function AdminDatabasePage() {
             price: Math.floor(Math.random() * (450 - 60 + 1) + 60),
             image: `https://picsum.photos/seed/${category.toLowerCase()}${i}/800/600`,
             description: `Authentic ${name} prepared with premium ingredients and traditional recipes.`,
-            isVeg: Math.random() > 0.15, // Most are veg in Bhartiya Swad
+            isVeg: Math.random() > 0.15,
             rating: parseFloat((Math.random() * (4.8 - 3.5) + 3.5).toFixed(1)),
-            totalOrders: 0,
+            totalOrders: Math.floor(Math.random() * 200),
             totalRevenue: 0,
             createdAt: new Date().toISOString()
           });
         }
       });
 
-      // Firestore Batch Write (Max 500 per batch)
-      // We divide our items into chunks of 450 to stay safe
       const CHUNK_SIZE = 450;
       for (let i = 0; i < allItems.length; i += CHUNK_SIZE) {
         const batch = writeBatch(db);
@@ -128,7 +126,6 @@ export default function AdminDatabasePage() {
         });
         
         await batch.commit();
-        console.log(`Committed batch ${Math.floor(i/CHUNK_SIZE) + 1}`);
       }
 
       toast({ title: "Sync Complete", description: `Successfully added ${allItems.length} unique dishes to your repository.` });
@@ -183,7 +180,6 @@ export default function AdminDatabasePage() {
               <Sparkles className="w-4 h-4 mr-2 group-hover:animate-bounce" />
             )}
             <span className="relative z-10">SYNC 500+ DISHES</span>
-            {!isSeeding && <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />}
           </Button>
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
@@ -287,15 +283,6 @@ export default function AdminDatabasePage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!dishes || dishes.length === 0) && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-20 opacity-30">
-                    <Database className="w-12 h-12 mx-auto mb-4" />
-                    <p className="text-lg font-bold italic">No dishes in repository.</p>
-                    <p className="text-sm">Click "SYNC 500+ DISHES" to populate.</p>
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>

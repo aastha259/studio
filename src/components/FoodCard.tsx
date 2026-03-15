@@ -3,7 +3,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Star, ShoppingCart, Leaf, Beef } from 'lucide-react';
+import { Star, ShoppingCart, Leaf, Beef, Plus, Heart } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ interface FoodCardProps {
     trending?: boolean;
     description?: string;
     isVeg?: boolean;
+    totalOrders?: number;
   };
 }
 
@@ -32,7 +33,8 @@ export default function FoodCard({ food }: FoodCardProps) {
   const { user } = useAuth();
   const router = useRouter();
 
-  const handleOrderNow = () => {
+  const handleOrderNow = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!user) {
       router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
       return;
@@ -43,9 +45,10 @@ export default function FoodCard({ food }: FoodCardProps) {
   const displayImage = food.imageURL || food.image || `https://picsum.photos/seed/${food.id}/800/600`;
 
   return (
-    <div className="group h-full">
-      <Card className="relative h-full flex flex-col overflow-hidden transition-all duration-500 bg-white border border-border/40 shadow-sm hover:shadow-2xl hover:-translate-y-2 rounded-[2.5rem]">
-        <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted m-3 rounded-[2rem] shadow-md">
+    <div className="group h-full perspective-1000">
+      <Card className="relative h-full flex flex-col overflow-hidden transition-all duration-500 bg-white border border-border/40 shadow-sm hover:shadow-2xl hover:-translate-y-3 rounded-[2.5rem] group cursor-pointer">
+        {/* Image Container */}
+        <div className="relative w-full aspect-[1/1] overflow-hidden bg-muted m-3 rounded-[2rem] shadow-inner group">
           <Image
             src={displayImage}
             alt={food.name}
@@ -54,46 +57,63 @@ export default function FoodCard({ food }: FoodCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             data-ai-hint={food.category}
           />
+          
+          {/* Badges Overlay */}
           <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
             <div className="flex flex-col gap-2">
-              {food.trending && (
-                <Badge className="bg-accent text-white border-none px-3 py-1 font-black text-[9px] uppercase tracking-widest shadow-lg animate-pulse backdrop-blur-md">
-                  Trending
+              {food.totalOrders && food.totalOrders > 50 && (
+                <Badge className="bg-accent text-white border-none px-4 py-1 font-black text-[9px] uppercase tracking-widest shadow-lg animate-pulse backdrop-blur-md">
+                  Bestseller
                 </Badge>
               )}
               <div className={cn(
-                "w-6 h-6 rounded-md flex items-center justify-center border-2 backdrop-blur-md shadow-sm",
+                "w-8 h-8 rounded-xl flex items-center justify-center border-2 backdrop-blur-md shadow-lg",
                 food.isVeg ? "bg-white/90 border-green-600 text-green-600" : "bg-white/90 border-red-600 text-red-600"
               )}>
-                {food.isVeg ? <Leaf className="w-3 h-3" /> : <Beef className="w-3 h-3" />}
+                {food.isVeg ? <Leaf className="w-4 h-4" /> : <Beef className="w-4 h-4" />}
               </div>
             </div>
-            <div className="ml-auto bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl shadow-sm border border-white/40 flex items-center gap-1">
-              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-              <span className="text-[10px] font-black text-foreground">{food.rating}</span>
+            
+            <div className="flex flex-col gap-2 pointer-events-auto">
+               <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-white/90 backdrop-blur-md text-muted-foreground hover:text-accent transition-colors shadow-lg">
+                <Heart className="w-4 h-4" />
+              </Button>
             </div>
+          </div>
+
+          <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-xl border border-white/40 flex items-center gap-1.5 transition-transform duration-500 group-hover:scale-110">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm font-black text-foreground">{food.rating}</span>
           </div>
         </div>
 
-        <div className="px-6 pb-6 flex-1 flex flex-col">
+        {/* Content Area */}
+        <div className="px-7 pb-7 flex-1 flex flex-col">
           <div className="mb-4">
-            <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em] mb-1">
-              {food.category}
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1.5 opacity-80">
+              {food.category?.replace('_', ' ')}
             </p>
-            <h3 className="font-headline text-lg font-black leading-tight text-foreground line-clamp-1">
+            <h3 className="font-headline text-xl font-black leading-tight text-foreground line-clamp-1 group-hover:text-primary transition-colors">
               {food.name}
             </h3>
+            {food.description && (
+              <p className="text-xs text-muted-foreground mt-2 line-clamp-2 font-medium leading-relaxed opacity-70">
+                {food.description}
+              </p>
+            )}
           </div>
-          <div className="mt-auto pt-4 border-t border-dashed border-muted flex items-center justify-between gap-4">
+          
+          <div className="mt-auto pt-5 border-t border-dashed border-muted flex items-center justify-between gap-5">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5 opacity-60">Price</span>
-              <span className="text-2xl font-headline font-black text-foreground">₹{food.price}</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-0.5 opacity-60">Price</span>
+              <span className="text-3xl font-headline font-black text-foreground tracking-tighter">₹{food.price}</span>
             </div>
             <Button 
               onClick={handleOrderNow}
-              className="flex-1 rounded-2xl h-12 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg transition-all hover:scale-[1.05]"
+              className="flex-1 rounded-2xl h-14 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-xl shadow-primary/10 transition-all hover:scale-[1.05] active:scale-[0.95] group"
             >
-              Order Now
+              <Plus className="w-4 h-4 mr-2 transition-transform group-hover:rotate-90" />
+              Add to Cart
             </Button>
           </div>
         </div>

@@ -11,10 +11,20 @@ import {
   Utensils,
   Loader2,
   Flame,
-  LayoutDashboard
+  LayoutDashboard,
+  Search,
+  Bell,
+  User as UserIcon,
+  ShoppingBag,
+  Star,
+  ChevronRight,
+  Home,
+  Menu as MenuIcon,
+  Heart
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Sheet, 
   SheetContent, 
@@ -30,6 +40,8 @@ import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -41,10 +53,7 @@ export default function DashboardPage() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  // Stability: Hooks called first
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes } = useCollection(dishesQuery);
 
@@ -52,6 +61,15 @@ export default function DashboardPage() {
     return query(collection(db, 'dishes'), orderBy('totalOrders', 'desc'), limit(4));
   }, [db]);
   const { data: trendingDishes } = useCollection(trendingQuery);
+
+  const topRatedQuery = useMemoFirebase(() => {
+    return query(collection(db, 'dishes'), orderBy('rating', 'desc'), limit(4));
+  }, [db]);
+  const { data: topRatedDishes } = useCollection(topRatedQuery);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (mounted && !user) router.push('/login');
@@ -108,75 +126,280 @@ export default function DashboardPage() {
 
   if (!mounted || !user) return null;
 
+  const sidebarLinks = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home, active: true },
+    { name: 'Full Menu', href: '/menu', icon: Utensils, active: false },
+    { name: 'My Orders', href: '/orders', icon: ShoppingBag, active: false },
+    { name: 'Favorites', href: '/favorites', icon: Heart, active: false },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b px-6 py-4">
+    <div className="min-h-screen bg-[#FDFCFB]">
+      {/* Top Navbar */}
+      <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg"><ChefHat className="text-white w-6 h-6" /></div>
-            <span className="font-headline text-xl font-bold">Bhartiya Swad</span>
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+              <ChefHat className="text-white w-6 h-6" />
+            </div>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
           </Link>
-          <div className="flex gap-4 items-center">
-            <Link href="/dashboard" className="flex items-center gap-2 text-sm font-black text-primary px-3 border-b-2 border-primary"><LayoutDashboard className="w-4 h-4" />Dashboard</Link>
-            <Link href="/menu" className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3"><Utensils className="w-4 h-4" />Menu</Link>
+
+          <div className="flex-1 max-w-lg relative hidden sm:block">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Craving something specific?" 
+              className="pl-11 h-11 bg-muted/40 border-none rounded-2xl focus-visible:ring-primary/20"
+            />
           </div>
+
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+              <Bell className="w-6 h-6" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-white"></span>
+            </Button>
+
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" className="relative p-2 rounded-full">
-                  <ShoppingCart className="w-6 h-6" />
-                  {items.length > 0 && <span className="absolute top-0 right-0 w-5 h-5 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">{items.reduce((acc, i) => acc + i.quantity, 0)}</span>}
+                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group">
+                  <ShoppingCart className="w-6 h-6 group-hover:text-primary transition-colors" />
+                  {items.length > 0 && (
+                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                      {items.reduce((acc, i) => acc + i.quantity, 0)}
+                    </span>
+                  )}
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem]">
-                <SheetHeader className="pb-6 border-b"><SheetTitle className="text-2xl font-headline flex items-center gap-2"><ShoppingCart className="w-6 h-6 text-primary" /> Basket</SheetTitle></SheetHeader>
-                <ScrollArea className="flex-1 py-6">
-                  {items.length === 0 ? <div className="h-full flex flex-col items-center justify-center opacity-40 py-20"><Utensils className="w-16 h-16 mb-4" /><p className="font-bold">Empty</p></div> : (
+              <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem] border-none shadow-2xl">
+                <SheetHeader className="pb-6 border-b">
+                  <SheetTitle className="text-2xl font-headline font-black flex items-center gap-3">
+                    <ShoppingCart className="w-8 h-8 text-primary" /> 
+                    Your Basket
+                  </SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="flex-1 py-8">
+                  {items.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20">
+                      <Utensils className="w-20 h-20 mb-6" />
+                      <p className="font-black text-xl italic text-center">Your basket is waiting <br/>to be filled!</p>
+                    </div>
+                  ) : (
                     <div className="space-y-6">
                       {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-center">
-                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted relative border"><img src={item.imageURL} alt={item.name} className="object-cover w-full h-full" /></div>
-                          <div className="flex-1"><h4 className="font-bold text-sm">{item.name}</h4><p className="text-primary font-bold">₹{item.price}</p></div>
-                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-destructive font-bold">Remove</Button>
+                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all">
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white relative border shadow-sm">
+                            <img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-black text-sm">{item.name}</h4>
+                            <p className="text-primary font-black text-lg">₹{item.price}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-[10px] font-black uppercase text-muted-foreground bg-white px-2 py-0.5 rounded-full border">Qty: {item.quantity}</span>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-destructive hover:bg-destructive/5 rounded-xl">
+                            <LogOut className="w-4 h-4" />
+                          </Button>
                         </div>
                       ))}
                     </div>
                   )}
                 </ScrollArea>
                 {items.length > 0 && (
-                  <SheetFooter className="pt-6 border-t flex-col gap-4">
-                    <div className="flex justify-between items-center w-full"><span className="text-lg font-bold">Total</span><span className="text-2xl font-headline font-black text-primary">₹{totalPrice}</span></div>
-                    <Button className="w-full h-14 bg-primary text-lg font-bold rounded-2xl" onClick={() => { alert("Order Placed!"); clearCart(); }}>Checkout</Button>
+                  <SheetFooter className="pt-8 border-t flex-col sm:flex-col gap-6">
+                    <div className="flex justify-between items-center w-full">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Total Payable</span>
+                        <span className="text-3xl font-headline font-black text-primary">₹{totalPrice}</span>
+                      </div>
+                    </div>
+                    <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden" onClick={() => { alert("Order Placed!"); clearCart(); }}>
+                      <span className="relative z-10 flex items-center gap-2">Place Order <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
+                    </Button>
                   </SheetFooter>
                 )}
               </SheetContent>
             </Sheet>
-            <Button variant="ghost" size="icon" onClick={() => logout()}><LogOut className="w-5 h-5 text-muted-foreground" /></Button>
+
+            <div className="flex items-center gap-3 pl-4 border-l">
+               <Avatar className="h-10 w-10 border-2 border-primary/10 shadow-sm ring-2 ring-white">
+                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} />
+                <AvatarFallback><UserIcon /></AvatarFallback>
+              </Avatar>
+            </div>
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-6 py-12 space-y-20">
-        <section>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-            <div><h1 className="text-5xl font-headline font-black text-foreground leading-tight">Namaste, <span className="text-primary">{user.displayName}</span></h1><p className="text-muted-foreground mt-2 text-lg font-medium">What's on your mind today?</p></div>
-            <Link href="/menu"><Button size="lg" className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-xl">Explore Menu</Button></Link>
+
+      <div className="max-w-7xl mx-auto flex">
+        {/* Sidebar Navigation */}
+        <aside className="w-64 hidden lg:flex flex-col sticky top-24 h-[calc(100vh-6rem)] py-8 pr-8">
+          <nav className="space-y-2">
+            {sidebarLinks.map((link) => (
+              <Link key={link.name} href={link.href}>
+                <Button 
+                  variant="ghost" 
+                  className={cn(
+                    "w-full justify-start h-12 rounded-2xl px-6 font-bold transition-all gap-3",
+                    link.active ? "bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary hover:text-white" : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
+                  )}
+                >
+                  <link.icon className="w-5 h-5" />
+                  {link.name}
+                </Button>
+              </Link>
+            ))}
+          </nav>
+          
+          <div className="mt-auto p-6 bg-accent/5 rounded-[2rem] border border-accent/10 relative overflow-hidden group">
+            <div className="relative z-10">
+              <p className="font-headline font-black text-accent text-lg mb-2">Get 20% OFF</p>
+              <p className="text-xs text-muted-foreground font-medium mb-4">On your first order above ₹500</p>
+              <Button size="sm" className="bg-accent text-white font-black rounded-xl">REDEEM NOW</Button>
+            </div>
+            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-700" />
           </div>
-        </section>
-        {trendingDishes && trendingDishes.length > 0 && (
-          <section><h2 className="text-3xl font-headline font-black mb-8 flex items-center gap-3"><Flame className="w-8 h-8 text-accent animate-bounce" /> Community Favorites</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {trendingDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
+
+          <Button 
+            variant="ghost" 
+            className="mt-8 w-full justify-start h-12 rounded-2xl px-6 font-bold text-destructive hover:bg-destructive/5 gap-3"
+            onClick={() => logout()}
+          >
+            <LogOut className="w-5 h-5" />
+            Log Out
+          </Button>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 p-8 md:p-12 space-y-20 min-w-0">
+          {/* Hero Section */}
+          <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group">
+            <div className="relative z-10 space-y-6 max-w-lg">
+              <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Experience</Badge>
+              <h1 className="text-5xl md:text-6xl font-headline font-black text-foreground leading-[1.1] tracking-tight">
+                Authentic <span className="text-primary italic">Indian</span><br/>Delights.
+              </h1>
+              <p className="text-lg text-muted-foreground font-medium">From spicy street food to royal thalis, we bring the heart of Bharat to your door.</p>
+              <div className="flex gap-4">
+                <Link href="/menu">
+                  <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Explore Full Menu</Button>
+                </Link>
+              </div>
+            </div>
+            <div className="relative flex-1 flex justify-center">
+              <div className="w-72 h-72 md:w-96 md:h-96 bg-white rounded-full shadow-2xl border-8 border-white overflow-hidden animate-float">
+                <img 
+                  src="https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80" 
+                  alt="Delicious Indian Food" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s]" 
+                />
+              </div>
+              <div className="absolute top-0 right-0 bg-white p-4 rounded-3xl shadow-xl border flex items-center gap-3 animate-bounce">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Flame className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase text-muted-foreground">Order Now</p>
+                  <p className="font-black text-foreground text-sm">Fastest Delivery</p>
+                </div>
+              </div>
             </div>
           </section>
-        )}
-        {(recommendations.length > 0 || loadingRecs) && (
-          <section className="bg-muted/30 p-10 rounded-[2.5rem] border"><div className="flex items-center justify-between mb-8"><h2 className="text-3xl font-headline font-black flex items-center gap-3"><Sparkles className="w-8 h-8 text-primary animate-pulse" /> Pick of the Day</h2>{loadingRecs && <Loader2 className="w-6 h-6 animate-spin text-primary" />}</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {recommendations.map(dish => <FoodCard key={dish.id} food={dish} />)}
-            </div>
+
+          {/* Trending Section */}
+          {trendingDishes && trendingDishes.length > 0 && (
+            <section className="space-y-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                    <Flame className="w-10 h-10 text-accent animate-pulse" /> 
+                    Hot & Trending
+                  </h2>
+                  <p className="text-muted-foreground font-medium mt-1">Our community's current favorites this week.</p>
+                </div>
+                <Link href="/menu">
+                  <Button variant="ghost" className="rounded-xl font-bold text-primary group">
+                    See All <ChevronRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                {trendingDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
+              </div>
+            </section>
+          )}
+
+          {/* User Choice / Top Rated Section */}
+          {topRatedDishes && topRatedDishes.length > 0 && (
+            <section className="space-y-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                    <Star className="w-10 h-10 text-yellow-500 fill-current" /> 
+                    User Choice
+                  </h2>
+                  <p className="text-muted-foreground font-medium mt-1">Exquisite dishes rated 4.5+ by our connoisseurs.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                {topRatedDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
+              </div>
+            </section>
+          )}
+
+          {/* AI Recommendations */}
+          {(recommendations.length > 0 || loadingRecs) && (
+            <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+              
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
+                <div>
+                  <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                    <Sparkles className="w-10 h-10 text-primary animate-pulse" /> 
+                    Personalized For You
+                  </h2>
+                  <p className="text-muted-foreground font-medium mt-1">Smart recommendations based on your unique palate.</p>
+                </div>
+                {loadingRecs && <Loader2 className="w-8 h-8 animate-spin text-primary" />}
+              </div>
+
+              <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                {recommendations.map(dish => <FoodCard key={dish.id} food={dish} />)}
+                {!loadingRecs && recommendations.length === 0 && (
+                  <div className="col-span-full py-20 text-center opacity-40 italic font-bold text-xl">
+                    Order a few more items to get tailored AI suggestions!
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Bottom CTA */}
+          <section className="text-center py-20 border-t border-dashed">
+            <h3 className="text-3xl font-headline font-black mb-6">Didn't find what you like?</h3>
+            <Link href="/menu">
+              <Button size="lg" variant="outline" className="h-16 px-12 rounded-2xl border-2 font-black text-lg hover:bg-primary hover:text-white transition-all shadow-xl">
+                Browse Full Catalog
+              </Button>
+            </Link>
           </section>
-        )}
-      </main>
+        </main>
+      </div>
+
+      <footer className="bg-white border-t py-12 px-8">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-3">
+            <ChefHat className="text-primary w-8 h-8" />
+            <span className="font-headline text-xl font-black">Bhartiya Swad</span>
+          </div>
+          <p className="text-sm text-muted-foreground font-bold italic opacity-60">© 2025 Bhartiya Swad. Delivering authentic taste across Bharat.</p>
+          <div className="flex gap-6">
+            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Terms</Button>
+            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Privacy</Button>
+            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Help</Button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

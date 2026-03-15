@@ -27,6 +27,34 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
   const handleLogin = async (role: 'user' | 'admin') => {
+    // Basic Validation
+    if (!email || !email.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Email Required",
+        description: "Please enter your email address."
+      });
+      return;
+    }
+
+    if (!email.includes('@')) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address (e.g., name@example.com)."
+      });
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Password Required",
+        description: "Please enter your password (minimum 6 characters)."
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       if (role === 'admin') {
@@ -121,6 +149,8 @@ function LoginForm() {
       let message = "An unexpected error occurred.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         message = "Invalid email or password.";
+      } else if (error.code === 'auth/invalid-email') {
+        message = "The email address is badly formatted.";
       }
       toast({
         variant: "destructive",

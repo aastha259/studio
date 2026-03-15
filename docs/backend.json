@@ -36,6 +36,20 @@
         "totalRevenue": { "type": "number" }
       },
       "required": ["id", "name", "description", "price", "image", "rating", "category", "isVeg", "totalOrders", "totalRevenue"]
+    },
+    "CartItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CartItem",
+      "type": "object",
+      "description": "Represents an item in a user's shopping cart.",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "imageURL": { "type": "string", "format": "uri" },
+        "quantity": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "quantity", "updatedAt"]
     }
   },
   "auth": {
@@ -46,6 +60,10 @@
       {
         "path": "/users/{userId}",
         "definition": { "entityName": "User", "description": "Stores user profiles." }
+      },
+      {
+        "path": "/users/{userId}/cart/{itemId}",
+        "definition": { "entityName": "CartItem", "description": "Stores items in a user's active shopping cart." }
       },
       {
         "path": "/dishes/{dishId}",

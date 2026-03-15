@@ -34,6 +34,11 @@ service cloud.firestore {
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
+
+      // User's Cart: Only the owner can manage their cart
+      match /cart/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Admin Roles: Strictly restricted to system administrators

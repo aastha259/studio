@@ -47,7 +47,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity, clearCart } = useCart();
   const db = useFirestore();
 
@@ -73,8 +73,10 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (mounted && !user) router.push('/login');
-  }, [user, router, mounted]);
+    if (mounted && !loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router, mounted]);
 
   useEffect(() => {
     async function getPersonalizedRecommendations() {
@@ -124,7 +126,16 @@ export default function DashboardPage() {
     if (allDishes && user) getPersonalizedRecommendations();
   }, [user?.uid, allDishes, db]);
 
-  if (!mounted || !user) return null;
+  if (!mounted || loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin text-primary" />
+          <p className="font-headline font-bold text-muted-foreground">Setting the table...</p>
+        </div>
+      </div>
+    );
+  }
 
   const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: Home, active: true },

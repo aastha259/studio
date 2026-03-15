@@ -60,7 +60,7 @@ const categoriesConfig = [
 
 export default function MenuPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity, clearCart } = useCart();
   const db = useFirestore();
   
@@ -75,6 +75,12 @@ export default function MenuPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (mounted && !loading && !user) {
+      router.push('/login?callbackUrl=/menu');
+    }
+  }, [user, loading, router, mounted]);
 
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
@@ -130,7 +136,16 @@ export default function MenuPage() {
     setSelectedCategory('All');
   };
 
-  if (!mounted) return null;
+  if (!mounted || loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin text-primary" />
+          <p className="font-headline font-bold text-muted-foreground">Opening the pantry...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFCFB]" suppressHydrationWarning>

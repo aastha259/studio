@@ -13,34 +13,106 @@ import {
   MapPin,
   ChevronRight,
   ShieldCheck,
-  Loader2
+  Loader2,
+  Phone,
+  User as UserIcon,
+  ShoppingCart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const db = useFirestore();
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, clearCart, totalQuantity } = useCart();
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [isOrdered, setIsOrdered] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Online'>('COD');
+  
+  const [deliveryDetails, setDeliveryDetails] = useState({
+    name: '',
+    phone: '',
+    address: ''
+  });
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login?callbackUrl=/checkout');
     if (!authLoading && user && items.length === 0 && !isOrdered) router.push('/menu');
+    
+    if (user && !deliveryDetails.name) {
+      setDeliveryDetails(prev => ({
+        ...prev,
+        name: user.displayName || '',
+        email: user.email || ''
+      }));
+    }
   }, [user, authLoading, items.length, isOrdered, router]);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (!deliveryDetails.name || !deliveryDetails.phone || !deliveryDetails.address) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please fill in all delivery details."
+      });
+      return;
+    }
+
     setIsProcessing(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsProcessing(false);
+    
+    try {
+      const orderData = {
+        userId: user.uid,
+        items: items.map(item => ({
+          dishId: item.id,
+          foodName: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          subtotal: item.price * item.quantity
+        })),
+        totalAmount: totalPrice + 54, // Items + taxes/fees
+        status: 'Pending',
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentMethod === 'Online' ? 'Paid' : 'Pending',
+        deliveryDetails: deliveryDetails,
+        orderDate: new Date().toISOString(),
+        createdAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'orders'), orderData);
+      
+      // Atomic success
       setIsOrdered(true);
       clearCart();
-    }, 2000);
+      toast({
+        title: "Order Placed!",
+        description: "Your meal is on its way."
+      });
+    } catch (error: any) {
+      console.error("Order failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Order Failed",
+        description: error.message || "Could not process your order."
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (isOrdered) {
@@ -51,14 +123,17 @@ export default function CheckoutPage() {
             <CheckCircle2 className="w-12 h-12 text-green-600" />
           </div>
           <div className="space-y-4">
-            <h1 className="text-4xl font-headline font-black text-foreground">Order Placed!</h1>
+            <h1 className="text-4xl font-headline font-black text-foreground">Order Confirmed!</h1>
             <p className="text-muted-foreground font-medium">Your delicious meal is being prepared with love. You'll receive updates on your order shortly.</p>
           </div>
           <div className="pt-8 flex flex-col gap-4">
             <Link href="/dashboard">
-              <Button className="w-full h-14 rounded-2xl bg-primary text-lg font-black">
-                Back to Home
+              <Button className="w-full h-14 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20">
+                Track My Order
               </Button>
+            </Link>
+            <Link href="/menu">
+              <Button variant="ghost" className="font-bold">Order Something Else</Button>
             </Link>
           </div>
         </div>
@@ -68,6 +143,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB]">
+      {/* Navbar */}
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/cart" className="flex items-center gap-3">
@@ -77,93 +153,198 @@ export default function CheckoutPage() {
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
           </Link>
           <Link href="/cart">
-            <Button variant="ghost" className="font-bold gap-2">
+            <Button variant="ghost" className="font-bold gap-2 rounded-xl">
               <ArrowLeft className="w-4 h-4" /> Back to Cart
             </Button>
           </Link>
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
-        <h1 className="text-4xl font-headline font-black">Checkout</h1>
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="flex flex-col lg:flex-row gap-12">
+          
+          {/* Checkout Form */}
+          <div className="flex-1 space-y-8">
+            <h1 className="text-5xl font-headline font-black tracking-tight">Checkout</h1>
+            
+            <form onSubmit={handlePlaceOrder} className="space-y-8">
+              {/* Delivery Details */}
+              <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
+                <CardHeader className="bg-muted/30 p-8 border-b">
+                  <CardTitle className="flex items-center gap-3 text-xl font-headline font-black text-foreground">
+                    <MapPin className="w-6 h-6 text-primary" /> Delivery Logistics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Full Name</Label>
+                      <div className="relative">
+                        <UserIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          id="name" 
+                          placeholder="Receiver's name" 
+                          className="pl-10 h-12 rounded-xl"
+                          value={deliveryDetails.name}
+                          onChange={(e) => setDeliveryDetails({...deliveryDetails, name: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          id="phone" 
+                          placeholder="+91 00000 00000" 
+                          className="pl-10 h-12 rounded-xl"
+                          value={deliveryDetails.phone}
+                          onChange={(e) => setDeliveryDetails({...deliveryDetails, phone: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Delivery Address</Label>
+                    <textarea 
+                      id="address" 
+                      placeholder="Flat/House No., Building, Street, Area..." 
+                      className="w-full min-h-[100px] p-4 bg-background border rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      value={deliveryDetails.address}
+                      onChange={(e) => setDeliveryDetails({...deliveryDetails, address: e.target.value})}
+                      required
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-        <div className="space-y-6">
-          {/* Shipping Section */}
-          <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
-            <CardHeader className="bg-muted/30 p-8 border-b">
-              <CardTitle className="flex items-center gap-3 text-xl font-headline font-black">
-                <MapPin className="w-6 h-6 text-primary" /> Delivery Address
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-bold text-lg">Home</p>
-                  <p className="text-muted-foreground mt-1">123, Palm Grove Residency, Cyber City, Bangalore - 560103</p>
+              {/* Payment Section */}
+              <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
+                <CardHeader className="bg-muted/30 p-8 border-b">
+                  <CardTitle className="flex items-center gap-3 text-xl font-headline font-black text-foreground">
+                    <CreditCard className="w-6 h-6 text-primary" /> Payment Method
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <RadioGroup 
+                    defaultValue="COD" 
+                    onValueChange={(val) => setPaymentMethod(val as any)}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  >
+                    <div>
+                      <RadioGroupItem value="COD" id="cod" className="peer sr-only" />
+                      <Label
+                        htmlFor="cod"
+                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
+                      >
+                        <Package className="mb-3 h-6 w-6 text-primary" />
+                        <span className="font-black">Cash on Delivery</span>
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem value="Online" id="online" className="peer sr-only" />
+                      <Label
+                        htmlFor="online"
+                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
+                      >
+                        <CreditCard className="mb-3 h-6 w-6 text-primary" />
+                        <span className="font-black">Online Payment</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+            </form>
+          </div>
+
+          {/* Order Summary Sidebar */}
+          <div className="w-full lg:w-[450px] space-y-6">
+            <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white">
+              <CardHeader className="bg-primary p-8 text-white">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-2xl font-headline font-black">Order Summary</CardTitle>
+                  <ShoppingCart className="w-6 h-6 text-white/40" />
                 </div>
-                <Button variant="outline" className="rounded-xl font-bold">Change</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Payment Section */}
-          <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
-            <CardHeader className="bg-muted/30 p-8 border-b">
-              <CardTitle className="flex items-center gap-3 text-xl font-headline font-black">
-                <CreditCard className="w-6 h-6 text-primary" /> Payment Method
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-8 bg-muted rounded flex items-center justify-center font-bold text-[10px]">VISA</div>
-                  <div>
-                    <p className="font-bold">Visa ending in 4242</p>
-                    <p className="text-xs text-muted-foreground">Expires 12/26</p>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <ScrollArea className="max-h-[300px] pr-4">
+                  <div className="space-y-4">
+                    {items.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                            <img src={item.imageURL} alt={item.name} className="object-cover w-full h-full" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm line-clamp-1">{item.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Qty: {item.quantity}</p>
+                          </div>
+                        </div>
+                        <p className="font-black text-sm text-primary">₹{item.price * item.quantity}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                
+                <Separator />
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-bold">Items Subtotal</span>
+                    <span className="font-black">₹{totalPrice}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-bold">Delivery & Packaging</span>
+                    <span className="font-black">₹49</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-bold">Platform Surcharge</span>
+                    <span className="font-black">₹5</span>
                   </div>
                 </div>
-                <Button variant="outline" className="rounded-xl font-bold">Change</Button>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Final Summary Card */}
-          <Card className="rounded-[2.5rem] bg-foreground text-white overflow-hidden shadow-2xl">
-            <CardContent className="p-10 space-y-8">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-white/70">
-                  <span className="font-bold">Items Total</span>
-                  <span className="font-black">₹{totalPrice}</span>
+                <div className="pt-6 border-t border-dashed">
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Total Amount</span>
+                      <span className="text-4xl font-headline font-black text-primary">₹{totalPrice + 54}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-white/70">
-                  <span className="font-bold">Delivery & Taxes</span>
-                  <span className="font-black">₹54</span>
-                </div>
-                <Separator className="bg-white/10" />
-                <div className="flex justify-between items-center">
-                  <span className="text-xl font-headline font-black">Total Payable</span>
-                  <span className="text-3xl font-headline font-black text-primary">₹{totalPrice + 54}</span>
-                </div>
-              </div>
 
-              <Button 
-                onClick={handlePlaceOrder}
-                disabled={isProcessing}
-                className="w-full h-16 rounded-2xl bg-primary text-white text-xl font-black shadow-xl shadow-primary/20"
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                ) : (
-                  "Confirm & Pay Now"
-                )}
-              </Button>
+                <Button 
+                  onClick={handlePlaceOrder}
+                  disabled={isProcessing || !deliveryDetails.address || !deliveryDetails.phone}
+                  className="w-full h-16 rounded-[2rem] bg-primary text-xl font-black shadow-xl shadow-primary/20 group relative overflow-hidden transition-all active:scale-95"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      Place Order <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  )}
+                </Button>
 
-              <div className="flex items-center justify-center gap-2 text-white/40">
-                <ShieldCheck className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">PCI-DSS Compliant Encryption</span>
+                <div className="flex items-center justify-center gap-2 text-muted-foreground pt-4">
+                  <ShieldCheck className="w-4 h-4 text-green-600" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">100% Secure Transaction</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                <ChefHat className="w-5 h-5 text-accent" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="font-black text-accent text-sm uppercase tracking-widest">Hygiene Promise</p>
+                <p className="text-xs text-muted-foreground font-medium leading-relaxed">Your order will be prepared following the highest safety standards and contactless delivery guidelines.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

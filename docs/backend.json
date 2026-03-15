@@ -30,7 +30,7 @@
         "price": { "type": "number" },
         "image": { "type": "string", "format": "uri" },
         "rating": { "type": "number" },
-        "category": { "type": "string", "enum": ["Starters", "Main Course - Veg", "Main Course - Non-Veg", "Breads", "Rice & Biryani", "Street Food", "Desserts", "Beverages"] },
+        "category": { "type": "string" },
         "isVeg": { "type": "boolean" },
         "totalOrders": { "type": "number" },
         "totalRevenue": { "type": "number" }
@@ -50,25 +50,51 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "price", "quantity", "updatedAt"]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer order.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": { "type": "array", "items": { "$ref": "#/entities/CartItem" } },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
+        "paymentMethod": { "type": "string", "enum": ["COD", "Online"] },
+        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid"] },
+        "deliveryDetails": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "phone": { "type": "string" },
+            "address": { "type": "string" }
+          }
+        },
+        "orderDate": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
     "providers": ["password", "anonymous"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": { "entityName": "User", "description": "Stores user profiles." }
-      },
-      {
-        "path": "/users/{userId}/cart/{itemId}",
-        "definition": { "entityName": "CartItem", "description": "Stores items in a user's active shopping cart." }
-      },
-      {
-        "path": "/dishes/{dishId}",
-        "definition": { "entityName": "Dish", "description": "Stores individual authentic Indian dishes." }
-      }
-    ]
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles."
+    },
+    "/users/{userId}/cart/{itemId}": {
+      "schema": "CartItem",
+      "description": "Stores items in a user's active shopping cart."
+    },
+    "/dishes/{dishId}": {
+      "schema": "Dish",
+      "description": "Stores individual authentic Indian dishes."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Stores all customer orders."
+    }
   }
 }

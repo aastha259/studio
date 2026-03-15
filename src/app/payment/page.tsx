@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -22,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -67,17 +68,20 @@ function PaymentContent() {
     // Simulate secure payment processing handshake
     await new Promise(resolve => setTimeout(resolve, 2000));
 
+    const orderRef = doc(collection(db, 'orders'));
     const orderData = {
+      orderId: orderRef.id,
       userId: user.uid,
       items: items.map(item => ({
         dishId: item.id,
         foodName: item.name,
         price: item.price,
         quantity: item.quantity,
-        subtotal: item.price * item.quantity
+        subtotal: item.price * item.quantity,
+        imageURL: item.imageURL
       })),
-      totalAmount: totalPrice + 54,
-      status: 'Preparing',
+      totalPrice: totalPrice + 54,
+      orderStatus: 'Order Placed',
       paymentMethod: 'Online',
       paymentStatus: 'Paid',
       deliveryDetails: deliveryInfo,
@@ -85,8 +89,7 @@ function PaymentContent() {
       createdAt: serverTimestamp()
     };
 
-    // Non-blocking mutation with proper error propagation
-    addDoc(collection(db, 'orders'), orderData)
+    setDoc(orderRef, orderData)
       .then(() => {
         setIsSuccess(true);
         clearCart();
@@ -150,7 +153,7 @@ function PaymentContent() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/checkout">

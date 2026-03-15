@@ -29,8 +29,8 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
 const TRACKING_STEPS = [
-  { id: 'Pending', label: 'Order Placed', icon: Clock, color: 'bg-blue-500' },
-  { id: 'Preparing', label: 'Preparing Food', icon: Utensils, color: 'bg-orange-500' },
+  { id: 'Order Placed', label: 'Order Placed', icon: Clock, color: 'bg-blue-500' },
+  { id: 'Preparing Food', label: 'Preparing Food', icon: Utensils, color: 'bg-orange-500' },
   { id: 'Out for Delivery', label: 'Out for Delivery', icon: Truck, color: 'bg-indigo-500' },
   { id: 'Delivered', label: 'Delivered', icon: CheckCircle2, color: 'bg-green-500' },
 ];
@@ -50,7 +50,8 @@ export default function OrderTrackingPage() {
 
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
-    const index = TRACKING_STEPS.findIndex(step => step.id === order.status);
+    const status = order.orderStatus || order.status || 'Order Placed';
+    const index = TRACKING_STEPS.findIndex(step => step.id === status);
     return index === -1 ? 0 : index;
   }, [order]);
 
@@ -80,6 +81,10 @@ export default function OrderTrackingPage() {
     );
   }
 
+  const displayOrderId = order.orderId || order.id;
+  const displayTotalPrice = order.totalPrice || order.totalAmount;
+  const displayStatus = order.orderStatus || order.status || 'Processing';
+
   return (
     <div className="min-h-screen bg-[#FDFCFB] pb-20">
       {/* Header */}
@@ -89,7 +94,7 @@ export default function OrderTrackingPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
           <Link href="/dashboard">
             <Button variant="ghost" className="font-bold gap-2 rounded-xl">
@@ -103,13 +108,13 @@ export default function OrderTrackingPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
             <h1 className="text-5xl font-headline font-black tracking-tight">Track Order</h1>
-            <p className="text-muted-foreground font-medium mt-1">Order ID: <span className="font-mono text-primary font-bold">#{order.id.slice(0, 12).toUpperCase()}</span></p>
+            <p className="text-muted-foreground font-medium mt-1">Order ID: <span className="font-mono text-primary font-bold">#{displayOrderId.slice(0, 12).toUpperCase()}</span></p>
           </div>
           <Badge className={cn(
             "h-10 px-6 rounded-full font-black text-xs uppercase tracking-widest",
-            order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'
+            displayStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'
           )}>
-            {order.status || 'Processing'}
+            {displayStatus}
           </Badge>
         </div>
 
@@ -217,15 +222,15 @@ export default function OrderTrackingPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm font-medium">
                     <span className="text-muted-foreground">Items Total</span>
-                    <span>₹{order.totalAmount - 54}</span>
+                    <span>₹{displayTotalPrice - 54}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-medium">
                     <span className="text-muted-foreground">Delivery & Surcharge</span>
                     <span className="text-green-600">₹54</span>
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t">
-                    <span className="text-lg font-headline font-black">Grand Total</span>
-                    <span className="text-3xl font-headline font-black text-primary">₹{order.totalAmount}</span>
+                    <span className="text-lg font-headline font-black text-foreground">Grand Total</span>
+                    <span className="text-3xl font-headline font-black text-primary">₹{displayTotalPrice}</span>
                   </div>
                 </div>
               </CardContent>
@@ -287,7 +292,7 @@ export default function OrderTrackingPage() {
                   <span className="text-xs font-bold text-muted-foreground uppercase">Status</span>
                   <Badge className={cn(
                     "font-black text-[10px] uppercase border-none",
-                    order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                    (order.paymentStatus === 'Paid' || order.paymentStatus === 'Cash on Delivery') ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                   )}>
                     {order.paymentStatus}
                   </Badge>

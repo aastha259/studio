@@ -80,13 +80,13 @@
       "type": "object",
       "description": "Represents a customer order.",
       "properties": {
-        "id": { "type": "string" },
+        "orderId": { "type": "string" },
         "userId": { "type": "string" },
         "items": { "type": "array", "items": { "$ref": "#/entities/CartItem" } },
-        "totalAmount": { "type": "number" },
-        "status": { "type": "string", "enum": ["Pending", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
+        "totalPrice": { "type": "number" },
+        "orderStatus": { "type": "string", "enum": ["Order Placed", "Preparing Food", "Out for Delivery", "Delivered", "Cancelled"] },
         "paymentMethod": { "type": "string", "enum": ["COD", "Online"] },
-        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid"] },
+        "paymentStatus": { "type": "string", "enum": ["Cash on Delivery", "Paid", "Pending"] },
         "deliveryDetails": {
           "type": "object",
           "properties": {
@@ -95,7 +95,8 @@
             "address": { "type": "string" }
           }
         },
-        "orderDate": { "type": "string", "format": "date-time" }
+        "orderDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "object" }
       }
     }
   },

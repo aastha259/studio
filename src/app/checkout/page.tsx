@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -28,7 +29,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -51,7 +52,6 @@ export default function CheckoutPage() {
   });
 
   useEffect(() => {
-    // Wait for auth and cart to load before making redirect decisions
     if (authLoading || cartLoading) return;
 
     if (!user) {
@@ -97,26 +97,28 @@ export default function CheckoutPage() {
 
     setIsProcessing(true);
     
+    const orderRef = doc(collection(db, 'orders'));
     const orderData = {
+      orderId: orderRef.id,
       userId: user.uid,
       items: items.map(item => ({
         dishId: item.id,
         foodName: item.name,
         price: item.price,
         quantity: item.quantity,
-        subtotal: item.price * item.quantity
+        subtotal: item.price * item.quantity,
+        imageURL: item.imageURL
       })),
-      totalAmount: totalPrice + 54,
-      status: 'Pending',
+      totalPrice: totalPrice + 54,
+      orderStatus: 'Order Placed',
       paymentMethod: paymentMethod,
-      paymentStatus: 'Pending',
+      paymentStatus: 'Cash on Delivery',
       deliveryDetails: deliveryDetails,
       orderDate: new Date().toISOString(),
       createdAt: serverTimestamp()
     };
 
-    // Non-blocking mutation
-    addDoc(collection(db, 'orders'), orderData)
+    setDoc(orderRef, orderData)
       .then(() => {
         setIsOrdered(true);
         clearCart();
@@ -183,7 +185,7 @@ export default function CheckoutPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/cart">

@@ -80,7 +80,7 @@ export default function DashboardPage() {
     return query(
       collection(db, 'orders'),
       where('userId', '==', user.uid),
-      orderBy('orderDate', 'desc')
+      orderBy('createdAt', 'desc')
     );
   }, [db, user?.uid]);
   const { data: userOrders, isLoading: ordersLoading } = useCollection(ordersQuery);
@@ -104,7 +104,7 @@ export default function DashboardPage() {
         const q = query(
           collection(db, 'orders'), 
           where('userId', '==', user.uid), 
-          orderBy('orderDate', 'desc'), 
+          orderBy('createdAt', 'desc'), 
           limit(5)
         );
         const orderSnap = await getDocs(q);
@@ -384,13 +384,13 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-start">
                         <div className="space-y-1">
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Order ID</p>
-                          <p className="font-mono text-xs font-black text-primary">#{order.id.slice(0, 8).toUpperCase()}</p>
+                          <p className="font-mono text-xs font-black text-primary">#{order.orderId?.slice(0, 12).toUpperCase() || order.id.slice(0, 12).toUpperCase()}</p>
                         </div>
                         <Badge className={cn(
                           "rounded-full px-4 py-1 font-black text-[10px] uppercase tracking-wider",
-                          order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                          order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'
                         )}>
-                          {order.status || 'Pending'}
+                          {order.orderStatus || 'Processing'}
                         </Badge>
                       </div>
 
@@ -428,7 +428,7 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-center pt-2">
                         <div className="flex flex-col">
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Paid</p>
-                          <p className="text-3xl font-headline font-black text-foreground">₹{order.totalAmount}</p>
+                          <p className="text-3xl font-headline font-black text-foreground">₹{order.totalPrice || order.totalAmount}</p>
                         </div>
                         <Link href={`/orders/${order.id}`}>
                           <Button className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/10">

@@ -21,12 +21,16 @@ import {
   Heart,
   Plus,
   Minus,
-  Trash2
+  Trash2,
+  Clock,
+  CheckCircle2,
+  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Sheet, 
   SheetContent, 
@@ -44,17 +48,19 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format, parseISO } from 'date-fns';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
-  const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity, clearCart } = useCart();
+  const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity } = useCart();
   const db = useFirestore();
 
   const [mounted, setMounted] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
+  // Firestore Queries
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes } = useCollection(dishesQuery);
 
@@ -67,6 +73,17 @@ export default function DashboardPage() {
     return query(collection(db, 'dishes'), orderBy('rating', 'desc'), limit(4));
   }, [db]);
   const { data: topRatedDishes } = useCollection(topRatedQuery);
+
+  // User Order History Query
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return query(
+      collection(db, 'orders'),
+      where('userId', '==', user.uid),
+      orderBy('orderDate', 'desc')
+    );
+  }, [db, user?.uid]);
+  const { data: userOrders, isLoading: ordersLoading } = useCollection(ordersQuery);
 
   useEffect(() => {
     setMounted(true);
@@ -152,7 +169,7 @@ export default function DashboardPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
 
           <div className="flex-1 max-w-lg relative hidden sm:block">
@@ -241,7 +258,7 @@ export default function DashboardPage() {
                     </div>
                     <Link href="/cart" className="w-full">
                       <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden">
-                        <span className="relative z-10 flex items-center justify-center gap-2">View Cart <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
+                        <span className="relative z-10 flex items-center justify-center gap-2 text-white">View Cart <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
                       </Button>
                     </Link>
                   </SheetFooter>
@@ -306,7 +323,8 @@ export default function DashboardPage() {
           </Button>
         </aside>
 
-        <main className="flex-1 p-8 md:p-12 space-y-20 min-w-0">
+        <main className="flex-1 p-8 md:p-12 space-y-24 min-w-0">
+          {/* Hero Section */}
           <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group">
             <div className="relative z-10 space-y-6 max-w-lg">
               <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Experience</Badge>
@@ -316,7 +334,7 @@ export default function DashboardPage() {
               <p className="text-lg text-muted-foreground font-medium">From spicy street food to royal thalis, we bring the heart of Bharat to your door.</p>
               <div className="flex gap-4">
                 <Link href="/menu">
-                  <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Explore Full Menu</Button>
+                  <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-white">Explore Full Menu</Button>
                 </Link>
               </div>
             </div>
@@ -340,6 +358,105 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          {/* Order History Section */}
+          <section className="space-y-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                  <ShoppingBag className="w-10 h-10 text-primary" /> 
+                  Order History
+                </h2>
+                <p className="text-muted-foreground font-medium mt-1">Review your past culinary journeys.</p>
+              </div>
+            </div>
+
+            {ordersLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-64 rounded-[2.5rem] bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : userOrders && userOrders.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {userOrders.map((order) => (
+                  <Card key={order.id} className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white hover:shadow-md transition-all group">
+                    <CardContent className="p-8 space-y-6">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Order ID</p>
+                          <p className="font-mono text-xs font-black text-primary">#{order.id.slice(0, 8).toUpperCase()}</p>
+                        </div>
+                        <Badge className={cn(
+                          "rounded-full px-4 py-1 font-black text-[10px] uppercase tracking-wider",
+                          order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        )}>
+                          {order.status || 'Pending'}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ordered Items</p>
+                        <div className="space-y-2">
+                          {order.items?.map((item: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <span className="font-bold text-foreground">
+                                {item.foodName} <span className="text-muted-foreground text-xs ml-1">x{item.quantity}</span>
+                              </span>
+                              <span className="font-black text-muted-foreground">₹{item.subtotal}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 py-4 border-y border-dashed">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                            <CreditCard className="w-3 h-3" /> Payment
+                          </p>
+                          <p className="text-xs font-bold text-foreground capitalize">{order.paymentMethod} ({order.paymentStatus})</p>
+                        </div>
+                        <div className="space-y-1 text-right">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1 justify-end">
+                            <Clock className="w-3 h-3" /> Date
+                          </p>
+                          <p className="text-xs font-bold text-foreground">
+                            {order.orderDate ? format(parseISO(order.orderDate), 'MMM dd, yyyy') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2">
+                        <div className="flex flex-col">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Paid</p>
+                          <p className="text-3xl font-headline font-black text-foreground">₹{order.totalAmount}</p>
+                        </div>
+                        <Button className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/10">
+                          Track Order
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="border-dashed border-2 bg-muted/5 rounded-[3rem] p-20 text-center">
+                <div className="max-w-sm mx-auto space-y-6">
+                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto shadow-xl">
+                    <ShoppingBag className="w-10 h-10 text-muted-foreground/40" />
+                  </div>
+                  <h3 className="text-2xl font-headline font-black text-foreground">You have not placed any orders yet.</h3>
+                  <p className="text-muted-foreground font-medium">Embark on your first culinary journey with Bhartiya Swad today!</p>
+                  <Link href="/menu">
+                    <Button className="h-14 px-10 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20 text-white">
+                      Browse Menu
+                    </Button>
+                  </Link>
+                </div>
+              </Card>
+            )}
+          </section>
+
+          {/* Trending Section */}
           {trendingDishes && trendingDishes.length > 0 && (
             <section className="space-y-10">
               <div className="flex items-center justify-between">
@@ -362,6 +479,7 @@ export default function DashboardPage() {
             </section>
           )}
 
+          {/* Top Rated Section */}
           {topRatedDishes && topRatedDishes.length > 0 && (
             <section className="space-y-10">
               <div className="flex items-center justify-between">
@@ -379,6 +497,7 @@ export default function DashboardPage() {
             </section>
           )}
 
+          {/* Personalized Recommendations Section */}
           {(recommendations.length > 0 || loadingRecs) && (
             <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
@@ -406,7 +525,7 @@ export default function DashboardPage() {
           )}
 
           <section className="text-center py-20 border-t border-dashed">
-            <h3 className="text-3xl font-headline font-black mb-6">Didn't find what you like?</h3>
+            <h3 className="text-3xl font-headline font-black mb-6 text-foreground">Didn't find what you like?</h3>
             <Link href="/menu">
               <Button size="lg" variant="outline" className="h-16 px-12 rounded-2xl border-2 font-black text-lg hover:bg-primary hover:text-white transition-all shadow-xl">
                 Browse Full Catalog
@@ -420,9 +539,9 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3">
             <ChefHat className="text-primary w-8 h-8" />
-            <span className="font-headline text-xl font-black">Bhartiya Swad</span>
+            <span className="font-headline text-xl font-black text-foreground">Bhartiya Swad</span>
           </div>
-          <p className="text-sm text-muted-foreground font-bold italic opacity-60">© 2025 Bhartiya Swad. Delivering authentic taste across Bharat.</p>
+          <p className="text-sm text-muted-foreground font-bold italic opacity-60 text-center md:text-left">© 2025 Bhartiya Swad. Delivering authentic taste across Bharat.</p>
           <div className="flex gap-6">
             <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Terms</Button>
             <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Privacy</Button>

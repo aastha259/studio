@@ -11,7 +11,6 @@ import {
   Utensils,
   Loader2,
   Flame,
-  LayoutDashboard,
   Search,
   Bell,
   User as UserIcon,
@@ -19,8 +18,10 @@ import {
   Star,
   ChevronRight,
   Home,
-  Menu as MenuIcon,
-  Heart
+  Heart,
+  Plus,
+  Minus,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -46,14 +47,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 export default function DashboardPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { items, removeFromCart, totalPrice, clearCart } = useCart();
+  const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity, clearCart } = useCart();
   const db = useFirestore();
 
   const [mounted, setMounted] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
-  // Stability: Hooks called first
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes } = useCollection(dishesQuery);
 
@@ -135,7 +135,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB]">
-      {/* Top Navbar */}
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <Link href="/dashboard" className="flex items-center gap-3">
@@ -163,9 +162,9 @@ export default function DashboardPage() {
               <SheetTrigger asChild>
                 <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group">
                   <ShoppingCart className="w-6 h-6 group-hover:text-primary transition-colors" />
-                  {items.length > 0 && (
-                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                      {items.reduce((acc, i) => acc + i.quantity, 0)}
+                  {totalQuantity > 0 && (
+                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
+                      {totalQuantity}
                     </span>
                   )}
                 </Button>
@@ -186,19 +185,35 @@ export default function DashboardPage() {
                   ) : (
                     <div className="space-y-6">
                       {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all">
+                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all group">
                           <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white relative border shadow-sm">
                             <img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" />
                           </div>
                           <div className="flex-1">
                             <h4 className="font-black text-sm">{item.name}</h4>
                             <p className="text-primary font-black text-lg">₹{item.price}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-[10px] font-black uppercase text-muted-foreground bg-white px-2 py-0.5 rounded-full border">Qty: {item.quantity}</span>
+                            <div className="flex items-center gap-3 mt-2">
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-7 w-7 rounded-full border-primary/20"
+                                onClick={() => updateQuantity(item.id, -1)}
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                              <span className="text-sm font-black">{item.quantity}</span>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-7 w-7 rounded-full border-primary/20"
+                                onClick={() => updateQuantity(item.id, 1)}
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-destructive hover:bg-destructive/5 rounded-xl">
-                            <LogOut className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       ))}
@@ -232,7 +247,6 @@ export default function DashboardPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto flex">
-        {/* Sidebar Navigation */}
         <aside className="w-64 hidden lg:flex flex-col sticky top-24 h-[calc(100vh-6rem)] py-8 pr-8">
           <nav className="space-y-2">
             {sidebarLinks.map((link) => (
@@ -270,9 +284,7 @@ export default function DashboardPage() {
           </Button>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-8 md:p-12 space-y-20 min-w-0">
-          {/* Hero Section */}
           <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group">
             <div className="relative z-10 space-y-6 max-w-lg">
               <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Experience</Badge>
@@ -306,7 +318,6 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* Trending Section */}
           {trendingDishes && trendingDishes.length > 0 && (
             <section className="space-y-10">
               <div className="flex items-center justify-between">
@@ -329,7 +340,6 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {/* User Choice / Top Rated Section */}
           {topRatedDishes && topRatedDishes.length > 0 && (
             <section className="space-y-10">
               <div className="flex items-center justify-between">
@@ -347,7 +357,6 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {/* AI Recommendations */}
           {(recommendations.length > 0 || loadingRecs) && (
             <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
@@ -374,7 +383,6 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {/* Bottom CTA */}
           <section className="text-center py-20 border-t border-dashed">
             <h3 className="text-3xl font-headline font-black mb-6">Didn't find what you like?</h3>
             <Link href="/menu">

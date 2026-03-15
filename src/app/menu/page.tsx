@@ -21,7 +21,10 @@ import {
   CircleDot,
   Leaf,
   ChevronRight,
-  Pizza
+  Pizza,
+  Plus,
+  Minus,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -58,7 +61,7 @@ const categoriesConfig = [
 export default function MenuPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { items, removeFromCart, totalPrice, clearCart } = useCart();
+  const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity, clearCart } = useCart();
   const db = useFirestore();
   
   const [mounted, setMounted] = useState(false);
@@ -89,7 +92,7 @@ export default function MenuPage() {
       setLoadingRecs(true);
       try {
         const result = await personalizedFoodRecommendations({
-          userFoodHistory: [], // In a real app, this would be fetched from orders
+          userFoodHistory: [],
           availableFoods: allDishes.map(f => ({
             id: f.id,
             name: f.name,
@@ -131,7 +134,6 @@ export default function MenuPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB]" suppressHydrationWarning>
-      {/* Top Navigation */}
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <Link href="/" className="flex items-center gap-3">
@@ -164,9 +166,9 @@ export default function MenuPage() {
               <SheetTrigger asChild>
                 <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group">
                   <ShoppingCart className="w-6 h-6 group-hover:text-primary transition-colors" />
-                  {items.length > 0 && (
-                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                      {items.reduce((acc, i) => acc + i.quantity, 0)}
+                  {totalQuantity > 0 && (
+                    <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
+                      {totalQuantity}
                     </span>
                   )}
                 </Button>
@@ -186,16 +188,35 @@ export default function MenuPage() {
                   ) : (
                     <div className="space-y-6">
                       {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all">
+                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all group">
                           <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white relative border shadow-sm">
                             <img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" />
                           </div>
                           <div className="flex-1">
                             <h4 className="font-black text-sm">{item.name}</h4>
                             <p className="text-primary font-black">₹{item.price}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-6 w-6 rounded-full border-primary/20"
+                                onClick={() => updateQuantity(item.id, -1)}
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                              <span className="text-xs font-black">{item.quantity}</span>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-6 w-6 rounded-full border-primary/20"
+                                onClick={() => updateQuantity(item.id, 1)}
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="text-destructive font-bold hover:bg-destructive/5">
-                            Remove
+                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       ))}
@@ -232,7 +253,6 @@ export default function MenuPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
-        {/* Category Header & Filters */}
         <div className="space-y-10">
           <div className="flex flex-col md:flex-row justify-between items-end gap-6">
             <div className="space-y-2">
@@ -278,7 +298,6 @@ export default function MenuPage() {
             </Sheet>
           </div>
 
-          {/* Horizontal Category Scroller */}
           <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
             <div 
               onClick={() => setSelectedCategory('All')} 
@@ -323,7 +342,6 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Dish Grid */}
         <section className="space-y-12">
           {dishesLoading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-6 opacity-40">
@@ -354,7 +372,6 @@ export default function MenuPage() {
           )}
         </section>
 
-        {/* Empty Repository State (Seeding Prompt) */}
         {!dishesLoading && allDishes?.length === 0 && (
           <div className="bg-primary/5 p-16 rounded-[4rem] border border-dashed border-primary/20 flex flex-col items-center gap-8 text-center">
             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center">

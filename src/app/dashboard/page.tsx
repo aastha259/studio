@@ -254,6 +254,15 @@ export default function DashboardPage() {
                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} />
                 <AvatarFallback><UserIcon /></AvatarFallback>
               </Avatar>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => logout()} 
+                className="text-muted-foreground hover:text-destructive"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </div>

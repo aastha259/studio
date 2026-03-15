@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   Loader2,
   Calendar,
-  KeyRound
+  KeyRound,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +31,7 @@ function PaymentContent() {
   const searchParams = useSearchParams();
   const db = useFirestore();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const { items, totalPrice, clearCart } = useCart();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -129,11 +130,24 @@ function PaymentContent() {
             </div>
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
           </Link>
-          <Link href="/checkout">
-            <Button variant="ghost" className="font-bold gap-2 rounded-xl">
-              <ArrowLeft className="w-4 h-4" /> Back to Checkout
-            </Button>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/checkout">
+              <Button variant="ghost" className="font-bold gap-2 rounded-xl">
+                <ArrowLeft className="w-4 h-4" /> Back to Checkout
+              </Button>
+            </Link>
+            {user && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => logout()} 
+                className="text-muted-foreground hover:text-destructive"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
         </div>
       </nav>
 

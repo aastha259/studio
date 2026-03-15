@@ -15,7 +15,8 @@ import {
   ShoppingBag,
   Truck,
   ShieldCheck,
-  Info
+  Info,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,7 +29,7 @@ import { cn } from '@/lib/utils';
 
 export default function CartPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const { items, updateQuantity, removeFromCart, totalPrice, totalQuantity, isLoading: cartLoading } = useCart();
   const [mounted, setMounted] = useState(false);
 
@@ -74,6 +75,17 @@ export default function CartPage() {
                 <ArrowLeft className="w-4 h-4" /> Back to Menu
               </Button>
             </Link>
+            {user && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => logout()} 
+                className="text-muted-foreground hover:text-destructive"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            )}
           </div>
         </div>
       </nav>
@@ -253,4 +265,3 @@ export default function CartPage() {
     </div>
   );
 }
-

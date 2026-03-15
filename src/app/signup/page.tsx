@@ -65,13 +65,16 @@ export default function SignupPage() {
       // 3. Save additional data in Firestore
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
+        userId: user.uid,
         email: formData.email,
+        name: formData.fullName,
         displayName: formData.fullName,
         phone: formData.phone,
         role: 'user',
         totalOrders: 0,
         totalMoneySpent: 0,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp()
       });
 
       toast({

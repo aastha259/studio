@@ -8,15 +8,19 @@
       "description": "Represents a user of the Bhartiya Swad platform.",
       "properties": {
         "id": { "type": "string" },
+        "userId": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
         "displayName": { "type": "string" },
         "role": { "type": "string" },
         "totalOrders": { "type": "number" },
         "totalMoneySpent": { "type": "number" },
         "address": { "type": "string" },
-        "phone": { "type": "string" }
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "email", "displayName", "role", "totalOrders", "totalMoneySpent"]
+      "required": ["id", "userId", "email", "name", "role", "totalOrders", "totalMoneySpent"]
     },
     "Dish": {
       "$schema": "http://json-schema.org/draft-07/schema#",

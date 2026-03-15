@@ -55,11 +55,14 @@ function LoginForm() {
 
           await setDoc(doc(db, 'users', userCredential.user.uid), {
             id: userCredential.user.uid,
+            userId: userCredential.user.uid,
             email: userCredential.user.email,
+            name: 'System Administrator',
             displayName: 'System Administrator',
             role: 'admin',
             totalOrders: 0,
-            totalMoneySpent: 0
+            totalMoneySpent: 0,
+            lastLogin: serverTimestamp()
           }, { merge: true });
           
           toast({
@@ -82,20 +85,28 @@ function LoginForm() {
         }
         
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userRef = doc(db, 'users', userCredential.user.uid);
         
         // Check if user exists in Firestore
-        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+        const userDoc = await getDoc(userRef);
         if (!userDoc.exists()) {
-          // If auth succeeded but profile doesn't exist (rare edge case), create it
-          await setDoc(doc(db, 'users', userCredential.user.uid), {
+          await setDoc(userRef, {
             id: userCredential.user.uid,
+            userId: userCredential.user.uid,
             email: userCredential.user.email,
+            name: userCredential.user.displayName || email.split('@')[0],
             displayName: userCredential.user.displayName || email.split('@')[0],
             role: 'user',
             totalOrders: 0,
             totalMoneySpent: 0,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp()
           });
+        } else {
+          // Update lastLogin for existing user
+          await setDoc(userRef, {
+            lastLogin: serverTimestamp()
+          }, { merge: true });
         }
 
         toast({
@@ -128,20 +139,27 @@ function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check/Create profile in Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
         await setDoc(userDocRef, {
           id: user.uid,
+          userId: user.uid,
           email: user.email,
+          name: user.displayName,
           displayName: user.displayName,
           role: 'user',
           totalOrders: 0,
           totalMoneySpent: 0,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp()
         });
+      } else {
+        // Update lastLogin for returning Google user
+        await setDoc(userDocRef, {
+          lastLogin: serverTimestamp()
+        }, { merge: true });
       }
 
       toast({

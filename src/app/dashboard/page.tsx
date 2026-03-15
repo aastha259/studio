@@ -430,9 +430,11 @@ export default function DashboardPage() {
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Paid</p>
                           <p className="text-3xl font-headline font-black text-foreground">₹{order.totalAmount}</p>
                         </div>
-                        <Button className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/10">
-                          Track Order
-                        </Button>
+                        <Link href={`/orders/${order.id}`}>
+                          <Button className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/10">
+                            Track Order
+                          </Button>
+                        </Link>
                       </div>
                     </CardContent>
                   </Card>

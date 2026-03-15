@@ -3,9 +3,15 @@
 
 import React from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { ArrowRight, ChefHat, Truck, Clock, Heart } from 'lucide-react';
-import ThreeBackground from '@/components/ThreeBackground';
 import { Button } from '@/components/ui/button';
+
+// Dynamically import ThreeBackground with SSR disabled to prevent chunk loading issues and hydration mismatches
+const ThreeBackground = dynamic(() => import('@/components/ThreeBackground'), { 
+  ssr: false,
+  loading: () => <div className="fixed inset-0 -z-10 bg-background" />
+});
 
 export default function LandingPage() {
   return (

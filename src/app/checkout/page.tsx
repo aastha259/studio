@@ -55,10 +55,9 @@ export default function CheckoutPage() {
       setDeliveryDetails(prev => ({
         ...prev,
         name: user.displayName || '',
-        email: user.email || ''
       }));
     }
-  }, [user, authLoading, items.length, isOrdered, router]);
+  }, [user, authLoading, items.length, isOrdered, router, deliveryDetails.name]);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +69,17 @@ export default function CheckoutPage() {
         title: "Missing Information",
         description: "Please fill in all delivery details."
       });
+      return;
+    }
+
+    if (paymentMethod === 'Online') {
+      // For Online Payment, navigate to Payment Page
+      const params = new URLSearchParams({
+        name: deliveryDetails.name,
+        phone: deliveryDetails.phone,
+        address: deliveryDetails.address
+      });
+      router.push(`/payment?${params.toString()}`);
       return;
     }
 
@@ -88,7 +98,7 @@ export default function CheckoutPage() {
         totalAmount: totalPrice + 54, // Items + taxes/fees
         status: 'Pending',
         paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'Online' ? 'Paid' : 'Pending',
+        paymentStatus: 'Pending',
         deliveryDetails: deliveryDetails,
         orderDate: new Date().toISOString(),
         createdAt: serverTimestamp()
@@ -96,7 +106,6 @@ export default function CheckoutPage() {
 
       await addDoc(collection(db, 'orders'), orderData);
       
-      // Atomic success
       setIsOrdered(true);
       clearCart();
       toast({
@@ -143,7 +152,6 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB]">
-      {/* Navbar */}
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/cart" className="flex items-center gap-3">
@@ -163,12 +171,10 @@ export default function CheckoutPage() {
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="flex flex-col lg:flex-row gap-12">
           
-          {/* Checkout Form */}
           <div className="flex-1 space-y-8">
             <h1 className="text-5xl font-headline font-black tracking-tight">Checkout</h1>
             
             <form onSubmit={handlePlaceOrder} className="space-y-8">
-              {/* Delivery Details */}
               <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
                 <CardHeader className="bg-muted/30 p-8 border-b">
                   <CardTitle className="flex items-center gap-3 text-xl font-headline font-black text-foreground">
@@ -220,7 +226,6 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              {/* Payment Section */}
               <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
                 <CardHeader className="bg-muted/30 p-8 border-b">
                   <CardTitle className="flex items-center gap-3 text-xl font-headline font-black text-foreground">
@@ -259,7 +264,6 @@ export default function CheckoutPage() {
             </form>
           </div>
 
-          {/* Order Summary Sidebar */}
           <div className="w-full lg:w-[450px] space-y-6">
             <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white">
               <CardHeader className="bg-primary p-8 text-white">
@@ -323,7 +327,7 @@ export default function CheckoutPage() {
                     <Loader2 className="w-6 h-6 animate-spin" />
                   ) : (
                     <span className="flex items-center gap-2">
-                      Place Order <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                      {paymentMethod === 'Online' ? 'Pay Now' : 'Place Order'} <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                     </span>
                   )}
                 </Button>
@@ -341,7 +345,7 @@ export default function CheckoutPage() {
               </div>
               <div>
                 <p className="font-black text-accent text-sm uppercase tracking-widest">Hygiene Promise</p>
-                <p className="text-xs text-muted-foreground font-medium leading-relaxed">Your order will be prepared following the highest safety standards and contactless delivery guidelines.</p>
+                <p className="text-xs text-muted-foreground font-medium leading-relaxed">Your order will be prepared following the highest safety standards.</p>
               </div>
             </div>
           </div>

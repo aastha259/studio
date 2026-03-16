@@ -37,6 +37,7 @@ export default function AdminDashboardPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
+  // Airtight check: only initiate collection queries if verified admin email matches context
   const ordersQuery = useMemoFirebase(() => {
     if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return collection(db, 'orders');

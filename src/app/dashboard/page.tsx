@@ -428,7 +428,7 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-center pt-2">
                         <div className="flex flex-col">
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Paid</p>
-                          <p className="text-3xl font-headline font-black text-foreground">₹{order.totalPrice || order.totalAmount}</p>
+                          <p className="text-3xl font-headline font-black text-foreground">₹{order.totalPrice}</p>
                         </div>
                         <Link href={`/orders/${order.id}`}>
                           <Button className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/10">

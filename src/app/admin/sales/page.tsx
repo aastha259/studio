@@ -26,6 +26,7 @@ export default function AdminSalesPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
+  // Strict email validation before initiating collection queries
   const ordersQuery = useMemoFirebase(() => {
     if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return collection(db, 'orders');

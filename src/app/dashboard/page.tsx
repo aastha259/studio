@@ -14,7 +14,6 @@ import {
   Search,
   Bell,
   User as UserIcon,
-  ShoppingBag,
   Star,
   ChevronRight,
   Home,
@@ -22,15 +21,11 @@ import {
   Plus,
   Minus,
   Trash2,
-  Clock,
-  CheckCircle2,
-  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { 
   Sheet, 
   SheetContent, 
@@ -45,10 +40,9 @@ import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, parseISO } from 'date-fns';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -74,18 +68,6 @@ export default function DashboardPage() {
   }, [db]);
   const { data: topRatedDishes } = useCollection(topRatedQuery);
 
-  // User Order History Query - SECURED with mandatory userId filter for Security Rules compliance
-  const ordersQuery = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return query(
-      collection(db, 'orders'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(2) // Preview of latest 2 orders
-    );
-  }, [db, user?.uid]);
-  const { data: userOrders, isLoading: ordersLoading } = useCollection(ordersQuery);
-
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -102,16 +84,12 @@ export default function DashboardPage() {
       
       setLoadingRecs(true);
       try {
-        const q = query(
-          collection(db, 'orders'), 
-          where('userId', '==', user.uid), 
-          orderBy('createdAt', 'desc'), 
-          limit(5)
-        );
+        const orderRef = collection(db, 'orders');
+        const q = query(orderRef, where('userId', '==', user.uid), limit(10));
         const orderSnap = await getDocs(q);
         
         const history: { name: string; category?: string }[] = [];
-        for (const orderDoc of orderSnap.docs) {
+        orderSnap.forEach((orderDoc) => {
           const orderData = orderDoc.data();
           if (orderData.items) {
             orderData.items.forEach((item: any) => {
@@ -121,7 +99,7 @@ export default function DashboardPage() {
               });
             });
           }
-        }
+        });
 
         const result = await personalizedFoodRecommendations({
           userFoodHistory: history.length > 0 ? history : [],
@@ -131,7 +109,7 @@ export default function DashboardPage() {
             price: f.price,
             category: f.category,
             rating: f.rating,
-            imageURL: f.image
+            imageURL: f.image || f.imageURL
           }))
         });
         setRecommendations(result.recommendations);
@@ -141,8 +119,8 @@ export default function DashboardPage() {
         setLoadingRecs(false);
       }
     }
-    if (allDishes && user) getPersonalizedRecommendations();
-  }, [user?.uid, allDishes, db]);
+    if (mounted && allDishes && user) getPersonalizedRecommendations();
+  }, [user?.uid, allDishes, db, mounted]);
 
   if (!mounted || loading || !user) {
     return (
@@ -156,10 +134,10 @@ export default function DashboardPage() {
   }
 
   const sidebarLinks = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home, active: true },
-    { name: 'Full Menu', href: '/menu', icon: Utensils, active: false },
-    { name: 'My Orders', href: '/orders', icon: ShoppingBag, active: false },
-    { name: 'Favorites', href: '/favorites', icon: Heart, active: false },
+    { name: 'Dashboard', href: '/dashboard', active: true, icon: Home },
+    { name: 'Full Menu', href: '/menu', active: false, icon: Utensils },
+    { name: 'My Orders', href: '/orders', active: false, icon: ShoppingCart },
+    { name: 'Favorites', href: '/favorites', active: false, icon: Heart },
   ];
 
   return (
@@ -357,96 +335,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-          </section>
-
-          {/* Order History Section */}
-          <section className="space-y-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
-                  <ShoppingBag className="w-10 h-10 text-primary" /> 
-                  Recent Orders
-                </h2>
-                <p className="text-muted-foreground font-medium mt-1">Keep track of your current culinary journeys.</p>
-              </div>
-              {userOrders && userOrders.length > 0 && (
-                <Link href="/orders">
-                  <Button variant="ghost" className="font-bold text-primary group">
-                    View All <ChevronRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              )}
-            </div>
-
-            {ordersLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {[1, 2].map(i => (
-                  <div key={i} className="h-64 rounded-[2.5rem] bg-muted animate-pulse" />
-                ))}
-              </div>
-            ) : userOrders && userOrders.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {userOrders.map((order) => (
-                  <Card key={order.id} className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white hover:shadow-md transition-all group">
-                    <CardContent className="p-8 space-y-6">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Order ID</p>
-                          <p className="font-mono text-xs font-black text-primary">#{order.orderId?.slice(0, 12).toUpperCase() || order.id.slice(0, 12).toUpperCase()}</p>
-                        </div>
-                        <Badge className={cn(
-                          "rounded-full px-4 py-1 font-black text-[10px] uppercase tracking-wider border-none",
-                          order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'
-                        )}>
-                          {order.orderStatus || 'Processing'}
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ordered Items</p>
-                        <div className="space-y-2">
-                          {order.items?.map((item: any, idx: number) => (
-                            <div key={idx} className="flex justify-between items-center text-sm">
-                              <span className="font-bold text-foreground truncate max-w-[150px]">
-                                {item.foodName} <span className="text-muted-foreground text-xs ml-1">x{item.quantity}</span>
-                              </span>
-                              <span className="font-black text-muted-foreground">₹{item.subtotal}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-4 border-t border-dashed">
-                        <div className="flex flex-col">
-                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Paid</p>
-                          <p className="text-3xl font-headline font-black text-foreground">₹{order.totalPrice}</p>
-                        </div>
-                        <Link href={`/orders/${order.id}`}>
-                          <Button className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-lg shadow-primary/10">
-                            Track Order
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="border-dashed border-2 bg-muted/5 rounded-[3rem] p-20 text-center">
-                <div className="max-w-sm mx-auto space-y-6">
-                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto shadow-xl">
-                    <ShoppingBag className="w-10 h-10 text-muted-foreground/40" />
-                  </div>
-                  <h3 className="text-2xl font-headline font-black text-foreground">You have not placed any orders yet.</h3>
-                  <p className="text-muted-foreground font-medium">Embark on your first culinary journey with Bhartiya Swad today!</p>
-                  <Link href="/menu">
-                    <Button className="h-14 px-10 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20 text-white">
-                      Browse Menu
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-            )}
           </section>
 
           {/* Trending Section */}

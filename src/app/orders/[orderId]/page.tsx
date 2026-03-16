@@ -26,7 +26,6 @@ import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
 
 const TRACKING_STEPS = [
   { id: 'Order Placed', label: 'Order Placed', icon: Clock, color: 'bg-blue-500' },
@@ -37,53 +36,47 @@ const TRACKING_STEPS = [
 
 export default function OrderTrackingPage() {
   const { orderId } = useParams();
-  const router = useRouter();
   const db = useFirestore();
   const { user, loading: authLoading } = useAuth();
 
-  const orderRef = useMemoFirebase(() => {
-    if (!orderId) return null;
+  const memoizedOrderRef = useMemoFirebase(() => {
+    if (!orderId || !user?.uid) return null;
     return doc(db, 'orders', orderId as string);
-  }, [db, orderId]);
+  }, [db, orderId, user?.uid]);
 
-  const { data: order, isLoading: orderLoading } = useDoc(orderRef);
+  const { data: order, isLoading: orderLoading, error: firestoreError } = useDoc(memoizedOrderRef);
+
+  const displayOrderId = order?.orderId || order?.id || (orderId as string);
+  const displayTotalPrice = order?.totalPrice || 0;
+  const displayStatus = order?.orderStatus || 'Order Placed';
 
   const currentStepIndex = useMemo(() => {
-    if (!order) return 0;
-    const status = order.orderStatus || order.status || 'Order Placed';
-    const index = TRACKING_STEPS.findIndex(step => step.id === status);
-    return index === -1 ? 0 : index;
-  }, [order]);
+    return TRACKING_STEPS.findIndex(s => s.id === displayStatus);
+  }, [displayStatus]);
 
   if (authLoading || orderLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="font-headline font-bold text-muted-foreground">Locating your meal...</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB]">
+        <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+        <p className="font-headline font-bold text-muted-foreground">Locating your order...</p>
       </div>
     );
   }
 
-  if (!order) {
+  if (firestoreError || (!order && !orderLoading)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB] p-6 text-center">
         <div className="w-20 h-20 bg-muted/30 rounded-full flex items-center justify-center mb-6">
           <Package className="w-10 h-10 text-muted-foreground" />
         </div>
         <h1 className="text-3xl font-headline font-black mb-2">Order Not Found</h1>
-        <p className="text-muted-foreground mb-8">The order ID you requested doesn't exist or you don't have permission to view it.</p>
+        <p className="text-muted-foreground mb-8 max-w-md mx-auto">The order ID you requested doesn't exist or you don't have permission to view it.</p>
         <Link href="/dashboard">
           <Button className="rounded-2xl h-14 px-8 bg-primary font-bold">Return to Dashboard</Button>
         </Link>
       </div>
     );
   }
-
-  const displayOrderId = order.orderId || order.id;
-  const displayTotalPrice = order.totalPrice || order.totalAmount;
-  const displayStatus = order.orderStatus || order.status || 'Processing';
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] pb-20">
@@ -155,7 +148,7 @@ export default function OrderTrackingPage() {
               <div className="hidden md:block absolute top-8 left-0 w-full h-1 bg-muted/20 -z-0">
                 <div 
                   className="h-full bg-primary transition-all duration-1000 ease-in-out" 
-                  style={{ width: `${(currentStepIndex / (TRACKING_STEPS.length - 1)) * 100}%` }}
+                  style={{ width: `${Math.max(0, (currentStepIndex / (TRACKING_STEPS.length - 1)) * 100)}%` }}
                 />
               </div>
 

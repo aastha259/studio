@@ -12,6 +12,7 @@ import {
   Calendar,
   ChevronRight
 } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -37,26 +38,26 @@ export default function AdminDashboardPage() {
   const { user } = useAuth();
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!user?.isAdmin) return null;
+    if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return collection(db, 'orders');
-  }, [db, user?.isAdmin]);
+  }, [db, user?.isAdmin, user?.email]);
   const { data: orders } = useCollection(ordersQuery);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!user?.isAdmin) return null;
+    if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return collection(db, 'users');
-  }, [db, user?.isAdmin]);
+  }, [db, user?.isAdmin, user?.email]);
   const { data: users } = useCollection(usersQuery);
 
   const restaurantsQuery = useMemoFirebase(() => {
-    if (!user?.isAdmin) return null;
+    if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return collection(db, 'restaurants');
-  }, [db, user?.isAdmin]);
+  }, [db, user?.isAdmin, user?.email]);
   const { data: restaurants } = useCollection(restaurantsQuery);
 
   const stats = useMemo(() => {
     const totalOrders = orders?.length || 0;
-    const totalRevenue = orders?.reduce((acc, o) => acc + (o.totalPrice || o.totalAmount || 0), 0) || 0;
+    const totalRevenue = orders?.reduce((acc, o) => acc + (o.totalPrice || 0), 0) || 0;
     const totalCustomers = users?.length || 0;
     const totalRestaurants = restaurants?.length || 0;
 
@@ -107,7 +108,7 @@ export default function AdminDashboardPage() {
       const dayLabel = format(date, 'MMM dd');
       const revenue = orders
         .filter(o => o.orderDate && isSameDay(parseISO(o.orderDate), date))
-        .reduce((acc, o) => acc + (o.totalPrice || o.totalAmount || 0), 0);
+        .reduce((acc, o) => acc + (o.totalPrice || 0), 0);
       return { name: dayLabel, revenue };
     });
   }, [orders]);
@@ -121,7 +122,7 @@ export default function AdminDashboardPage() {
     }).slice(0, 5);
   }, [orders]);
 
-  if (!user?.isAdmin) return null;
+  if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -230,14 +231,14 @@ export default function AdminDashboardPage() {
               {recentOrders.map((order) => (
                 <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none">
                   <TableCell className="px-10 font-mono text-xs font-bold text-muted-foreground">#{(order.orderId || order.id).slice(0, 8).toUpperCase()}</TableCell>
-                  <TableCell className="font-black text-primary text-lg">₹{(order.totalPrice || order.totalAmount || 0).toLocaleString()}</TableCell>
+                  <TableCell className="font-black text-primary text-lg">₹{(order.totalPrice || 0).toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge className={cn(
                       "rounded-full px-4 py-1 font-bold text-[10px] uppercase tracking-wider border-none",
-                      (order.orderStatus || order.status) === 'Delivered' ? 'bg-green-100 text-green-700' : 
-                      (order.orderStatus || order.status) === 'Preparing Food' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                      order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 
+                      order.orderStatus === 'Preparing Food' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
                     )}>
-                      {order.orderStatus || order.status || 'Pending'}
+                      {order.orderStatus || 'Pending'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground font-bold italic">

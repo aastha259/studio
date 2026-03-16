@@ -46,18 +46,18 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  // Fetch Orders (Real-time)
+  // Fetch Orders (Real-time) - Secured with authorized email check
   const ordersQuery = useMemoFirebase(() => {
-    if (!user?.isAdmin) return null;
+    if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-  }, [db, user?.isAdmin]);
+  }, [db, user?.isAdmin, user?.email]);
   const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
 
   // Fetch Users for lookups
   const usersQuery = useMemoFirebase(() => {
-    if (!user?.isAdmin) return null;
+    if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
     return collection(db, 'users');
-  }, [db, user?.isAdmin]);
+  }, [db, user?.isAdmin, user?.email]);
   const { data: users } = useCollection(usersQuery);
 
   const handleUpdateStatus = (orderId: string, newStatus: string) => {
@@ -89,7 +89,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  if (!user?.isAdmin) return null;
+  if (!user?.isAdmin || user.email !== 'xyz@admin.com') return null;
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
@@ -143,9 +143,9 @@ export default function AdminOrdersPage() {
             <TableBody>
               {filteredOrders.map((order) => {
                 const customer = users?.find(u => u.id === order.userId);
-                const orderId = order.orderId || order.id;
-                const totalPrice = order.totalPrice || order.totalAmount;
-                const orderStatus = order.orderStatus || order.status || 'Order Placed';
+                const orderId = order.orderId || order.id || '';
+                const totalPrice = order.totalPrice || 0;
+                const orderStatus = order.orderStatus || 'Order Placed';
                 
                 return (
                   <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
@@ -242,8 +242,8 @@ export default function AdminOrdersPage() {
                   ID: #{(selectedOrder?.orderId || selectedOrder?.id || '').toUpperCase()}
                 </DialogDescription>
               </div>
-              <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none bg-white", getStatusColor(selectedOrder?.orderStatus || selectedOrder?.status || 'Order Placed').split(' ')[1])}>
-                {selectedOrder?.orderStatus || selectedOrder?.status || 'Processing'}
+              <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none bg-white", getStatusColor(selectedOrder?.orderStatus || 'Order Placed').split(' ')[1])}>
+                {selectedOrder?.orderStatus || 'Processing'}
               </Badge>
             </div>
           </DialogHeader>
@@ -296,7 +296,7 @@ export default function AdminOrdersPage() {
                   <p className="text-xs text-muted-foreground italic">Inclusive of taxes & delivery</p>
                 </div>
               </div>
-              <p className="text-4xl font-headline font-black text-primary">₹{selectedOrder?.totalPrice || selectedOrder?.totalAmount}</p>
+              <p className="text-4xl font-headline font-black text-primary">₹{selectedOrder?.totalPrice}</p>
             </div>
           </div>
         </DialogContent>

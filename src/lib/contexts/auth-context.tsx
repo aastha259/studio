@@ -32,10 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const syncUser = () => {
       if (!isUserLoading) {
         if (firebaseUser) {
-          // Check for admin session flag or hardcoded email
-          const isAdminSession = typeof window !== 'undefined' && localStorage.getItem('bhartiya_swad_admin') === 'true';
+          // Strict admin check: Only the authorized email or a valid admin session flag
+          // combined with the specific admin email is considered an administrator.
           const isEmailAdmin = firebaseUser.email === 'xyz@admin.com';
-          const isAdmin = isEmailAdmin || isAdminSession;
+          const isAdminSession = typeof window !== 'undefined' && localStorage.getItem('bhartiya_swad_admin') === 'true';
+          const isAdmin = isEmailAdmin || (isAdminSession && firebaseUser.email === 'xyz@admin.com');
 
           setUser({
             uid: firebaseUser.uid,

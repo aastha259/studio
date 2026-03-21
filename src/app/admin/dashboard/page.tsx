@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   ShoppingBag, 
@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, computeOrderStatus } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
@@ -34,6 +34,12 @@ import { format, subDays, isSameDay, parseISO } from 'date-fns';
 export default function AdminDashboardPage() {
   const db = useFirestore();
   const { user } = useAuth();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Strict email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
@@ -229,24 +235,27 @@ export default function AdminDashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentOrders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
-                  <TableCell className="px-10 font-mono text-xs font-bold text-muted-foreground">#{(order.orderId || order.id).slice(0, 8).toUpperCase()}</TableCell>
-                  <TableCell className="font-black text-primary text-lg">₹{(order.totalPrice || 0).toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={cn(
-                      "rounded-full px-4 py-1 font-bold text-[10px] uppercase tracking-wider border-none",
-                      order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 
-                      order.orderStatus === 'Preparing Food' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-                    )}>
-                      {order.orderStatus || 'Pending'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground font-bold italic">
-                    {order.orderDate ? format(parseISO(order.orderDate), 'p, MMM dd') : 'Just now'}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {recentOrders.map((order) => {
+                const status = computeOrderStatus(order.createdAt);
+                return (
+                  <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
+                    <TableCell className="px-10 font-mono text-xs font-bold text-muted-foreground">#{(order.orderId || order.id).slice(0, 8).toUpperCase()}</TableCell>
+                    <TableCell className="font-black text-primary text-lg">₹{(order.totalPrice || 0).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={cn(
+                        "rounded-full px-4 py-1 font-bold text-[10px] uppercase tracking-wider border-none",
+                        status === 'Delivered' ? 'bg-green-100 text-green-700' : 
+                        status === 'Preparing Food' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                      )}>
+                        {status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground font-bold italic">
+                      {order.orderDate ? format(parseISO(order.orderDate), 'p, MMM dd') : 'Just now'}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
               {recentOrders.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-20 text-muted-foreground font-bold italic opacity-40">

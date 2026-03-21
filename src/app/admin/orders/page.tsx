@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ShoppingBag, 
   Search, 
@@ -23,20 +23,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { collection, doc, updateDoc } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { cn, computeOrderStatus } from '@/lib/utils';
 
 export default function AdminOrdersPage() {
   const db = useFirestore();
@@ -44,11 +35,17 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Strict email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
-  // Fetch Orders - Simplified query without orderBy to ensure real-time operation without index overhead
+  // Fetch Orders
   const ordersRef = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     return collection(db, 'orders');
@@ -72,19 +69,6 @@ export default function AdminOrdersPage() {
   }, [db, isAuthorized]);
   const { data: users } = useCollection(usersQuery);
 
-  const handleUpdateStatus = (orderId: string, newStatus: string) => {
-    const orderRef = doc(db, 'orders', orderId);
-    updateDoc(orderRef, { orderStatus: newStatus })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: { orderStatus: newStatus },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-  };
-
   const filteredOrders = orders?.filter(o => 
     (o.orderId || o.id || '').toLowerCase().includes(search.toLowerCase()) ||
     users?.find(u => u.id === o.userId)?.displayName?.toLowerCase().includes(search.toLowerCase())
@@ -95,7 +79,6 @@ export default function AdminOrdersPage() {
       case 'Delivered': return 'bg-green-100 text-green-700 border-green-200';
       case 'Out for Delivery': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'Preparing Food': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'Cancelled': return 'bg-red-100 text-red-700 border-red-200';
       case 'Order Placed': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
@@ -111,7 +94,7 @@ export default function AdminOrdersPage() {
             <ShoppingBag className="w-10 h-10 text-primary" />
             Order Management
           </h1>
-          <p className="text-muted-foreground font-medium">Monitor and process live customer orders in real-time.</p>
+          <p className="text-muted-foreground font-medium">Live customer tracking dashboard (Status automated by time).</p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-80">
@@ -134,7 +117,7 @@ export default function AdminOrdersPage() {
         <div className="bg-muted/10 p-8 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-              <h3 className="font-black text-xl font-headline text-foreground">Live Order Stream</h3>
+              <h3 className="font-black text-xl font-headline text-foreground">Automatic Order Stream</h3>
             </div>
             <Badge variant="outline" className="rounded-full px-4 py-1 font-bold bg-white">
               {filteredOrders.length} ORDERS TOTAL
@@ -148,7 +131,7 @@ export default function AdminOrdersPage() {
                 <TableHead className="font-black px-10 h-20 uppercase tracking-widest text-[10px]">Order ID</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Customer</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Amount</TableHead>
-                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Status</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Current Status</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-right pr-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -157,7 +140,7 @@ export default function AdminOrdersPage() {
                 const customer = users?.find(u => u.id === order.userId);
                 const orderId = order.orderId || order.id || '';
                 const totalPrice = order.totalPrice || 0;
-                const orderStatus = order.orderStatus || 'Order Placed';
+                const status = computeOrderStatus(order.createdAt);
                 
                 return (
                   <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
@@ -185,21 +168,9 @@ export default function AdminOrdersPage() {
                       <span className="font-black text-lg text-primary">₹{(totalPrice || 0).toLocaleString()}</span>
                     </TableCell>
                     <TableCell>
-                      <Select 
-                        value={orderStatus} 
-                        onValueChange={(val) => handleUpdateStatus(order.id, val)}
-                      >
-                        <SelectTrigger className={cn("w-44 h-10 rounded-full font-black text-[10px] uppercase tracking-wider border-2", getStatusColor(orderStatus))}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-2xl border-none shadow-2xl">
-                          <SelectItem value="Order Placed" className="font-bold">Order Placed</SelectItem>
-                          <SelectItem value="Preparing Food" className="font-bold text-orange-600">Preparing Food</SelectItem>
-                          <SelectItem value="Out for Delivery" className="font-bold text-blue-600">Out for Delivery</SelectItem>
-                          <SelectItem value="Delivered" className="font-bold text-green-600">Delivered</SelectItem>
-                          <SelectItem value="Cancelled" className="font-bold text-red-600">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase tracking-wider border-none", getStatusColor(status))}>
+                        {status}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right pr-10">
                       <Button 
@@ -253,8 +224,8 @@ export default function AdminOrdersPage() {
                   ID: #{(selectedOrder?.orderId || selectedOrder?.id || '').toUpperCase()}
                 </DialogDescription>
               </div>
-              <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none bg-white", getStatusColor(selectedOrder?.orderStatus || 'Order Placed').split(' ')[1])}>
-                {selectedOrder?.orderStatus || 'Processing'}
+              <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none bg-white", getStatusColor(computeOrderStatus(selectedOrder?.createdAt)).split(' ')[1])}>
+                {computeOrderStatus(selectedOrder?.createdAt)}
               </Badge>
             </div>
           </DialogHeader>

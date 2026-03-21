@@ -249,8 +249,8 @@ export default function OrderTrackingPage() {
                 </div>
               </div>
               
-              <div className="p-6 bg-accent/5 border border-accent/10 rounded-3xl">
-                <p className="text-xs text-accent-foreground font-medium leading-relaxed italic text-center">
+              <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl shadow-black/10">
+                <p className="text-xs text-slate-100 font-bold leading-relaxed italic text-center">
                   "Your meal is being tracked in real-time. Please stay available on your registered phone number."
                 </p>
               </div>

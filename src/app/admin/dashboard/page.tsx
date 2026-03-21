@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from 'react';
@@ -36,7 +35,7 @@ export default function AdminDashboardPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
-  // Strict email guard: Skip query initialization entirely if the email doesn't match xyz@admin.com
+  // Strict email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
   const ordersQuery = useMemoFirebase(() => {
@@ -124,7 +123,6 @@ export default function AdminDashboardPage() {
     }).slice(0, 5);
   }, [orders]);
 
-  // Final guard to prevent unauthorized UI from even attempting to render hooks results
   if (!isAuthorized) return null;
 
   return (

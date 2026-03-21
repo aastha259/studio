@@ -1,7 +1,6 @@
-
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ShoppingBag, 
@@ -20,14 +19,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function MyOrdersPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
-  const { totalQuantity } = useCart();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
 
@@ -35,17 +33,26 @@ export default function MyOrdersPage() {
     setMounted(true);
   }, []);
 
-  // SECURE QUERY: Filters by current user's UID to satisfy Firestore Security Rules
+  // Simplified query to avoid complex index requirements that can mask as permission errors
   const ordersQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(
       collection(db, 'orders'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
   }, [db, user?.uid]);
 
-  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
+  const { data: rawOrders, isLoading: ordersLoading } = useCollection(ordersQuery);
+
+  // Perform sorting in memory to ensure real-time updates without index overhead
+  const orders = useMemo(() => {
+    if (!rawOrders) return [];
+    return [...rawOrders].sort((a, b) => {
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [rawOrders]);
 
   useEffect(() => {
     if (mounted && !loading && !user) {

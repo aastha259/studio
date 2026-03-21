@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ShoppingBag, 
   Search, 
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { collection, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, updateDoc } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -48,12 +48,22 @@ export default function AdminOrdersPage() {
   // Strict email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
-  // Fetch Orders
-  const ordersQuery = useMemoFirebase(() => {
+  // Fetch Orders - Simplified query without orderBy to ensure real-time operation without index overhead
+  const ordersRef = useMemoFirebase(() => {
     if (!isAuthorized) return null;
-    return query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    return collection(db, 'orders');
   }, [db, isAuthorized]);
-  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
+  const { data: rawOrders, isLoading: ordersLoading } = useCollection(ordersRef);
+
+  // Sort orders in memory
+  const orders = useMemo(() => {
+    if (!rawOrders) return [];
+    return [...rawOrders].sort((a, b) => {
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [rawOrders]);
 
   // Fetch Users
   const usersQuery = useMemoFirebase(() => {

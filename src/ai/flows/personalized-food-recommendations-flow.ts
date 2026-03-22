@@ -32,7 +32,7 @@ const FullFoodItemSchema = z.object({
   price: z.number().describe('Price of the food item.'),
   category: z.string().describe('Category of the food item.'),
   rating: z.number().optional().describe('Rating of the food item.'),
-  imageURL: z.string().url().optional().describe('URL to the image of the food item.'),
+  imageURL: z.string().optional().describe('URL to the image of the food item.'),
 });
 
 

@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Leaf, Wind, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const ThreeBackground = dynamic(() => import('@/components/ThreeBackground'), { 
@@ -15,8 +14,8 @@ export default function HeroBackground() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePos({
-        x: (e.clientX / window.innerWidth - 0.5) * 15,
-        y: (e.clientY / window.innerHeight - 0.5) * 15,
+        x: (e.clientX / window.innerWidth - 0.5) * 20,
+        y: (e.clientY / window.innerHeight - 0.5) * 20,
       });
     };
 
@@ -24,33 +23,25 @@ export default function HeroBackground() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Simplified ghostly layers to match the minimalist clay aesthetic
+  // Extremely minimalist background layers to frame the content
   const layers = [
     {
-      id: 'bg',
-      factor: 0.1,
+      id: 'far',
+      factor: 0.15,
       elements: [
-        { type: 'blob', color: 'bg-primary/5', size: 'w-96 h-96', pos: 'top-[-10%] left-[-10%]', animation: 'animate-float-slow' },
-        { type: 'blob', color: 'bg-accent/5', size: 'w-[30rem] h-[30rem]', pos: 'bottom-[-15%] right-[-10%]', animation: 'animate-float-premium' },
+        { color: 'bg-primary/5', size: 'w-96 h-96', pos: 'top-[-10%] left-[-5%]' },
+        { color: 'bg-accent/5', size: 'w-80 h-80', pos: 'bottom-[-10%] right-[-5%]' },
       ],
       blur: 'blur-3xl'
     },
     {
       id: 'mid',
-      factor: 0.3,
+      factor: 0.4,
       elements: [
-        { type: 'icon', icon: Leaf, color: 'text-primary/5', size: 80, pos: 'top-[15%] left-[5%]', animation: 'animate-scale-soft' },
-        { type: 'icon', icon: Sparkles, color: 'text-accent/5', size: 60, pos: 'bottom-[20%] right-[10%]', animation: 'animate-float-slow' },
+        { color: 'bg-primary/5', size: 'w-64 h-64', pos: 'top-[20%] right-[-5%]' },
+        { color: 'bg-accent/5', size: 'w-48 h-48', pos: 'bottom-[15%] left-[-5%]' },
       ],
       blur: 'blur-2xl'
-    },
-    {
-      id: 'fg',
-      factor: 0.6,
-      elements: [
-        { type: 'icon', icon: Wind, color: 'text-primary/10', size: 40, pos: 'top-[10%] right-[10%]', animation: 'animate-float-fast' },
-      ],
-      blur: 'blur-sm'
     }
   ];
 
@@ -61,7 +52,7 @@ export default function HeroBackground() {
       {layers.map((layer) => (
         <div 
           key={layer.id}
-          className="absolute inset-0 preserve-3d transition-transform duration-700 ease-out"
+          className="absolute inset-0 preserve-3d transition-transform duration-1000 ease-out"
           style={{ 
             transform: `translate3d(${mousePos.x * layer.factor}px, ${mousePos.y * layer.factor}px, 0)`,
             willChange: 'transform'
@@ -70,22 +61,15 @@ export default function HeroBackground() {
           {layer.elements.map((el, idx) => (
             <div 
               key={idx} 
-              className={`absolute ${el.pos} ${el.animation} ${layer.blur} transition-all duration-1000 opacity-40`}
+              className={`absolute ${el.pos} ${layer.blur} opacity-30 transition-all duration-1000`}
             >
-              {el.type === 'blob' ? (
-                <div className={`${el.size} ${el.color} rounded-full animate-pulse-glow`} />
-              ) : el.icon ? (
-                <el.icon 
-                  size={el.size} 
-                  className={`${el.color} drop-shadow-sm`}
-                />
-              ) : null}
+              <div className={`${el.size} ${el.color} rounded-full animate-pulse-glow`} />
             </div>
           ))}
         </div>
       ))}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#FDFCFB]/30 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#FDFCFB]/40 z-0" />
     </div>
   );
 }

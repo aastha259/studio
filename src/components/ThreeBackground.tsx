@@ -9,9 +9,24 @@ export default function ThreeBackground() {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Check if WebGL is supported by the browser/hardware
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) {
+      console.warn('WebGL not supported, disabling 3D background effects.');
+      return;
+    }
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    } catch (e) {
+      console.warn('Failed to initialize THREE.WebGLRenderer:', e);
+      return;
+    }
     
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -58,8 +73,9 @@ export default function ThreeBackground() {
 
     camera.position.z = 10;
 
+    let animationFrameId: number;
     const animate = () => {
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
       
       items.forEach((item, i) => {
         item.rotation.x += 0.01;
@@ -82,9 +98,11 @@ export default function ThreeBackground() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (containerRef.current) {
+      cancelAnimationFrame(animationFrameId);
+      if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);
       }
+      renderer.dispose();
     };
   }, []);
 

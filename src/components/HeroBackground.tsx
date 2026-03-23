@@ -49,10 +49,19 @@ export default function HeroBackground() {
   }, []);
 
   const getParallaxStyle = (layer: 'back' | 'mid' | 'front') => {
-    const intensity = layer === 'front' ? 25 : layer === 'mid' ? 15 : 8;
+    const depth = layer === 'front' ? 30 : layer === 'mid' ? 18 : 10;
+
+    const rotateX = mousePos.y * depth * 0.3;
+    const rotateY = mousePos.x * depth * 0.3;
+
     return {
-      transform: `translate(${mousePos.x * intensity}px, ${mousePos.y * intensity}px)`,
-      transition: 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1)',
+      transform: `
+        translate3d(${mousePos.x * depth}px, ${mousePos.y * depth}px, 0)
+        rotateX(${rotateX}deg)
+        rotateY(${rotateY}deg)
+      `,
+      transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+      transformStyle: 'preserve-3d' as const,
     };
   };
 
@@ -102,7 +111,7 @@ export default function HeroBackground() {
                     src={imageData.imageUrl}
                     alt={imageData.description}
                     fill
-                    className="object-contain drop-shadow-2xl"
+                    className="object-contain drop-shadow-[0_20px_40px_rgba(255,120,50,0.25)]"
                     data-ai-hint={item.hint}
                   />
                 )}

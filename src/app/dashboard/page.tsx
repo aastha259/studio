@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
   // Firestore Queries
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
@@ -105,8 +106,12 @@ export default function DashboardPage() {
           }
         });
 
+        // Filter out duplicate names from history to save tokens and focus LLM
+        const uniqueHistory = Array.from(new Set(history.map(h => h.name)))
+          .map(name => history.find(h => h.name === name)!);
+
         const result = await personalizedFoodRecommendations({
-          userFoodHistory: history,
+          userFoodHistory: uniqueHistory,
           availableFoods: allDishes.map(f => ({
             id: f.id,
             name: f.name,
@@ -122,6 +127,7 @@ export default function DashboardPage() {
         setRecommendations([]);
       } finally {
         setLoadingRecs(false);
+        setHasAttemptedRecs(true);
       }
     }
     if (mounted && allDishes && allDishes.length > 0 && user) {
@@ -451,7 +457,7 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {(recommendations.length > 0 || loadingRecs) && (
+          {hasAttemptedRecs && (
             <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-60 animate-float-slow"></div>
               

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -30,7 +29,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { format, subDays, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, isSameDay } from 'date-fns';
 
 export default function AdminDashboardPage() {
   const db = useFirestore();
@@ -114,7 +113,11 @@ export default function AdminDashboardPage() {
       const date = subDays(new Date(), 6 - i);
       const dayLabel = format(date, 'MMM dd');
       const revenue = validOrders
-        .filter(o => o.createdAt && isSameDay(parseISO(o.createdAt?.toDate ? o.createdAt.toDate().toISOString() : o.createdAt), date))
+        .filter(o => {
+          if (!o.createdAt) return false;
+          const orderDate = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+          return isSameDay(orderDate, date);
+        })
         .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
       return { name: dayLabel, revenue };
     });

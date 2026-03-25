@@ -59,10 +59,6 @@
   }
 }
 
-.animate-float-complex {
-  animation: floatPhysics ease-in-out infinite;
-}
-
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -91,7 +87,7 @@
 }
 
 .animate-float-complex {
-  animation: float-complex 12s ease-in-out infinite;
+  animation: floatPhysics 12s ease-in-out infinite;
   will-change: transform;
 }
 

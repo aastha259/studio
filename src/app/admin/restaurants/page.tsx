@@ -1,7 +1,6 @@
-
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Store, 
   Plus, 
@@ -52,27 +51,27 @@ export default function AdminRestaurantsPage() {
   const [editingRestaurant, setEditingRestaurant] = useState<any>(null);
   const [viewingMenu, setViewingMenu] = useState<any>(null);
 
-  // Strict authorized email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
-  // Fetch Restaurants
   const restaurantsQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     return collection(db, 'restaurants');
   }, [db, isAuthorized]);
   const { data: restaurants, isLoading } = useCollection(restaurantsQuery);
 
-  // Fetch Dishes
   const dishesQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     return collection(db, 'dishes');
   }, [db, isAuthorized]);
   const { data: allDishes } = useCollection(dishesQuery);
 
-  const filteredRestaurants = restaurants?.filter(r => 
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.address.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredRestaurants = useMemo(() => {
+    const query = search.toLowerCase().trim();
+    return restaurants?.filter(r => 
+      r.name?.toLowerCase().includes(query) ||
+      r.address?.toLowerCase().includes(query)
+    ) || [];
+  }, [restaurants, search]);
 
   const handleSaveRestaurant = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -89,17 +88,17 @@ export default function AdminRestaurantsPage() {
     };
 
     if (editingRestaurant) {
-      await updateDoc(doc(db, 'restaurants', editingRestaurant.id), data);
+      updateDoc(doc(db, 'restaurants', editingRestaurant.id), data);
       setEditingRestaurant(null);
     } else {
-      await addDoc(collection(db, 'restaurants'), data);
+      addDoc(collection(db, 'restaurants'), data);
       setIsAddOpen(false);
     }
   };
 
   const handleDeleteRestaurant = async (id: string) => {
     if (confirm('Are you sure you want to remove this restaurant partner?')) {
-      await deleteDoc(doc(db, 'restaurants', id));
+      deleteDoc(doc(db, 'restaurants', id));
     }
   };
 
@@ -107,7 +106,6 @@ export default function AdminRestaurantsPage() {
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
-      {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-headline font-black mb-2 flex items-center gap-3">
@@ -172,7 +170,6 @@ export default function AdminRestaurantsPage() {
         </Dialog>
       </div>
 
-      {/* Search and Filters */}
       <div className="relative w-full max-w-md">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input 
@@ -183,7 +180,6 @@ export default function AdminRestaurantsPage() {
         />
       </div>
 
-      {/* Main Content */}
       <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
         <div className="overflow-x-auto">
           <Table>
@@ -287,7 +283,6 @@ export default function AdminRestaurantsPage() {
         </div>
       </Card>
 
-      {/* Menu Management View (Overlay/Dialog) */}
       <Dialog open={!!viewingMenu} onOpenChange={() => setViewingMenu(null)}>
         <DialogContent className="sm:max-w-[800px] rounded-[2.5rem] p-0 overflow-hidden border-none max-h-[85vh] flex flex-col">
           <div className="bg-primary p-10 text-white relative">

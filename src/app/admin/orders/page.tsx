@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -66,10 +65,15 @@ export default function AdminOrdersPage() {
   }, [db, isAuthorized]);
   const { data: users } = useCollection(usersQuery);
 
-  const filteredOrders = orders?.filter(o => 
-    (o.orderId || o.id || '').toLowerCase().includes(search.toLowerCase()) ||
-    users?.find(u => u.uid === o.userId)?.displayName?.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredOrders = useMemo(() => {
+    const query = search.toLowerCase().trim();
+    return orders?.filter(o => {
+      const orderIdMatch = (o.orderId || o.id || '').toLowerCase().includes(query);
+      const userMatch = users?.find(u => u.uid === o.userId)?.displayName?.toLowerCase().includes(query);
+      const emailMatch = (o.userEmail || '').toLowerCase().includes(query);
+      return orderIdMatch || userMatch || emailMatch;
+    }) || [];
+  }, [orders, users, search]);
 
   const getStatusColor = (statusKey: string) => {
     switch (statusKey) {

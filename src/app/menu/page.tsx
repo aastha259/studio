@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -59,7 +58,7 @@ const categoriesConfig = [
 export default function MenuPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
-  const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity, clearCart } = useCart();
+  const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity } = useCart();
   const db = useFirestore();
   
   const [mounted, setMounted] = useState(false);
@@ -83,49 +82,14 @@ export default function MenuPage() {
   const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
   const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
 
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
-
-  useEffect(() => {
-    async function getPersonalizedRecommendations() {
-      if (!user?.uid || !allDishes || allDishes.length === 0) {
-        setRecommendations([]);
-        return;
-      }
-      
-      setLoadingRecs(true);
-      try {
-        const result = await personalizedFoodRecommendations({
-          userFoodHistory: [],
-          availableFoods: allDishes.map(f => ({
-            id: f.id,
-            name: f.name,
-            price: f.price,
-            category: f.category,
-            rating: f.rating,
-            imageURL: f.image
-          }))
-        });
-        setRecommendations(result.recommendations);
-      } catch (e) {
-        console.error("Failed to fetch recommendations", e);
-      } finally {
-        setLoadingRecs(false);
-      }
-    }
-    if (mounted && allDishes && allDishes.length > 0 && user) getPersonalizedRecommendations();
-  }, [user?.uid, allDishes?.length, db, mounted]);
-
   const filteredDishes = useMemo(() => {
     const query = search.toLowerCase().trim();
     return (allDishes || []).filter(dish => {
-      // Search logic: matches name, category, or description
       const nameMatch = dish.name?.toLowerCase().includes(query);
       const categoryMatch = dish.category?.toLowerCase().includes(query);
       const descriptionMatch = dish.description?.toLowerCase().includes(query);
       const matchesSearch = query === '' || nameMatch || categoryMatch || descriptionMatch;
 
-      // Filter logic
       const matchesCategory = selectedCategory === 'All' || dish.category === selectedCategory;
       const matchesVeg = isVegOnly === null ? true : dish.isVeg === isVegOnly;
       const matchesPrice = dish.price <= maxPrice;
@@ -160,7 +124,7 @@ export default function MenuPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
 
           <div className="flex-1 max-w-xl flex gap-4">
@@ -417,7 +381,7 @@ export default function MenuPage() {
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-3">
               <ChefHat className="text-primary w-8 h-8" />
-              <span className="font-headline text-2xl font-black">Bhartiya Swad</span>
+              <span className="font-headline text-2xl font-black text-foreground">Bhartiya Swad</span>
             </div>
             <p className="text-muted-foreground font-medium max-w-xs text-center md:text-left opacity-70">Authentic Indian culinary experiences delivered directly to your home.</p>
           </div>

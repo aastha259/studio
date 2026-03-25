@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -14,10 +13,10 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 import { 
-  Tabs as TabsUI, 
-  TabsList as TabsListUI, 
-  TabsTrigger as TabsTriggerUI, 
-  TabsContent as TabsContentUI 
+  Tabs, 
+  TabsList, 
+  TabsTrigger, 
+  TabsContent 
 } from '@/components/ui/tabs';
 
 function LoginForm() {
@@ -138,13 +137,13 @@ function LoginForm() {
         <p className="text-white/80 mt-2 font-medium">Log in to savor authentic flavors</p>
       </CardHeader>
       <CardContent className="p-10">
-        <TabsUI defaultValue="user" className="w-full">
-          <TabsListUI className="grid grid-cols-2 mb-8 p-1 bg-muted rounded-2xl h-12">
-            <TabsTriggerUI value="user" className="rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">User</TabsTriggerUI>
-            <TabsTriggerUI value="admin" className="rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">Admin</TabsTriggerUI>
-          </TabsListUI>
+        <Tabs defaultValue="user" className="w-full">
+          <TabsList className="grid grid-cols-2 mb-8 p-1 bg-muted rounded-2xl h-12">
+            <TabsTrigger value="user" className="rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">User</TabsTrigger>
+            <TabsTrigger value="admin" className="rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm">Admin</TabsTrigger>
+          </TabsList>
           
-          <TabsContentUI value="user" className="space-y-6">
+          <TabsContent value="user" className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Email Address</label>
@@ -183,9 +182,9 @@ function LoginForm() {
                 )}
               </Button>
             </div>
-          </TabsContentUI>
+          </TabsContent>
 
-          <TabsContentUI value="admin" className="space-y-6">
+          <TabsContent value="admin" className="space-y-6">
             <div className="bg-foreground border border-accent/30 p-5 rounded-2xl flex items-start gap-4 mb-2 shadow-sm">
               <Shield className="w-6 h-6 text-accent mt-0.5" />
               <p className="text-xs text-white font-black leading-relaxed">
@@ -226,8 +225,8 @@ function LoginForm() {
                 {loading ? "Authenticating..." : "System Login"}
               </Button>
             </div>
-          </TabsContentUI>
-        </TabsUI>
+          </TabsContent>
+        </Tabs>
       </CardContent>
       <CardFooter className="p-10 pt-0 text-center justify-center border-t border-dashed mt-4">
         <p className="text-sm text-muted-foreground font-medium mt-6">

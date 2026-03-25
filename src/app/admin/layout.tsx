@@ -45,6 +45,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user, loading, router]);
 
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
@@ -109,7 +114,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Button 
             variant="ghost" 
             className="w-full justify-start text-destructive hover:bg-destructive/5 rounded-xl h-12 px-4 transition-colors"
-            onClick={() => { logout(); router.push('/'); }}
+            onClick={handleLogout}
           >
             <LogOut className="w-5 h-5 mr-3" />
             <span className="text-sm font-bold">Sign Out</span>
@@ -151,6 +156,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} />
                 <AvatarFallback><UserIcon /></AvatarFallback>
               </Avatar>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-destructive ml-2"
+                title="Sign Out"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </header>

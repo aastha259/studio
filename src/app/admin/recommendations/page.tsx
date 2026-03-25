@@ -48,10 +48,13 @@ export default function AdminRecommendationsPage() {
         const orderData = orderDoc.data();
         if (orderData.items && Array.isArray(orderData.items)) {
           orderData.items.forEach((item: any) => {
-            history.push({
-              name: item.name,
-              category: dishes.find(d => d.id === item.dishId || d.name === item.name)?.category
-            });
+            // Ensure name exists before adding to history to satisfy AI flow schema requirements
+            if (item.name) {
+              history.push({
+                name: item.name,
+                category: dishes.find(d => d.id === item.dishId || d.name === item.name)?.category
+              });
+            }
           });
         }
       });

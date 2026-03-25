@@ -98,10 +98,13 @@ export default function DashboardPage() {
           const orderData = orderDoc.data();
           if (orderData.items && Array.isArray(orderData.items)) {
             orderData.items.forEach((item: any) => {
-              history.push({
-                name: item.name,
-                category: allDishes.find(f => f.id === item.dishId || f.name === item.name)?.category
-              });
+              // Ensure name exists before adding to history to satisfy AI flow schema requirements
+              if (item.name) {
+                history.push({
+                  name: item.name,
+                  category: allDishes.find(f => f.id === item.dishId || f.name === item.name)?.category
+                });
+              }
             });
           }
         });

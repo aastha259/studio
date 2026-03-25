@@ -66,12 +66,54 @@ export default function AdminSalesPage() {
     });
   }, [orders]);
 
+  // AGGREGATION LOGIC: Derive performance directly from orders collection
   const topSellingItems = useMemo(() => {
-    if (!dishes) return [];
-    return [...dishes]
-      .sort((a, b) => (b.totalRevenue || 0) - (a.totalRevenue || 0))
-      .slice(0, 8);
-  }, [dishes]);
+    if (!orders) return [];
+    
+    const performance: Record<string, { 
+      id: string;
+      name: string; 
+      category: string; 
+      totalOrders: number; 
+      totalRevenue: number; 
+      image: string 
+    }> = {};
+
+    orders.forEach(order => {
+      // Validate order items structure
+      if (!order.items || !Array.isArray(order.items)) return;
+      
+      order.items.forEach((item: any) => {
+        const dishId = item.dishId || item.id;
+        if (!dishId) return;
+
+        if (!performance[dishId]) {
+          // Attempt to find master data from dishes catalog for richer UI
+          const catalogDish = dishes?.find(d => d.id === dishId);
+          performance[dishId] = {
+            id: dishId,
+            name: item.foodName || item.name || catalogDish?.name || 'Unknown Dish',
+            category: catalogDish?.category || 'General',
+            totalOrders: 0,
+            totalRevenue: 0,
+            image: item.imageURL || catalogDish?.image || catalogDish?.imageURL || `https://picsum.photos/seed/${dishId}/200`
+          };
+        }
+        
+        // Aggregate totals
+        const qty = parseInt(item.quantity) || 0;
+        const price = parseFloat(item.price) || 0;
+        
+        performance[dishId].totalOrders += qty;
+        performance[dishId].totalRevenue += qty * price;
+      });
+    });
+
+    // Convert to array, sort by revenue, and return top performers
+    return Object.values(performance)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 10);
+  }, [orders, dishes]);
 
   if (!isAuthorized) return null;
 
@@ -126,7 +168,10 @@ export default function AdminSalesPage() {
 
       <Card className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
-          <div><CardTitle className="text-2xl font-headline font-black">Menu Performance</CardTitle><p className="text-sm text-muted-foreground mt-1">Full breakdown of dish performance across categories.</p></div>
+          <div>
+            <CardTitle className="text-2xl font-headline font-black">Menu Performance</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Real-time breakdown of dish popularity and earnings from actual orders.</p>
+          </div>
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
@@ -134,19 +179,41 @@ export default function AdminSalesPage() {
               <TableRow className="border-none">
                 <TableHead className="font-black px-10 h-16 uppercase tracking-widest text-[10px]">Dish Name</TableHead>
                 <TableHead className="font-black h-16 uppercase tracking-widest text-[10px]">Category</TableHead>
-                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-center">Orders</TableHead>
-                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-right pr-10">Revenue</TableHead>
+                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-center">Items Sold</TableHead>
+                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-right pr-10">Revenue Generated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {topSellingItems.map((dish) => (
                 <TableRow key={dish.id} className="hover:bg-muted/5 transition-colors border-b last:border-none">
-                  <TableCell className="px-10 py-6"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-muted overflow-hidden flex-shrink-0"><img src={dish.image || dish.imageURL} alt={dish.name} className="object-cover w-full h-full" /></div><span className="font-black">{dish.name}</span></div></TableCell>
-                  <TableCell><Badge variant="outline" className="rounded-full px-3 py-0.5 font-bold border-primary/20 text-primary">{dish.category}</Badge></TableCell>
-                  <TableCell className="font-bold text-center text-muted-foreground">{dish.totalOrders || 0}</TableCell>
-                  <TableCell className="font-black text-right pr-10 text-primary text-lg">₹{(dish.totalRevenue || 0).toLocaleString()}</TableCell>
+                  <TableCell className="px-10 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-muted overflow-hidden flex-shrink-0 border">
+                        <img src={dish.image} alt={dish.name} className="object-cover w-full h-full" />
+                      </div>
+                      <span className="font-black">{dish.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="rounded-full px-3 py-0.5 font-bold border-primary/20 text-primary uppercase text-[9px]">
+                      {dish.category.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-bold text-center text-muted-foreground">
+                    {dish.totalOrders.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="font-black text-right pr-10 text-primary text-lg">
+                    ₹{dish.totalRevenue.toLocaleString()}
+                  </TableCell>
                 </TableRow>
               ))}
+              {topSellingItems.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic font-bold">
+                    No sales recorded for menu items yet.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>

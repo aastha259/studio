@@ -19,14 +19,13 @@ import { Badge } from '@/components/ui/badge';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
-import { format, subDays, startOfWeek, isSameDay, parseISO, isSameWeek } from 'date-fns';
+import { format, subDays, startOfWeek, isSameDay, isSameWeek } from 'date-fns';
 import { TrendingUp, ShoppingBag, BarChart3 } from 'lucide-react';
 
 export default function AdminSalesPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
-  // Strict email validation before initiating collection queries
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
   const ordersQuery = useMemoFirebase(() => {
@@ -47,8 +46,8 @@ export default function AdminSalesPage() {
       const date = subDays(new Date(), 13 - i);
       const label = format(date, 'MMM dd');
       const revenue = orders
-        .filter(o => o.orderDate && isSameDay(parseISO(o.orderDate), date))
-        .reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+        .filter(o => o.createdAt && isSameDay(o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt), date))
+        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
       return { name: label, sales: revenue };
     });
   }, [orders]);
@@ -60,13 +59,12 @@ export default function AdminSalesPage() {
       const weekStart = startOfWeek(date);
       const label = `Week ${format(weekStart, 'MM/dd')}`;
       const revenue = orders
-        .filter(o => o.orderDate && isSameWeek(parseISO(o.orderDate), weekStart))
-        .reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+        .filter(o => o.createdAt && isSameWeek(o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt), weekStart))
+        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
       return { name: label, revenue };
     });
   }, [orders]);
 
-  // AGGREGATION LOGIC: Derive performance directly from orders collection
   const topSellingItems = useMemo(() => {
     if (!orders) return [];
     
@@ -80,19 +78,17 @@ export default function AdminSalesPage() {
     }> = {};
 
     orders.forEach(order => {
-      // Validate order items structure
       if (!order.items || !Array.isArray(order.items)) return;
       
       order.items.forEach((item: any) => {
-        const dishId = item.dishId || item.id;
+        const dishId = item.dishId || item.id || item.name;
         if (!dishId) return;
 
         if (!performance[dishId]) {
-          // Attempt to find master data from dishes catalog for richer UI
-          const catalogDish = dishes?.find(d => d.id === dishId);
+          const catalogDish = dishes?.find(d => d.id === dishId || d.name === item.name);
           performance[dishId] = {
             id: dishId,
-            name: item.foodName || item.name || catalogDish?.name || 'Unknown Dish',
+            name: item.name || catalogDish?.name || 'Unknown Dish',
             category: catalogDish?.category || 'General',
             totalOrders: 0,
             totalRevenue: 0,
@@ -100,7 +96,6 @@ export default function AdminSalesPage() {
           };
         }
         
-        // Aggregate totals
         const qty = parseInt(item.quantity) || 0;
         const price = parseFloat(item.price) || 0;
         
@@ -109,7 +104,6 @@ export default function AdminSalesPage() {
       });
     });
 
-    // Convert to array, sort by revenue, and return top performers
     return Object.values(performance)
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 10);
@@ -124,7 +118,7 @@ export default function AdminSalesPage() {
           <BarChart3 className="w-10 h-10 text-primary" />
           Sales Intelligence
         </h1>
-        <p className="text-muted-foreground font-medium">Deep insights into revenue streams and popular dishes.</p>
+        <p className="text-muted-foreground font-medium">Deep insights into standardized revenue streams.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -170,7 +164,7 @@ export default function AdminSalesPage() {
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl font-headline font-black">Menu Performance</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Real-time breakdown of dish popularity and earnings from actual orders.</p>
+            <p className="text-sm text-muted-foreground mt-1">Real-time breakdown from standardized audit records.</p>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
@@ -179,8 +173,8 @@ export default function AdminSalesPage() {
               <TableRow className="border-none">
                 <TableHead className="font-black px-10 h-16 uppercase tracking-widest text-[10px]">Dish Name</TableHead>
                 <TableHead className="font-black h-16 uppercase tracking-widest text-[10px]">Category</TableHead>
-                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-center">Items Sold</TableHead>
-                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-right pr-10">Revenue Generated</TableHead>
+                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-center">Qty Sold</TableHead>
+                <TableHead className="font-black h-16 uppercase tracking-widest text-[10px] text-right pr-10">Total Revenue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,13 +201,6 @@ export default function AdminSalesPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {topSellingItems.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic font-bold">
-                    No sales recorded for menu items yet.
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>

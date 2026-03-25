@@ -75,18 +75,16 @@ function PaymentContent() {
       userEmail: user.email,
       items: items.map(item => ({
         dishId: item.id,
-        foodName: item.name,
+        name: item.name,
         price: item.price,
         quantity: item.quantity,
-        subtotal: item.price * item.quantity,
         imageURL: item.imageURL
       })),
-      totalPrice: totalPrice + 54,
-      orderStatus: 'Order Placed',
+      totalAmount: totalPrice + 54,
+      status: 'placed',
       paymentMethod: 'Online',
       paymentStatus: 'Paid',
       deliveryDetails: deliveryInfo,
-      orderDate: new Date().toISOString(),
       createdAt: serverTimestamp()
     };
 

@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn, computeOrderStatus } from '@/lib/utils';
+import { cn, computeOrderStatus, STATUS_LABELS } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
@@ -42,7 +42,6 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Strict email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
   const ordersQuery = useMemoFirebase(() => {
@@ -51,12 +50,6 @@ export default function AdminDashboardPage() {
   }, [db, isAuthorized]);
   const { data: orders } = useCollection(ordersQuery);
 
-  const usersQuery = useMemoFirebase(() => {
-    if (!isAuthorized) return null;
-    return collection(db, 'users');
-  }, [db, isAuthorized]);
-  const { data: users } = useCollection(usersQuery);
-
   const restaurantsQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     return collection(db, 'restaurants');
@@ -64,12 +57,10 @@ export default function AdminDashboardPage() {
   const { data: restaurants } = useCollection(restaurantsQuery);
 
   const stats = useMemo(() => {
-    // Valid orders must have a userId and a positive totalPrice
-    const validOrders = orders?.filter(o => o.userId && (o.totalPrice || 0) > 0) || [];
+    const validOrders = orders?.filter(o => o.userId && (o.totalAmount || 0) > 0) || [];
     const totalOrdersCount = validOrders.length;
-    const totalRevenue = validOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+    const totalRevenue = validOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
     
-    // Customers = Unique userIds present in the valid orders collection
     const activeCustomerIds = new Set(validOrders.map(o => o.userId));
     const totalCustomers = activeCustomerIds.size;
     
@@ -117,14 +108,14 @@ export default function AdminDashboardPage() {
 
   const dailyChartData = useMemo(() => {
     if (!orders) return [];
-    const validOrders = orders.filter(o => o.userId && (o.totalPrice || 0) > 0);
+    const validOrders = orders.filter(o => o.userId && (o.totalAmount || 0) > 0);
     
     return Array.from({ length: 7 }).map((_, i) => {
       const date = subDays(new Date(), 6 - i);
       const dayLabel = format(date, 'MMM dd');
       const revenue = validOrders
-        .filter(o => o.orderDate && isSameDay(parseISO(o.orderDate), date))
-        .reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+        .filter(o => o.createdAt && isSameDay(parseISO(o.createdAt?.toDate ? o.createdAt.toDate().toISOString() : o.createdAt), date))
+        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
       return { name: dayLabel, revenue };
     });
   }, [orders]);
@@ -132,10 +123,10 @@ export default function AdminDashboardPage() {
   const recentOrders = useMemo(() => {
     if (!orders) return [];
     return [...orders]
-      .filter(o => o.userId && (o.totalPrice || 0) > 0)
+      .filter(o => o.userId && (o.totalAmount || 0) > 0)
       .sort((a, b) => {
-        const dateA = a.orderDate ? parseISO(a.orderDate).getTime() : 0;
-        const dateB = b.orderDate ? parseISO(b.orderDate).getTime() : 0;
+        const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+        const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
         return dateB - dateA;
       }).slice(0, 5);
   }, [orders]);
@@ -144,7 +135,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-headline font-black mb-2 text-foreground tracking-tight">Overview</h1>
@@ -156,7 +146,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {stats.map((stat, i) => (
           <Card key={i} className="border-none shadow-sm rounded-[2rem] overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-white group p-2">
@@ -180,7 +169,6 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* Sales Trend Chart */}
       <Card className="border shadow-sm rounded-[2.5rem] p-8 md:p-12 bg-white h-[500px] flex flex-col">
         <div className="flex items-center justify-between mb-10">
           <div>
@@ -221,7 +209,6 @@ export default function AdminDashboardPage() {
         </div>
       </Card>
 
-      {/* Recent Orders Table */}
       <Card className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
           <div>
@@ -247,22 +234,23 @@ export default function AdminDashboardPage() {
             </TableHeader>
             <TableBody>
               {recentOrders.map((order) => {
-                const status = computeOrderStatus(order.createdAt);
+                const statusKey = computeOrderStatus(order.createdAt);
+                const statusLabel = STATUS_LABELS[statusKey];
                 return (
                   <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
                     <TableCell className="px-10 font-mono text-xs font-bold text-muted-foreground">#{(order.orderId || order.id).slice(0, 8).toUpperCase()}</TableCell>
-                    <TableCell className="font-black text-primary text-lg">₹{(order.totalPrice || 0).toLocaleString()}</TableCell>
+                    <TableCell className="font-black text-primary text-lg">₹{(order.totalAmount || 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge className={cn(
                         "rounded-full px-4 py-1 font-bold text-[10px] uppercase tracking-wider border-none",
-                        status === 'Delivered' ? 'bg-green-100 text-green-700' : 
-                        status === 'Preparing Food' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                        statusKey === 'delivered' ? 'bg-green-100 text-green-700' : 
+                        statusKey === 'preparing' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
                       )}>
-                        {status}
+                        {statusLabel}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground font-bold italic">
-                      {order.orderDate ? format(parseISO(order.orderDate), 'p, MMM dd') : 'Just now'}
+                      {order.createdAt ? format(order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt), 'p, MMM dd') : 'Just now'}
                     </TableCell>
                   </TableRow>
                 )

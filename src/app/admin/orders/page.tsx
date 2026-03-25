@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -26,8 +27,8 @@ import {
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
-import { format, parseISO } from 'date-fns';
-import { cn, computeOrderStatus } from '@/lib/utils';
+import { format } from 'date-fns';
+import { cn, computeOrderStatus, STATUS_LABELS } from '@/lib/utils';
 
 export default function AdminOrdersPage() {
   const db = useFirestore();
@@ -42,27 +43,23 @@ export default function AdminOrdersPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Strict email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
-  // Fetch Orders
   const ordersRef = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     return collection(db, 'orders');
   }, [db, isAuthorized]);
   const { data: rawOrders, isLoading: ordersLoading } = useCollection(ordersRef);
 
-  // Sort orders in memory
   const orders = useMemo(() => {
     if (!rawOrders) return [];
     return [...rawOrders].sort((a, b) => {
-      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
-      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+      const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
       return dateB - dateA;
     });
   }, [rawOrders]);
 
-  // Fetch Users
   const usersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     return collection(db, 'users');
@@ -71,15 +68,15 @@ export default function AdminOrdersPage() {
 
   const filteredOrders = orders?.filter(o => 
     (o.orderId || o.id || '').toLowerCase().includes(search.toLowerCase()) ||
-    users?.find(u => u.id === o.userId)?.displayName?.toLowerCase().includes(search.toLowerCase())
+    users?.find(u => u.uid === o.userId)?.displayName?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Delivered': return 'bg-green-100 text-green-700 border-green-200';
-      case 'Out for Delivery': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'Preparing Food': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'Order Placed': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+  const getStatusColor = (statusKey: string) => {
+    switch (statusKey) {
+      case 'delivered': return 'bg-green-100 text-green-700 border-green-200';
+      case 'out_for_delivery': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'preparing': return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'placed': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
@@ -94,7 +91,7 @@ export default function AdminOrdersPage() {
             <ShoppingBag className="w-10 h-10 text-primary" />
             Order Management
           </h1>
-          <p className="text-muted-foreground font-medium">Live customer tracking dashboard (Status automated by time).</p>
+          <p className="text-muted-foreground font-medium">Live customer tracking dashboard (Standardized Database).</p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-80">
@@ -106,10 +103,6 @@ export default function AdminOrdersPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="h-12 px-6 rounded-2xl font-bold gap-2 border-primary/20 text-primary hover:bg-primary/5">
-            <Filter className="w-5 h-5" />
-            Filter
-          </Button>
         </div>
       </div>
 
@@ -117,10 +110,10 @@ export default function AdminOrdersPage() {
         <div className="bg-muted/10 p-8 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-              <h3 className="font-black text-xl font-headline text-foreground">Automatic Order Stream</h3>
+              <h3 className="font-black text-xl font-headline text-foreground">Audit Stream</h3>
             </div>
             <Badge variant="outline" className="rounded-full px-4 py-1 font-bold bg-white">
-              {filteredOrders.length} ORDERS TOTAL
+              {filteredOrders.length} ORDERS AUDITED
             </Badge>
         </div>
         
@@ -131,16 +124,16 @@ export default function AdminOrdersPage() {
                 <TableHead className="font-black px-10 h-20 uppercase tracking-widest text-[10px]">Order ID</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Customer</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Amount</TableHead>
-                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Current Status</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Status</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-right pr-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => {
-                const customer = users?.find(u => u.id === order.userId);
+                const customer = users?.find(u => u.uid === order.userId);
                 const orderId = order.orderId || order.id || '';
-                const totalPrice = order.totalPrice || 0;
-                const status = computeOrderStatus(order.createdAt);
+                const totalAmount = order.totalAmount || 0;
+                const statusKey = computeOrderStatus(order.createdAt);
                 
                 return (
                   <TableRow key={order.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
@@ -149,7 +142,7 @@ export default function AdminOrdersPage() {
                         <span className="font-mono text-xs font-black text-muted-foreground">#{orderId.slice(0, 12).toUpperCase()}</span>
                         <span className="text-[10px] font-bold text-accent mt-1 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {order.orderDate ? format(parseISO(order.orderDate), 'MMM dd, p') : 'Processing'}
+                          {order.createdAt ? format(order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt), 'MMM dd, p') : 'Processing'}
                         </span>
                       </div>
                     </TableCell>
@@ -159,17 +152,17 @@ export default function AdminOrdersPage() {
                           <User className="w-4 h-4 text-primary" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-sm text-foreground">{customer?.displayName || 'Guest User'}</span>
-                          <span className="text-[10px] text-muted-foreground">{customer?.email || 'No email'}</span>
+                          <span className="font-bold text-sm text-foreground">{customer?.displayName || order.deliveryDetails?.name || 'Guest User'}</span>
+                          <span className="text-[10px] text-muted-foreground">{customer?.email || order.userEmail || 'No email'}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-black text-lg text-primary">₹{(totalPrice || 0).toLocaleString()}</span>
+                      <span className="font-black text-lg text-primary">₹{(totalAmount || 0).toLocaleString()}</span>
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase tracking-wider border-none", getStatusColor(status))}>
-                        {status}
+                      <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase tracking-wider border-none", getStatusColor(statusKey))}>
+                        {STATUS_LABELS[statusKey]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right pr-10">
@@ -189,26 +182,6 @@ export default function AdminOrdersPage() {
                   </TableRow>
                 );
               })}
-              
-              {filteredOrders.length === 0 && !ordersLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-32 opacity-30">
-                    <div className="flex flex-col items-center">
-                      <ShoppingBag className="w-20 h-20 mb-4" />
-                      <p className="text-xl font-black italic">Waiting for new orders...</p>
-                      <p className="text-sm">The stream is active and listening for incoming requests.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {ordersLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-32">
-                    <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>
@@ -219,13 +192,13 @@ export default function AdminOrdersPage() {
           <DialogHeader className="bg-primary p-10 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle className="text-3xl font-headline font-black">Order Breakdown</DialogTitle>
+                <DialogTitle className="text-3xl font-headline font-black">Order Audit</DialogTitle>
                 <DialogDescription className="text-white/70 font-bold mt-1">
                   ID: #{(selectedOrder?.orderId || selectedOrder?.id || '').toUpperCase()}
                 </DialogDescription>
               </div>
-              <Badge className={cn("rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none bg-white", getStatusColor(computeOrderStatus(selectedOrder?.createdAt)).split(' ')[1])}>
-                {computeOrderStatus(selectedOrder?.createdAt)}
+              <Badge className="rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none bg-white text-primary">
+                {STATUS_LABELS[computeOrderStatus(selectedOrder?.createdAt)]}
               </Badge>
             </div>
           </DialogHeader>
@@ -238,29 +211,29 @@ export default function AdminOrdersPage() {
                   <User className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-foreground">{users?.find(u => u.id === selectedOrder?.userId)?.displayName || 'Guest'}</p>
+                  <p className="font-bold text-sm text-foreground">{selectedOrder?.deliveryDetails?.name || 'Guest'}</p>
                   <p className="text-[10px] text-muted-foreground">UID: {selectedOrder?.userId?.slice(0, 12)}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Items in Order</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Items In Order</p>
               <Card className="border shadow-none rounded-2xl overflow-hidden bg-white">
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead className="font-black text-[10px] uppercase h-10">Dish Name</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase h-10">Dish</TableHead>
                       <TableHead className="font-black text-[10px] uppercase text-center h-10">Qty</TableHead>
-                      <TableHead className="font-black text-[10px] uppercase text-right h-10">Subtotal</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase text-right h-10">Price</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {selectedOrder?.items?.map((item: any, idx: number) => (
                       <TableRow key={idx} className="border-b last:border-none">
-                        <TableCell className="font-bold text-sm text-foreground">{item.foodName}</TableCell>
+                        <TableCell className="font-bold text-sm text-foreground">{item.name}</TableCell>
                         <TableCell className="text-center font-bold text-sm text-foreground">x{item.quantity}</TableCell>
-                        <TableCell className="text-right font-black text-primary text-sm">₹{item.subtotal}</TableCell>
+                        <TableCell className="text-right font-black text-primary text-sm">₹{item.price * item.quantity}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -274,11 +247,11 @@ export default function AdminOrdersPage() {
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="font-bold text-foreground">Total Collection</p>
-                  <p className="text-xs text-muted-foreground italic">Inclusive of taxes & delivery</p>
+                  <p className="font-bold text-foreground">Standardized Total</p>
+                  <p className="text-xs text-muted-foreground italic">Validated audit record</p>
                 </div>
               </div>
-              <p className="text-4xl font-headline font-black text-primary">₹{selectedOrder?.totalPrice}</p>
+              <p className="text-4xl font-headline font-black text-primary">₹{selectedOrder?.totalAmount}</p>
             </div>
           </div>
         </DialogContent>

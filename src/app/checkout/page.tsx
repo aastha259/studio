@@ -104,18 +104,16 @@ export default function CheckoutPage() {
       userEmail: user.email,
       items: items.map(item => ({
         dishId: item.id,
-        foodName: item.name,
+        name: item.name,
         price: item.price,
         quantity: item.quantity,
-        subtotal: item.price * item.quantity,
         imageURL: item.imageURL
       })),
-      totalPrice: totalPrice + 54,
-      orderStatus: 'Order Placed',
+      totalAmount: totalPrice + 54,
+      status: 'placed',
       paymentMethod: paymentMethod,
       paymentStatus: 'Cash on Delivery',
       deliveryDetails: deliveryDetails,
-      orderDate: new Date().toISOString(),
       createdAt: serverTimestamp()
     };
 

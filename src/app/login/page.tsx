@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -12,7 +13,6 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-// Consistent UI component imports
 import { 
   Tabs as TabsUI, 
   TabsList as TabsListUI, 
@@ -74,13 +74,13 @@ function LoginForm() {
 
           await setDoc(doc(db, 'users', userCredential.user.uid), {
             id: userCredential.user.uid,
-            userId: userCredential.user.uid,
+            uid: userCredential.user.uid,
             email: userCredential.user.email,
             name: 'System Administrator',
             displayName: 'System Administrator',
             role: 'admin',
             totalOrders: 0,
-            totalMoneySpent: 0,
+            totalSpent: 0,
             lastLogin: serverTimestamp()
           }, { merge: true });
           
@@ -97,13 +97,13 @@ function LoginForm() {
         if (!userDoc.exists()) {
           await setDoc(userRef, {
             id: userCredential.user.uid,
-            userId: userCredential.user.uid,
+            uid: userCredential.user.uid,
             email: userCredential.user.email,
             name: userCredential.user.displayName || email.split('@')[0],
             displayName: userCredential.user.displayName || email.split('@')[0],
             role: 'user',
             totalOrders: 0,
-            totalMoneySpent: 0,
+            totalSpent: 0,
             createdAt: serverTimestamp(),
             lastLogin: serverTimestamp()
           });

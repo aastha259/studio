@@ -23,7 +23,6 @@ export default function AdminCustomersPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
-  // Strict authorized email guard
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
   const usersQuery = useMemoFirebase(() => {
@@ -41,23 +40,21 @@ export default function AdminCustomersPage() {
   const customerData = useMemo(() => {
     if (!users || !orders) return [];
 
-    // Filter valid orders
-    const validOrders = orders.filter(o => o.userId && (o.totalPrice || 0) > 0);
+    const validOrders = orders.filter(o => o.userId && (o.totalAmount || 0) > 0);
 
-    // Group and calculate stats per user from actual order data
     return users.map(u => {
-      const userOrders = validOrders.filter(o => o.userId === u.id);
-      const totalSpent = userOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+      const userOrders = validOrders.filter(o => o.userId === u.uid || o.userId === u.id);
+      const totalSpent = userOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
       
       return {
         name: u.displayName || u.name || 'Anonymous',
         orders: userOrders.length,
         spent: totalSpent,
         email: u.email,
-        id: u.id
+        id: u.uid || u.id
       };
     })
-    .filter(cust => cust.orders > 0) // Only show users who have actually placed orders
+    .filter(cust => cust.orders > 0)
     .sort((a, b) => b.spent - a.spent);
   }, [users, orders]);
 
@@ -68,8 +65,8 @@ export default function AdminCustomersPage() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="text-4xl font-headline font-black mb-2">Customer Insights</h1>
-        <p className="text-muted-foreground">Monitor loyalists and derived spending segments from order history.</p>
+        <h1 className="text-4xl font-headline font-black mb-2">Loyalty Intelligence</h1>
+        <p className="text-muted-foreground">Monitor high-value segments derived from standardized order history.</p>
       </div>
 
       <Card className="border shadow-sm rounded-3xl p-8 bg-white">
@@ -94,7 +91,7 @@ export default function AdminCustomersPage() {
 
       <Card className="border shadow-sm rounded-3xl overflow-hidden bg-white">
         <CardHeader className="p-8 border-b">
-          <CardTitle className="text-xl font-headline font-bold">Loyalty Database</CardTitle>
+          <CardTitle className="text-xl font-headline font-bold">Customer Loyalty Base</CardTitle>
         </CardHeader>
         <Table>
           <TableHeader className="bg-muted/50">
@@ -102,7 +99,7 @@ export default function AdminCustomersPage() {
               <TableHead className="font-bold p-6">Customer</TableHead>
               <TableHead className="font-bold">Contact</TableHead>
               <TableHead className="font-bold text-center">Orders</TableHead>
-              <TableHead className="font-bold text-right">Spending</TableHead>
+              <TableHead className="font-bold text-right">Total Spent</TableHead>
               <TableHead className="font-bold text-center pr-6">Segment</TableHead>
             </TableRow>
           </TableHeader>
@@ -135,13 +132,6 @@ export default function AdminCustomersPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {customerData.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic font-bold">
-                  No successful orders recorded yet.
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </Card>

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo, useState, useEffect } from "react"
@@ -23,13 +24,13 @@ import { Separator } from "@/components/ui/separator"
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { cn, computeOrderStatus } from "@/lib/utils"
+import { cn, computeOrderStatus, STATUS_LABELS } from "@/lib/utils"
 
 const TRACKING_STEPS = [
-  { id: "Order Placed", label: "Order Placed", icon: Clock, color: "bg-blue-500" },
-  { id: "Preparing Food", label: "Preparing Food", icon: Utensils, color: "bg-orange-500" },
-  { id: "Out for Delivery", label: "Out for Delivery", icon: Truck, color: "bg-indigo-500" },
-  { id: "Delivered", label: "Delivered", icon: CheckCircle2, color: "bg-green-500" }
+  { id: "placed", label: "Order Placed", icon: Clock, color: "bg-blue-500" },
+  { id: "preparing", label: "Preparing Food", icon: Utensils, color: "bg-orange-500" },
+  { id: "out_for_delivery", label: "Out for Delivery", icon: Truck, color: "bg-indigo-500" },
+  { id: "delivered", label: "Delivered", icon: CheckCircle2, color: "bg-green-500" }
 ]
 
 export default function OrderTrackingPage() {
@@ -40,7 +41,6 @@ export default function OrderTrackingPage() {
   const { user, loading: authLoading } = useAuth()
   const [currentTime, setCurrentTime] = useState(new Date())
 
-  // Update computed status periodically
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date())
@@ -56,16 +56,15 @@ export default function OrderTrackingPage() {
   const { data: order, isLoading: orderLoading, error } = useDoc(orderRef)
 
   const displayOrderId = order?.orderId || orderId || "Unknown"
-  const displayTotalPrice = order?.totalPrice ?? 0
+  const totalAmount = order?.totalAmount ?? 0
   
-  // Use computed status based on time elapsed
-  const displayStatus = useMemo(() => {
+  const statusKey = useMemo(() => {
     return computeOrderStatus(order?.createdAt);
   }, [order?.createdAt, currentTime])
 
   const currentStepIndex = useMemo(() => {
-    return TRACKING_STEPS.findIndex(step => step.id === displayStatus)
-  }, [displayStatus])
+    return TRACKING_STEPS.findIndex(step => step.id === statusKey)
+  }, [statusKey])
 
   if (authLoading || orderLoading) {
     return (
@@ -134,14 +133,13 @@ export default function OrderTrackingPage() {
             TRACKING_STEPS[currentStepIndex]?.color || "bg-primary",
             "text-white"
           )}>
-            {displayStatus}
+            {STATUS_LABELS[statusKey]}
           </Badge>
         </div>
 
         <Card className="border shadow-xl rounded-[3rem] overflow-hidden bg-white">
           <CardContent className="p-10 md:p-16">
             <div className="relative flex flex-col md:flex-row justify-between items-center gap-12 md:gap-4">
-              {/* Progress Line */}
               <div className="absolute top-1/2 left-0 w-full h-1 bg-muted -translate-y-1/2 hidden md:block" />
               <div 
                 className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 hidden md:block transition-all duration-1000" 
@@ -152,7 +150,6 @@ export default function OrderTrackingPage() {
                 const Icon = step.icon
                 const isCompleted = index < currentStepIndex
                 const isActive = index === currentStepIndex
-                const isPending = index > currentStepIndex
 
                 return (
                   <div key={step.id} className="relative z-10 flex flex-col items-center group w-full md:w-auto">
@@ -196,18 +193,18 @@ export default function OrderTrackingPage() {
                         <img
                           src={item.imageURL || `https://picsum.photos/seed/${index}/200`}
                           className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                          alt={item.foodName}
+                          alt={item.name}
                         />
                       </div>
                       <div>
-                        <p className="font-bold text-lg leading-tight">{item.foodName}</p>
+                        <p className="font-bold text-lg leading-tight">{item.name}</p>
                         <p className="text-sm text-muted-foreground font-black uppercase tracking-widest mt-1">
                           Quantity: {item.quantity}
                         </p>
                       </div>
                     </div>
                     <p className="font-headline font-black text-xl text-primary">
-                      ₹{item.subtotal}
+                      ₹{item.price * item.quantity}
                     </p>
                   </div>
                 ))}
@@ -215,10 +212,10 @@ export default function OrderTrackingPage() {
               <Separator className="my-8 border-dashed" />
               <div className="flex justify-between items-end">
                 <div>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Amount Collected</p>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Collection</p>
                   <p className="text-xs text-muted-foreground italic">Inclusive of taxes and delivery partner fees</p>
                 </div>
-                <p className="text-4xl font-headline font-black text-primary">₹{displayTotalPrice}</p>
+                <p className="text-4xl font-headline font-black text-primary">₹{totalAmount}</p>
               </div>
             </CardContent>
           </Card>
@@ -251,7 +248,7 @@ export default function OrderTrackingPage() {
               
               <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl shadow-black/10">
                 <p className="text-xs text-slate-100 font-bold leading-relaxed italic text-center">
-                  "Your meal is being tracked in real-time. Please stay available on your registered phone number."
+                  "Your meal is being tracked in real-time using our standardized audit stream."
                 </p>
               </div>
               

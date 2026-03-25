@@ -8,19 +8,19 @@
       "description": "Represents a user of the Bhartiya Swad platform.",
       "properties": {
         "id": { "type": "string" },
-        "userId": { "type": "string" },
+        "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "name": { "type": "string" },
         "displayName": { "type": "string" },
         "role": { "type": "string" },
         "totalOrders": { "type": "number" },
-        "totalMoneySpent": { "type": "number" },
+        "totalSpent": { "type": "number" },
         "address": { "type": "string" },
         "phone": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "lastLogin": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "object" },
+        "lastLogin": { "type": "object" }
       },
-      "required": ["id", "userId", "email", "name", "role", "totalOrders", "totalMoneySpent"]
+      "required": ["uid", "email", "name", "role"]
     },
     "Dish": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -40,39 +40,21 @@
         "totalRevenue": { "type": "number" },
         "restaurantId": { "type": "string" }
       },
-      "required": ["id", "name", "description", "price", "image", "rating", "category", "isVeg", "totalOrders", "totalRevenue"]
-    },
-    "Restaurant": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Restaurant",
-      "type": "object",
-      "description": "Represents a partner restaurant.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "address": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "imageURL": { "type": "string", "format": "uri" },
-        "averageRating": { "type": "number" },
-        "totalOrders": { "type": "number" },
-        "totalRevenue": { "type": "number" }
-      }
+      "required": ["name", "price", "category"]
     },
     "CartItem": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "CartItem",
       "type": "object",
-      "description": "Represents an item in a user's shopping cart.",
+      "description": "Represents an item in a user's shopping cart or order.",
       "properties": {
         "dishId": { "type": "string" },
         "name": { "type": "string" },
         "price": { "type": "number" },
-        "imageURL": { "type": "string", "format": "uri" },
         "quantity": { "type": "number" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "imageURL": { "type": "string", "format": "uri" }
       },
-      "required": ["name", "price", "quantity", "updatedAt"]
+      "required": ["name", "price", "quantity"]
     },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -82,11 +64,12 @@
       "properties": {
         "orderId": { "type": "string" },
         "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
         "items": { "type": "array", "items": { "$ref": "#/entities/CartItem" } },
-        "totalPrice": { "type": "number" },
-        "orderStatus": { "type": "string", "enum": ["Order Placed", "Preparing Food", "Out for Delivery", "Delivered", "Cancelled"] },
-        "paymentMethod": { "type": "string", "enum": ["COD", "Online"] },
-        "paymentStatus": { "type": "string", "enum": ["Cash on Delivery", "Paid", "Pending"] },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["placed", "preparing", "out_for_delivery", "delivered"] },
+        "paymentMethod": { "type": "string" },
+        "paymentStatus": { "type": "string" },
         "deliveryDetails": {
           "type": "object",
           "properties": {
@@ -95,27 +78,13 @@
             "address": { "type": "string" }
           }
         },
-        "orderDate": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "object" }
-      }
-    },
-    "Post": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Post",
-      "type": "object",
-      "description": "Represents a social post or community update.",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "content": { "type": "string" },
-        "authorId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "content", "authorId", "createdAt"]
+      "required": ["userId", "items", "totalAmount", "status", "createdAt"]
     }
   },
   "auth": {
-    "providers": ["password", "google.com"]
+    "providers": ["password"]
   },
   "firestore": {
     "/users/{userId}": {
@@ -130,17 +99,9 @@
       "schema": "Dish",
       "description": "Stores individual authentic Indian dishes."
     },
-    "/restaurants/{restaurantId}": {
-      "schema": "Restaurant",
-      "description": "Stores partner restaurant details."
-    },
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Stores all customer orders."
-    },
-    "/posts/{postId}": {
-      "schema": "Post",
-      "description": "Stores community posts and updates."
     }
   }
 }

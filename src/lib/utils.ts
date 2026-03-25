@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -6,23 +7,29 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Computes the order status based on time elapsed since creation.
- * Logic:
- * < 1 min: Order Placed
- * 1-15 min: Preparing Food
- * 15-25 min: Out for Delivery
- * > 25 min: Delivered
+ * Computes the standardized order status key based on time elapsed since creation.
+ * Returns: 'placed' | 'preparing' | 'out_for_delivery' | 'delivered'
  */
 export function computeOrderStatus(createdAt: any): string {
-  if (!createdAt) return "Order Placed";
+  if (!createdAt) return "placed";
   
   // Handle Firestore Timestamp or ISO string
   const createdDate = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
   const now = new Date();
   const diffInMinutes = (now.getTime() - createdDate.getTime()) / (1000 * 60);
 
-  if (diffInMinutes < 1) return "Order Placed";
-  if (diffInMinutes < 15) return "Preparing Food";
-  if (diffInMinutes < 25) return "Out for Delivery";
-  return "Delivered";
+  if (diffInMinutes < 1) return "placed";
+  if (diffInMinutes < 15) return "preparing";
+  if (diffInMinutes < 25) return "out_for_delivery";
+  return "delivered";
 }
+
+/**
+ * Maps standardized status keys to human-readable display labels.
+ */
+export const STATUS_LABELS: Record<string, string> = {
+  placed: "Order Placed",
+  preparing: "Preparing Food",
+  out_for_delivery: "Out for Delivery",
+  delivered: "Delivered"
+};

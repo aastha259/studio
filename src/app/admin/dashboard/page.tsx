@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -63,15 +64,21 @@ export default function AdminDashboardPage() {
   const { data: restaurants } = useCollection(restaurantsQuery);
 
   const stats = useMemo(() => {
-    const totalOrders = orders?.length || 0;
-    const totalRevenue = orders?.reduce((acc, o) => acc + (o.totalPrice || 0), 0) || 0;
-    const totalCustomers = users?.length || 0;
+    // Valid orders must have a userId and a positive totalPrice
+    const validOrders = orders?.filter(o => o.userId && (o.totalPrice || 0) > 0) || [];
+    const totalOrdersCount = validOrders.length;
+    const totalRevenue = validOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+    
+    // Customers = Unique userIds present in the valid orders collection
+    const activeCustomerIds = new Set(validOrders.map(o => o.userId));
+    const totalCustomers = activeCustomerIds.size;
+    
     const totalRestaurants = restaurants?.length || 0;
 
     return [
       { 
         label: 'Total Orders', 
-        value: totalOrders.toLocaleString(), 
+        value: totalOrdersCount.toLocaleString(), 
         icon: ShoppingBag, 
         color: 'text-primary', 
         bg: 'bg-primary/10', 
@@ -106,14 +113,16 @@ export default function AdminDashboardPage() {
         isUp: true 
       },
     ];
-  }, [orders, users, restaurants]);
+  }, [orders, restaurants]);
 
   const dailyChartData = useMemo(() => {
     if (!orders) return [];
+    const validOrders = orders.filter(o => o.userId && (o.totalPrice || 0) > 0);
+    
     return Array.from({ length: 7 }).map((_, i) => {
       const date = subDays(new Date(), 6 - i);
       const dayLabel = format(date, 'MMM dd');
-      const revenue = orders
+      const revenue = validOrders
         .filter(o => o.orderDate && isSameDay(parseISO(o.orderDate), date))
         .reduce((acc, o) => acc + (o.totalPrice || 0), 0);
       return { name: dayLabel, revenue };
@@ -122,11 +131,13 @@ export default function AdminDashboardPage() {
 
   const recentOrders = useMemo(() => {
     if (!orders) return [];
-    return [...orders].sort((a, b) => {
-      const dateA = a.orderDate ? parseISO(a.orderDate).getTime() : 0;
-      const dateB = b.orderDate ? parseISO(b.orderDate).getTime() : 0;
-      return dateB - dateA;
-    }).slice(0, 5);
+    return [...orders]
+      .filter(o => o.userId && (o.totalPrice || 0) > 0)
+      .sort((a, b) => {
+        const dateA = a.orderDate ? parseISO(a.orderDate).getTime() : 0;
+        const dateB = b.orderDate ? parseISO(b.orderDate).getTime() : 0;
+        return dateB - dateA;
+      }).slice(0, 5);
   }, [orders]);
 
   if (!isAuthorized) return null;

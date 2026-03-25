@@ -1,7 +1,7 @@
 
 "use client"
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -32,13 +32,34 @@ export default function AdminCustomersPage() {
   }, [db, isAuthorized]);
   const { data: users } = useCollection(usersQuery);
 
-  const customerData = users?.map(u => ({
-    name: u.displayName || 'Anonymous',
-    orders: u.totalOrders || 0,
-    spent: u.totalMoneySpent || 0,
-    email: u.email,
-    id: u.id
-  })).sort((a, b) => b.spent - a.spent) || [];
+  const ordersQuery = useMemoFirebase(() => {
+    if (!isAuthorized) return null;
+    return collection(db, 'orders');
+  }, [db, isAuthorized]);
+  const { data: orders } = useCollection(ordersQuery);
+
+  const customerData = useMemo(() => {
+    if (!users || !orders) return [];
+
+    // Filter valid orders
+    const validOrders = orders.filter(o => o.userId && (o.totalPrice || 0) > 0);
+
+    // Group and calculate stats per user from actual order data
+    return users.map(u => {
+      const userOrders = validOrders.filter(o => o.userId === u.id);
+      const totalSpent = userOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+      
+      return {
+        name: u.displayName || u.name || 'Anonymous',
+        orders: userOrders.length,
+        spent: totalSpent,
+        email: u.email,
+        id: u.id
+      };
+    })
+    .filter(cust => cust.orders > 0) // Only show users who have actually placed orders
+    .sort((a, b) => b.spent - a.spent);
+  }, [users, orders]);
 
   const chartData = customerData.slice(0, 10);
 
@@ -48,7 +69,7 @@ export default function AdminCustomersPage() {
     <div className="space-y-12">
       <div>
         <h1 className="text-4xl font-headline font-black mb-2">Customer Insights</h1>
-        <p className="text-muted-foreground">Monitor loyalists and identified segments.</p>
+        <p className="text-muted-foreground">Monitor loyalists and derived spending segments from order history.</p>
       </div>
 
       <Card className="border shadow-sm rounded-3xl p-8 bg-white">
@@ -114,6 +135,13 @@ export default function AdminCustomersPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {customerData.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic font-bold">
+                  No successful orders recorded yet.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Card>

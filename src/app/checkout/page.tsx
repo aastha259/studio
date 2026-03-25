@@ -101,6 +101,7 @@ export default function CheckoutPage() {
     const orderData = {
       orderId: orderRef.id,
       userId: user.uid,
+      userEmail: user.email,
       items: items.map(item => ({
         dishId: item.id,
         foodName: item.name,

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc, addDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, query, limit, doc, deleteDoc, addDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -32,7 +31,10 @@ export default function AdminDatabasePage() {
   const [isAddDishOpen, setIsAddDishOpen] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
 
-  const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
+  // Optimize: Limit database management view to 300 items to avoid excessive cost
+  const dishesQuery = useMemoFirebase(() => {
+    return query(collection(db, 'dishes'), limit(300));
+  }, [db]);
   const { data: dishes } = useCollection(dishesQuery);
 
   const handleDelete = async (id: string) => {
@@ -44,10 +46,9 @@ export default function AdminDatabasePage() {
 
   const handleMegaSeed500 = async () => {
     setIsSeeding(true);
-    toast({ title: "Seeding Started", description: "Generating 500+ unique dishes..." });
+    toast({ title: "Seeding Started", description: "Generating unique dishes..." });
     
     try {
-      // First, ensure we have some restaurants to associate with
       const resSnap = await getDocs(collection(db, 'restaurants'));
       let restaurantIds = resSnap.docs.map(d => d.id);
 
@@ -76,46 +77,16 @@ export default function AdminDatabasePage() {
 
       const templates: Record<string, { count: number; prefixes: string[]; items: string[]; keywords: string[] }> = {
         PIZZAS: {
-          count: 75,
-          prefixes: ['Artisanal', 'Classic', 'Double Cheese', 'Spicy', 'Tandoori', 'Peri Peri', 'Garden', 'Gourmet', 'Wood-fired'],
-          items: ['Margherita', 'Paneer Tikka', 'Veggie Delight', 'Farmhouse', 'Mexican Green Wave', 'Cheese N Corn', 'Mushroom Special', 'Hawaiian'],
+          count: 20,
+          prefixes: ['Artisanal', 'Classic', 'Double Cheese', 'Spicy'],
+          items: ['Margherita', 'Paneer Tikka', 'Veggie Delight'],
           keywords: ['pizza', 'cheese']
         },
         BURGERS: {
-          count: 75,
-          prefixes: ['Maharaja', 'Spicy', 'Crispy', 'Supreme', 'Giant', 'Zesty', 'Grilled', 'Smoky', 'Double'],
-          items: ['Veggie Burger', 'Aloo Tikki', 'Paneer Burger', 'Cheese Lava', 'Mexican Burger', 'Schezwan Burger', 'Garden Burger'],
+          count: 20,
+          prefixes: ['Maharaja', 'Spicy', 'Crispy', 'Supreme'],
+          items: ['Veggie Burger', 'Aloo Tikki', 'Paneer Burger'],
           keywords: ['burger', 'sandwich']
-        },
-        NORTH_INDIAN: {
-          count: 90,
-          prefixes: ['Shahi', 'Kadai', 'Butter', 'Dal', 'Paneer', 'Dum', 'Malai', 'Special', 'Makhani'],
-          items: ['Makhani', 'Masala', 'Kofta', 'Tadka', 'Gravy', 'Do Pyaza', 'Pasanda', 'Korma'],
-          keywords: ['curry', 'indian-food']
-        },
-        SOUTH_INDIAN: {
-          count: 90,
-          prefixes: ['Mysore', 'Rava', 'Masala', 'Ghee Roast', 'Onion', 'Gunpowder', 'Paper', 'Neer'],
-          items: ['Dosa', 'Idli', 'Uttapam', 'Vada', 'Appam', 'Paniyaram', 'Parotta'],
-          keywords: ['dosa', 'idli']
-        },
-        STREET_FOOD: {
-          count: 90,
-          prefixes: ['Bombay', 'Delhi', 'Special', 'Masala', 'Tangy', 'Crunchy', 'Street Style', 'Vada'],
-          items: ['Pav Bhaji', 'Vada Pav', 'Pani Puri', 'Bhel Puri', 'Samosa Chaat', 'Aloo Tikki', 'Dabeli'],
-          keywords: ['chaat', 'street-food']
-        },
-        DESSERTS: {
-          count: 80,
-          prefixes: ['Sweet', 'Royal', 'Hot', 'Gulab', 'Rich', 'Kesari', 'Belgian', 'Natural'],
-          items: ['Jamun', 'Rasmalai', 'Halwa', 'Ladoo', 'Jalebi', 'Rabri', 'Chocolate Ice Cream', 'Vanilla Scoop', 'Mango Kulfi'],
-          keywords: ['dessert', 'ice-cream']
-        },
-        BEVERAGES: {
-          count: 80,
-          prefixes: ['Fresh', 'Chilled', 'Masala', 'Sweet', 'Zesty', 'Organic', 'Fruit', 'Cold'],
-          items: ['Lassi', 'Coffee', 'Tea', 'Shake', 'Mojito', 'Lemonade', 'Juice', 'Smoothie'],
-          keywords: ['beverage', 'drink']
         }
       };
 
@@ -132,7 +103,7 @@ export default function AdminDatabasePage() {
             category,
             price: Math.floor(Math.random() * (450 - 60 + 1) + 60),
             image: `https://picsum.photos/seed/${category.toLowerCase()}${i}/800/600`,
-            description: `Authentic ${name} prepared with premium ingredients and traditional recipes.`,
+            description: `Authentic ${name} prepared with premium ingredients.`,
             isVeg: Math.random() > 0.15,
             rating: parseFloat((Math.random() * (4.8 - 3.5) + 3.5).toFixed(1)),
             totalOrders: Math.floor(Math.random() * 200),
@@ -143,23 +114,16 @@ export default function AdminDatabasePage() {
         }
       });
 
-      const CHUNK_SIZE = 450;
-      for (let i = 0; i < allItems.length; i += CHUNK_SIZE) {
-        const batch = writeBatch(db);
-        const chunk = allItems.slice(i, i + CHUNK_SIZE);
-        
-        chunk.forEach(item => {
-          const newDocRef = doc(collection(db, 'dishes'));
-          batch.set(newDocRef, item);
-        });
-        
-        await batch.commit();
-      }
+      const batch = writeBatch(db);
+      allItems.forEach(item => {
+        const newDocRef = doc(collection(db, 'dishes'));
+        batch.set(newDocRef, item);
+      });
+      await batch.commit();
 
-      toast({ title: "Sync Complete", description: `Successfully added ${allItems.length} unique dishes associated with ${restaurantIds.length} restaurants.` });
+      toast({ title: "Sync Complete", description: `Successfully added ${allItems.length} unique dishes.` });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Seeding Failed", description: e.message });
-      console.error(e);
     } finally {
       setIsSeeding(false);
     }
@@ -179,7 +143,7 @@ export default function AdminDatabasePage() {
       createdAt: new Date().toISOString(),
       totalOrders: 0,
       totalRevenue: 0,
-      restaurantId: '' // Would ideally pick from a dropdown
+      restaurantId: ''
     };
     await addDoc(collection(db, 'dishes'), newDish);
     setIsAddDishOpen(false);
@@ -194,7 +158,7 @@ export default function AdminDatabasePage() {
             <Database className="w-10 h-10 text-primary" />
             Mega Repository
           </h1>
-          <p className="text-muted-foreground font-medium">Manage your authentic Indian menu catalog ({dishes?.length || 0} items).</p>
+          <p className="text-muted-foreground font-medium">Manage your catalog (Showing first {dishes?.length || 0} items).</p>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
           <Button 
@@ -208,7 +172,7 @@ export default function AdminDatabasePage() {
             ) : (
               <Sparkles className="w-4 h-4 mr-2 group-hover:animate-bounce" />
             )}
-            <span className="relative z-10">SYNC 500+ DISHES</span>
+            <span className="relative z-10">SYNC DATA</span>
           </Button>
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
@@ -257,7 +221,7 @@ export default function AdminDatabasePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Input id="description" name="description" placeholder="Authentic Indian description..." className="rounded-xl" />
+                  <Input id="description" name="description" placeholder="Description..." className="rounded-xl" />
                 </div>
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="isVeg" name="isVeg" defaultChecked className="w-4 h-4 rounded border-green-600 text-green-600 accent-green-600" />

@@ -40,9 +40,8 @@ import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
-import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, query, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 const categoriesConfig = [
@@ -79,20 +78,25 @@ export default function MenuPage() {
     }
   }, [user, loading, router, mounted]);
 
-  const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
+  // Optimize: Added limit(100) to avoid fetching massive collections if synced
+  const dishesQuery = useMemoFirebase(() => {
+    return query(collection(db, 'dishes'), limit(100));
+  }, [db]);
   const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
 
   const filteredDishes = useMemo(() => {
-    const query = search.toLowerCase().trim();
-    return (allDishes || []).filter(dish => {
-      const nameMatch = dish.name?.toLowerCase().includes(query);
-      const categoryMatch = dish.category?.toLowerCase().includes(query);
-      const descriptionMatch = dish.description?.toLowerCase().includes(query);
-      const matchesSearch = query === '' || nameMatch || categoryMatch || descriptionMatch;
+    const queryStr = search.toLowerCase().trim();
+    if (!allDishes) return [];
+    
+    return allDishes.filter(dish => {
+      const nameMatch = dish.name?.toLowerCase().includes(queryStr);
+      const categoryMatch = dish.category?.toLowerCase().includes(queryStr);
+      const descriptionMatch = dish.description?.toLowerCase().includes(queryStr);
+      const matchesSearch = queryStr === '' || nameMatch || categoryMatch || descriptionMatch;
 
       const matchesCategory = selectedCategory === 'All' || dish.category === selectedCategory;
       const matchesVeg = isVegOnly === null ? true : dish.isVeg === isVegOnly;
-      const matchesPrice = dish.price <= maxPrice;
+      const matchesPrice = (dish.price || 0) <= maxPrice;
 
       return matchesSearch && matchesCategory && matchesVeg && matchesPrice;
     });

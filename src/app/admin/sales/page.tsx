@@ -17,8 +17,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { collection } from 'firebase/firestore';
-import { format, subDays, startOfWeek, isSameDay, isSameWeek } from 'date-fns';
+import { collection, query, where, limit, orderBy } from 'firebase/firestore';
+import { format, subDays, startOfWeek, isSameDay, isSameWeek, startOfDay } from 'date-fns';
 import { TrendingUp, ShoppingBag, BarChart3 } from 'lucide-react';
 import { normalizeOrder } from '@/lib/normalizeOrder';
 
@@ -28,19 +28,25 @@ export default function AdminSalesPage() {
 
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
+  // Optimize: Fetch orders from last 30 days for primary intelligence view
   const ordersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
-    return collection(db, 'orders');
+    const thirtyDaysAgo = subDays(startOfDay(new Date()), 30);
+    return query(
+      collection(db, 'orders'), 
+      where('createdAt', '>=', thirtyDaysAgo),
+      orderBy('createdAt', 'desc'),
+      limit(1000)
+    );
   }, [db, isAuthorized]);
   const { data: orders } = useCollection(ordersQuery);
 
   const dishesQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
-    return collection(db, 'dishes');
+    return query(collection(db, 'dishes'), limit(200));
   }, [db, isAuthorized]);
   const { data: dishes } = useCollection(dishesQuery);
 
-  // Filter for valid orders based on standardized schema
   const validOrders = useMemo(() => {
     if (!orders) return [];
     return orders
@@ -132,7 +138,7 @@ export default function AdminSalesPage() {
           <BarChart3 className="w-10 h-10 text-primary" />
           Sales Intelligence
         </h1>
-        <p className="text-muted-foreground font-medium">Deep insights into standardized revenue streams.</p>
+        <p className="text-muted-foreground font-medium">Deep insights into revenue streams (Last 30 Days).</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -177,8 +183,8 @@ export default function AdminSalesPage() {
       <Card className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-2xl font-headline font-black">Menu Performance</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Real-time breakdown from standardized audit records.</p>
+            <CardTitle className="text-2xl font-headline font-black">Menu Performance (30d)</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Real-time breakdown from recent standardized records.</p>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
@@ -218,7 +224,7 @@ export default function AdminSalesPage() {
               {topSellingItems.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-20 text-muted-foreground font-bold italic opacity-40">
-                    No sales data recorded yet.
+                    No sales data recorded in the last 30 days.
                   </TableCell>
                 </TableRow>
               )}

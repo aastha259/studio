@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -59,8 +58,10 @@ export default function DashboardPage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
-  // Firestore Queries
-  const dishesQuery = useMemoFirebase(() => collection(db, 'dishes'), [db]);
+  // Optimize: Added limit(100) to dishesQuery to avoid massive cost/payload
+  const dishesQuery = useMemoFirebase(() => {
+    return query(collection(db, 'dishes'), limit(100));
+  }, [db]);
   const { data: allDishes } = useCollection(dishesQuery);
 
   const trendingQuery = useMemoFirebase(() => {
@@ -98,7 +99,6 @@ export default function DashboardPage() {
           const orderData = orderDoc.data();
           if (orderData.items && Array.isArray(orderData.items)) {
             orderData.items.forEach((item: any) => {
-              // Ensure name exists before adding to history to satisfy AI flow schema requirements
               if (item.name) {
                 history.push({
                   name: item.name,
@@ -109,7 +109,6 @@ export default function DashboardPage() {
           }
         });
 
-        // Filter out duplicate names from history to save tokens and focus LLM
         const uniqueHistory = Array.from(new Set(history.map(h => h.name)))
           .map(name => history.find(h => h.name === name)!);
 
@@ -321,7 +320,6 @@ export default function DashboardPage() {
 
         <main className="flex-1 p-8 md:p-12 space-y-24 min-w-0">
           <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group">
-            {/* Animated Background Blobs */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float-slow -z-10" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full blur-3xl animate-drift-slow -z-10" />
             
@@ -393,7 +391,7 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-headline font-black text-foreground">Full Menu</h3>
                     <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                      Explore over 500+ authentic Indian delicacies curated for you.
+                      Explore our delicacies curated for you.
                     </p>
                   </div>
                   <Button variant="ghost" className="mt-auto font-black text-accent group-hover:translate-x-2 transition-transform">

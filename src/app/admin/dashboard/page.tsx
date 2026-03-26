@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { cn, computeOrderStatus, STATUS_LABELS } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { collection } from 'firebase/firestore';
+import { collection, query, where, limit, orderBy } from 'firebase/firestore';
 import { 
   LineChart, 
   Line, 
@@ -29,7 +29,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { format, subDays, isSameDay } from 'date-fns';
+import { format, subDays, isSameDay, startOfDay } from 'date-fns';
 
 export default function AdminDashboardPage() {
   const db = useFirestore();
@@ -37,15 +37,22 @@ export default function AdminDashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 10000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
 
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
+  // Optimize: Fetch only valid orders from the last 30 days for dashboard stats
   const ordersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
-    return collection(db, 'orders');
+    const thirtyDaysAgo = subDays(startOfDay(new Date()), 30);
+    return query(
+      collection(db, 'orders'), 
+      where('createdAt', '>=', thirtyDaysAgo),
+      orderBy('createdAt', 'desc'),
+      limit(500)
+    );
   }, [db, isAuthorized]);
   const { data: orders } = useCollection(ordersQuery);
 
@@ -55,7 +62,6 @@ export default function AdminDashboardPage() {
   }, [db, isAuthorized]);
   const { data: restaurants } = useCollection(restaurantsQuery);
 
-  // Filter for valid orders based on schema and data consistency rules
   const validOrders = useMemo(() => {
     if (!orders) return [];
     return orders
@@ -74,7 +80,7 @@ export default function AdminDashboardPage() {
 
     return [
       { 
-        label: 'Total Orders', 
+        label: 'Orders (30d)', 
         value: totalOrdersCount.toLocaleString(), 
         icon: ShoppingBag, 
         color: 'text-primary', 
@@ -83,7 +89,7 @@ export default function AdminDashboardPage() {
         isUp: true 
       },
       { 
-        label: 'Total Revenue', 
+        label: 'Revenue (30d)', 
         value: `₹${totalRevenue.toLocaleString()}`, 
         icon: TrendingUp, 
         color: 'text-accent', 
@@ -92,7 +98,7 @@ export default function AdminDashboardPage() {
         isUp: true 
       },
       { 
-        label: 'Total Customers', 
+        label: 'Active Users', 
         value: totalCustomers.toLocaleString(), 
         icon: Users, 
         color: 'text-blue-600', 
@@ -101,7 +107,7 @@ export default function AdminDashboardPage() {
         isUp: true 
       },
       { 
-        label: 'Total Restaurants', 
+        label: 'Total Partners', 
         value: totalRestaurants.toLocaleString(), 
         icon: Store, 
         color: 'text-green-600', 
@@ -128,12 +134,7 @@ export default function AdminDashboardPage() {
   }, [validOrders]);
 
   const recentOrders = useMemo(() => {
-    return [...validOrders]
-      .sort((a, b) => {
-        const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
-        const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
-        return dateB - dateA;
-      }).slice(0, 5);
+    return validOrders.slice(0, 5);
   }, [validOrders]);
 
   if (!isAuthorized) {
@@ -145,7 +146,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-headline font-black mb-2 text-foreground tracking-tight">Overview</h1>
-          <p className="text-muted-foreground font-medium">Real-time performance metrics for Bhartiya Swad.</p>
+          <p className="text-muted-foreground font-medium">Performance metrics for Bhartiya Swad (Last 30 Days).</p>
         </div>
         <div className="bg-white px-6 py-3 rounded-2xl shadow-sm flex items-center gap-3 border font-bold text-sm">
           <Calendar className="w-4 h-4 text-primary" />
@@ -180,7 +181,7 @@ export default function AdminDashboardPage() {
         <div className="flex items-center justify-between mb-10">
           <div>
             <h3 className="text-2xl font-headline font-black text-foreground">Revenue Trends</h3>
-            <p className="text-sm text-muted-foreground mt-1">Total revenue generated over the last 7 days.</p>
+            <p className="text-sm text-muted-foreground mt-1">Daily revenue generated over the last 7 days.</p>
           </div>
           <Badge className="bg-primary/10 text-primary border-none rounded-full px-4 py-1.5 font-bold uppercase tracking-widest text-[10px]">Live Data</Badge>
         </div>
@@ -220,7 +221,7 @@ export default function AdminDashboardPage() {
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl font-headline font-black text-foreground">Recent Activity</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">A live stream of the latest orders placed.</p>
+            <p className="text-sm text-muted-foreground mt-1">The latest valid orders received by the system.</p>
           </div>
           <Link href="/admin/orders">
             <Button variant="outline" className="rounded-xl font-bold border-primary text-primary hover:bg-primary hover:text-white transition-all">

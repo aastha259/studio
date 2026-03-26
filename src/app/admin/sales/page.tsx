@@ -41,7 +41,7 @@ export default function AdminSalesPage() {
 
   // Filter for valid orders based on standardized schema
   const validOrders = useMemo(() => {
-    return orders?.filter(o => o.userId && (o.totalAmount || 0) > 0) || [];
+    return orders?.filter(o => o.totalAmount !== undefined) || [];
   }, [orders]);
 
   const dailySalesData = useMemo(() => {
@@ -54,7 +54,7 @@ export default function AdminSalesPage() {
           const orderDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
           return isSameDay(orderDate, date);
         })
-        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+        .reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
       return { name: label, sales: revenue };
     });
   }, [validOrders]);
@@ -70,7 +70,7 @@ export default function AdminSalesPage() {
           const orderDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
           return isSameWeek(orderDate, weekStart);
         })
-        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+        .reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
       return { name: label, revenue };
     });
   }, [validOrders]);
@@ -117,7 +117,9 @@ export default function AdminSalesPage() {
       .slice(0, 10);
   }, [validOrders, dishes]);
 
-  if (!isAuthorized) return null;
+  if (!isAuthorized) {
+    return <div className="p-12 text-center font-bold text-muted-foreground">Unauthorized Access</div>;
+  }
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">

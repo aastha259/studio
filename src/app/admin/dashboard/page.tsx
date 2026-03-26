@@ -55,16 +55,16 @@ export default function AdminDashboardPage() {
   }, [db, isAuthorized]);
   const { data: restaurants } = useCollection(restaurantsQuery);
 
-  // Single source of truth for valid orders
+  // Filter for valid orders based on schema
   const validOrders = useMemo(() => {
-    return orders?.filter(o => o.userId && (o.totalAmount || 0) > 0) || [];
+    return orders?.filter(o => o.totalAmount !== undefined) || [];
   }, [orders]);
 
   const stats = useMemo(() => {
     const totalOrdersCount = validOrders.length;
-    const totalRevenue = validOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    const totalRevenue = validOrders.reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
     
-    const activeCustomerIds = new Set(validOrders.map(o => o.userId));
+    const activeCustomerIds = new Set(validOrders.map(o => o.userId).filter(Boolean));
     const totalCustomers = activeCustomerIds.size;
     
     const totalRestaurants = restaurants?.length || 0;
@@ -119,7 +119,7 @@ export default function AdminDashboardPage() {
           const orderDate = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
           return isSameDay(orderDate, date);
         })
-        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+        .reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
       return { name: dayLabel, revenue };
     });
   }, [validOrders]);
@@ -133,7 +133,9 @@ export default function AdminDashboardPage() {
       }).slice(0, 5);
   }, [validOrders]);
 
-  if (!isAuthorized) return null;
+  if (!isAuthorized) {
+    return <div className="p-12 text-center font-bold text-muted-foreground">Unauthorized Access</div>;
+  }
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">

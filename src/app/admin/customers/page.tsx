@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from 'react';
@@ -40,11 +39,11 @@ export default function AdminCustomersPage() {
   const customerData = useMemo(() => {
     if (!users || !orders) return [];
 
-    const validOrders = orders.filter(o => o.userId && (o.totalAmount || 0) > 0);
+    const validOrders = orders.filter(o => o.userId && o.totalAmount !== undefined);
 
     return users.map(u => {
       const userOrders = validOrders.filter(o => o.userId === u.uid || o.userId === u.id);
-      const totalSpent = userOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+      const totalSpent = userOrders.reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
       
       return {
         name: u.displayName || u.name || 'Anonymous',
@@ -60,7 +59,9 @@ export default function AdminCustomersPage() {
 
   const chartData = customerData.slice(0, 10);
 
-  if (!isAuthorized) return null;
+  if (!isAuthorized) {
+    return <div className="p-12 text-center font-bold text-muted-foreground">Unauthorized Access</div>;
+  }
 
   return (
     <div className="space-y-12">
@@ -132,6 +133,13 @@ export default function AdminCustomersPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {customerData.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground font-bold italic opacity-40">
+                  Waiting for verified customer data...
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Card>

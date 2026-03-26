@@ -28,7 +28,7 @@ export default function AdminSalesPage() {
 
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
-  // Optimize: Fetch orders from last 30 days for primary intelligence view
+  // Fetch orders from last 30 days for primary intelligence view
   const ordersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     const thirtyDaysAgo = subDays(startOfDay(new Date()), 30);
@@ -95,6 +95,7 @@ export default function AdminSalesPage() {
       image: string 
     }> = {};
 
+    // Derive performance metrics directly from order items array
     validOrders.forEach(order => {
       if (!order.items || !Array.isArray(order.items)) return;
       
@@ -138,7 +139,7 @@ export default function AdminSalesPage() {
           <BarChart3 className="w-10 h-10 text-primary" />
           Sales Intelligence
         </h1>
-        <p className="text-muted-foreground font-medium">Deep insights into revenue streams (Last 30 Days).</p>
+        <p className="text-muted-foreground font-medium">Real-time revenue stream analysis (Last 30 Days).</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -184,7 +185,7 @@ export default function AdminSalesPage() {
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl font-headline font-black">Menu Performance (30d)</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Real-time breakdown from recent standardized records.</p>
+            <p className="text-sm text-muted-foreground mt-1">Dish-level sales volume and revenue derived from transaction history.</p>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">

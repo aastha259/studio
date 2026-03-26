@@ -43,7 +43,7 @@ export default function AdminDashboardPage() {
 
   const isAuthorized = user?.isAdmin && user.email === 'xyz@admin.com';
 
-  // Optimize: Fetch only valid orders from the last 30 days for dashboard stats
+  // Fetch all orders from the last 30 days for real-time analytics
   const ordersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
     const thirtyDaysAgo = subDays(startOfDay(new Date()), 30);
@@ -51,7 +51,7 @@ export default function AdminDashboardPage() {
       collection(db, 'orders'), 
       where('createdAt', '>=', thirtyDaysAgo),
       orderBy('createdAt', 'desc'),
-      limit(500)
+      limit(1000)
     );
   }, [db, isAuthorized]);
   const { data: orders } = useCollection(ordersQuery);
@@ -73,6 +73,7 @@ export default function AdminDashboardPage() {
     const totalOrdersCount = validOrders.length;
     const totalRevenue = validOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
     
+    // Unique customers derived from orders
     const activeCustomerIds = new Set(validOrders.map(o => o.userId).filter(Boolean));
     const totalCustomers = activeCustomerIds.size;
     
@@ -146,7 +147,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-headline font-black mb-2 text-foreground tracking-tight">Overview</h1>
-          <p className="text-muted-foreground font-medium">Performance metrics for Bhartiya Swad (Last 30 Days).</p>
+          <p className="text-muted-foreground font-medium">Real-time performance metrics derived from order data.</p>
         </div>
         <div className="bg-white px-6 py-3 rounded-2xl shadow-sm flex items-center gap-3 border font-bold text-sm">
           <Calendar className="w-4 h-4 text-primary" />
@@ -181,7 +182,7 @@ export default function AdminDashboardPage() {
         <div className="flex items-center justify-between mb-10">
           <div>
             <h3 className="text-2xl font-headline font-black text-foreground">Revenue Trends</h3>
-            <p className="text-sm text-muted-foreground mt-1">Daily revenue generated over the last 7 days.</p>
+            <p className="text-sm text-muted-foreground mt-1">Real-time daily revenue calculated from confirmed orders.</p>
           </div>
           <Badge className="bg-primary/10 text-primary border-none rounded-full px-4 py-1.5 font-bold uppercase tracking-widest text-[10px]">Live Data</Badge>
         </div>
@@ -221,7 +222,7 @@ export default function AdminDashboardPage() {
         <CardHeader className="p-10 border-b flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl font-headline font-black text-foreground">Recent Activity</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">The latest valid orders received by the system.</p>
+            <p className="text-sm text-muted-foreground mt-1">The latest validated order records.</p>
           </div>
           <Link href="/admin/orders">
             <Button variant="outline" className="rounded-xl font-bold border-primary text-primary hover:bg-primary hover:text-white transition-all">

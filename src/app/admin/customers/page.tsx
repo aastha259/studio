@@ -37,7 +37,7 @@ export default function AdminCustomersPage() {
   }, [db, isAuthorized]);
   const { data: orders } = useCollection(ordersQuery);
 
-  // Normalize and filter orders for accurate spending insights
+  // Normalize and filter orders for accurate spending insights derived from transactions
   const validOrders = useMemo(() => {
     if (!orders) return [];
     return orders
@@ -49,7 +49,10 @@ export default function AdminCustomersPage() {
     if (!users || !validOrders) return [];
 
     return users.map(u => {
+      // Filter orders strictly belonging to this user
       const userOrders = validOrders.filter(o => o.userId === u.uid || o.userId === u.id);
+      
+      // Calculate real-time spending from the orders collection
       const totalSpent = userOrders.reduce((acc, o) => acc + (Number(o.totalAmount) || 0), 0);
       
       return {
@@ -73,8 +76,8 @@ export default function AdminCustomersPage() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="text-4xl font-headline font-black mb-2">Loyalty Intelligence</h1>
-        <p className="text-muted-foreground">Monitor high-value segments derived from standardized order history.</p>
+        <h1 className="text-4xl font-headline font-black mb-2">Customer Intelligence</h1>
+        <p className="text-muted-foreground">Real-time loyalty and spending analysis derived from transaction history.</p>
       </div>
 
       <Card className="border shadow-sm rounded-3xl p-8 bg-white">
@@ -99,7 +102,7 @@ export default function AdminCustomersPage() {
 
       <Card className="border shadow-sm rounded-3xl overflow-hidden bg-white">
         <CardHeader className="p-8 border-b">
-          <CardTitle className="text-xl font-headline font-bold">Customer Loyalty Base</CardTitle>
+          <CardTitle className="text-xl font-headline font-bold">Customer Loyalty Hub</CardTitle>
         </CardHeader>
         <Table>
           <TableHeader className="bg-muted/50">

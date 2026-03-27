@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo, useState } from 'react';
@@ -27,6 +28,7 @@ export default function AdminTicketsPage() {
 
   const { data: tickets, isLoading } = useCollection(ticketsQuery);
 
+  // Always derive active ticket from the real-time stream using the ID
   const activeTicket = useMemo(() => 
     tickets?.find(t => t.id === selectedId), 
   [tickets, selectedId]);
@@ -57,18 +59,21 @@ export default function AdminTicketsPage() {
 
     const replyToast = toast.loading("Sending reply...");
     try {
-      await updateDoc(doc(db, 'supportTickets', selectedId), {
+      const ticketRef = doc(db, 'supportTickets', selectedId);
+      
+      await updateDoc(ticketRef, {
         replies: arrayUnion({
           sender: "admin",
           text: replyText.trim(),
           createdAt: Timestamp.now()
         })
       });
+
       setReplyText("");
-      toast.success("Reply sent", { id: replyToast });
+      toast.success("Reply dispatched successfully", { id: replyToast });
     } catch (err: any) {
-      console.error("Reply error:", err);
-      toast.error("Failed to send reply", { id: replyToast });
+      console.error("Reply transmission failed:", err);
+      toast.error("Critical: Failed to sync reply.", { id: replyToast });
     }
   };
 
@@ -79,7 +84,7 @@ export default function AdminTicketsPage() {
           <MessageSquare className="w-10 h-10 text-primary" />
           Support Intelligence
         </h1>
-        <p className="text-muted-foreground font-medium">Manage incoming customer queries and complaints.</p>
+        <p className="text-muted-foreground font-medium">Manage incoming customer queries and standardize communication.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -177,21 +182,8 @@ export default function AdminTicketsPage() {
                         className="rounded-xl font-bold text-primary hover:bg-primary/5 gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Eye className="w-4 h-4" />
-                        View
+                        Details
                       </Button>
-                      {ticket.status !== 'resolved' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="rounded-xl font-bold border-green-200 text-green-600 hover:bg-green-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleResolve(ticket.id);
-                          }}
-                        >
-                          Resolve
-                        </Button>
-                      )}
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -295,7 +287,7 @@ export default function AdminTicketsPage() {
                           "font-black text-[10px] uppercase mb-1 tracking-tighter",
                           reply.sender === 'admin' ? "text-white/70" : "text-muted-foreground"
                         )}>
-                          {reply.sender === 'admin' ? "System Administrator" : activeTicket?.name}
+                          {reply.sender === 'admin' ? "System Concierge" : activeTicket?.name}
                         </p>
                         {reply.text}
                       </div>
@@ -311,7 +303,7 @@ export default function AdminTicketsPage() {
             <div className="space-y-4 pt-4 border-t border-dashed">
               <div className="flex gap-3">
                 <Input 
-                  placeholder="Type your response..." 
+                  placeholder="Type concierge reply..." 
                   className="rounded-xl h-12 bg-white border-muted focus-visible:ring-primary/20"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
@@ -321,7 +313,7 @@ export default function AdminTicketsPage() {
                 />
                 <Button 
                   onClick={handleReply}
-                  disabled={!replyText.trim()}
+                  disabled={!replyText.trim() || !selectedId}
                   className="h-12 w-12 rounded-xl bg-primary hover:bg-primary/90 shadow-lg p-0 shrink-0 transition-transform active:scale-90"
                 >
                   <Send className="w-5 h-5" />
@@ -335,7 +327,7 @@ export default function AdminTicketsPage() {
                       className="rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 h-11"
                       onClick={() => handleResolve(activeTicket.id)}
                     >
-                      Resolve
+                      Mark Resolved
                     </Button>
                   )}
                   <Button 
@@ -344,7 +336,7 @@ export default function AdminTicketsPage() {
                     onClick={() => handleDelete(activeTicket.id)}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    Discard
                   </Button>
                 </div>
                 <Button 
@@ -352,7 +344,7 @@ export default function AdminTicketsPage() {
                   className="rounded-xl font-bold border-primary text-primary h-11"
                   onClick={() => setIsDetailsOpen(false)}
                 >
-                  Close
+                  Close Console
                 </Button>
               </div>
             </div>

@@ -1,9 +1,9 @@
 
 "use client"
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { ChefHat, ArrowLeft, Send, MessageSquare, Mail, User, Loader2, Clock, CheckCircle2, Calendar } from 'lucide-react';
+import { ChefHat, ArrowLeft, Send, MessageSquare, Mail, User, Loader2, Clock, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +51,7 @@ export default function ContactPage() {
     const contactToast = toast.loading("Sending your query...");
 
     try {
-      // 1. Save Support Ticket
+      // 1. Save Support Ticket with standardized initial state
       await addDoc(collection(db, 'supportTickets'), {
         ...formData,
         userId: user?.uid || null,
@@ -234,6 +234,9 @@ export default function ContactPage() {
                                     </p>
                                     {reply.text}
                                   </div>
+                                  <span className="text-[8px] text-muted-foreground font-bold px-1 opacity-60">
+                                    {reply.createdAt && format(reply.createdAt.toDate ? reply.createdAt.toDate() : new Date(reply.createdAt), 'MMM dd, p')}
+                                  </span>
                                 </div>
                               ))}
                             </div>

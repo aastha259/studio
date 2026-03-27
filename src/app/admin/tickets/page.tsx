@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useMemo, useState } from 'react';
-import { MessageSquare, Clock, User, Mail, Search, CheckCircle2, Trash2, Eye, Calendar, Send } from 'lucide-react';
+import { MessageSquare, Clock, User, Mail, Search, CheckCircle2, Trash2, Eye, Calendar, Send, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -22,35 +22,42 @@ export default function AdminTicketsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
 
+  // Real-time subscription to support tickets
   const ticketsQuery = useMemoFirebase(() => {
     return query(collection(db, 'supportTickets'), orderBy('createdAt', 'desc'));
   }, [db]);
 
   const { data: tickets, isLoading } = useCollection(ticketsQuery);
 
-  // Always derive active ticket from the real-time stream using the ID
+  // Always derive active ticket from the real-time stream using the ID to ensure fresh data
   const activeTicket = useMemo(() => 
     tickets?.find(t => t.id === selectedId), 
   [tickets, selectedId]);
 
   const handleResolve = async (id: string) => {
+    if (!id) return;
+    const resolveToast = toast.loading("Updating status...");
     try {
-      await updateDoc(doc(db, 'supportTickets', id), { status: 'resolved' });
-      toast.success("Ticket marked as resolved");
+      await updateDoc(doc(db, 'supportTickets', id), { 
+        status: 'resolved' 
+      });
+      toast.success("Ticket marked as resolved", { id: resolveToast });
     } catch (err) {
-      toast.error("Failed to update status");
+      console.error("Resolve error:", err);
+      toast.error("Failed to update status", { id: resolveToast });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this inquiry?")) return;
+    if (!id || !confirm("Are you sure you want to delete this inquiry?")) return;
+    const deleteToast = toast.loading("Removing inquiry...");
     try {
       await deleteDoc(doc(db, 'supportTickets', id));
-      toast.success("Inquiry removed");
+      toast.success("Inquiry removed", { id: deleteToast });
       setIsDetailsOpen(false);
       setSelectedId(null);
     } catch (err) {
-      toast.error("Failed to delete");
+      toast.error("Failed to delete", { id: deleteToast });
     }
   };
 
@@ -325,7 +332,7 @@ export default function AdminTicketsPage() {
                   {activeTicket?.status !== 'resolved' && (
                     <Button 
                       className="rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 h-11"
-                      onClick={() => handleResolve(activeTicket.id)}
+                      onClick={() => handleResolve(activeTicket?.id)}
                     >
                       Mark Resolved
                     </Button>
@@ -333,7 +340,7 @@ export default function AdminTicketsPage() {
                   <Button 
                     variant="ghost"
                     className="rounded-xl font-bold text-destructive hover:bg-destructive/5 h-11"
-                    onClick={() => handleDelete(activeTicket.id)}
+                    onClick={() => handleDelete(activeTicket?.id)}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Discard

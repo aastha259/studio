@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo, useState, useEffect } from "react"
@@ -23,6 +24,7 @@ import { Separator } from "@/components/ui/separator"
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore"
 import { useAuth } from "@/lib/contexts/auth-context"
+import NotificationBell from "@/components/NotificationBell"
 import { cn, computeOrderStatus, STATUS_LABELS } from "@/lib/utils"
 import { normalizeOrder } from "@/lib/normalizeOrder"
 
@@ -110,11 +112,14 @@ export default function OrderTrackingPage() {
             </div>
             <span className="font-headline text-2xl font-black hidden md:block">Bhartiya Swad</span>
           </Link>
-          <Link href="/dashboard">
-            <Button variant="ghost" className="font-bold gap-2 rounded-xl">
-              <ArrowLeft className="w-4 h-4" /> Dashboard
-            </Button>
-          </Link>
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+            <Link href="/dashboard">
+              <Button variant="ghost" className="font-bold gap-2 rounded-xl">
+                <ArrowLeft className="w-4 h-4" /> Dashboard
+              </Button>
+            </Link>
+          </div>
         </div>
       </nav>
 

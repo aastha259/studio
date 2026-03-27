@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import NotificationBell from '@/components/NotificationBell';
 import { collection, query, where } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { cn, computeOrderStatus, STATUS_LABELS } from '@/lib/utils';
@@ -87,6 +89,7 @@ export default function MyOrdersPage() {
           </Link>
 
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <Link href="/dashboard">
               <Button variant="ghost" className="font-bold gap-2 rounded-xl text-muted-foreground hover:text-primary">
                 <ArrowLeft className="w-4 h-4" /> Dashboard

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -43,6 +44,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
+import NotificationBell from '@/components/NotificationBell';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
@@ -194,10 +196,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary transition-all">
-              <Bell className="w-6 h-6" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-white"></span>
-            </Button>
+            <NotificationBell />
 
             <Sheet>
               <SheetTrigger asChild>

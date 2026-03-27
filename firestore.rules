@@ -23,6 +23,13 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    // NOTIFICATIONS: Users can only see and manage their own notifications.
+    match /notifications/{notificationId} {
+      allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn(); // Allow creation by authenticated users/triggers
+      allow delete: if isAdmin();
+    }
+
     // DISHES: Publicly viewable menu items. Admin can manage.
     match /dishes/{dishId} {
       allow read: if true;

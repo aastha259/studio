@@ -29,7 +29,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useFirestore } from '@/firebase';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -115,6 +115,16 @@ export default function CheckoutPage() {
 
     try {
       await setDoc(orderRef, orderData);
+      
+      // Create Order Notification
+      await addDoc(collection(db, 'notifications'), {
+        userId: user.uid,
+        message: `Your order #${orderRef.id.slice(0, 8).toUpperCase()} has been placed successfully!`,
+        type: 'order',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
       setIsOrdered(true);
       clearCart();
       toast.success("Order Placed Successfully!", { id: orderToast });
@@ -177,7 +187,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <Link href="/cart" className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
               <ChefHat className="text-white w-6 h-6" />

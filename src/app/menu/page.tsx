@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -41,6 +42,7 @@ import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import FoodCard from '@/components/FoodCard';
+import NotificationBell from '@/components/NotificationBell';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
@@ -166,6 +168,8 @@ export default function MenuPage() {
               </Link>
             )}
             
+            <NotificationBell />
+
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group transition-all active:scale-90">

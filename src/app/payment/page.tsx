@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -22,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useFirestore } from '@/firebase';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -89,6 +90,16 @@ function PaymentContent() {
       };
 
       await setDoc(orderRef, orderData);
+
+      // Create Order Notification
+      await addDoc(collection(db, 'notifications'), {
+        userId: user.uid,
+        message: `Payment successful! Your order #${orderRef.id.slice(0, 8).toUpperCase()} is now being processed.`,
+        type: 'order',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
       setIsSuccess(true);
       clearCart();
       toast({

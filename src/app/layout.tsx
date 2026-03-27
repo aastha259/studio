@@ -1,6 +1,8 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster as ShadcnToaster } from "@/components/ui/toaster"
+import { Toaster } from 'react-hot-toast';
 import { CartProvider } from '@/lib/contexts/cart-context';
 import { AuthProvider } from '@/lib/contexts/auth-context';
 import { FirebaseClientProvider } from '@/firebase';
@@ -26,8 +28,9 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             <CartProvider>
+              <Toaster position="top-right" reverseOrder={false} />
               {children}
-              <Toaster />
+              <ShadcnToaster />
             </CartProvider>
           </AuthProvider>
         </FirebaseClientProvider>

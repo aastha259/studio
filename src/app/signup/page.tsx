@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -11,13 +12,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { useAuth as useFirebaseService, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import toast from 'react-hot-toast';
 
 export default function SignupPage() {
   const router = useRouter();
   const auth = useFirebaseService();
   const db = useFirestore();
-  const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -42,24 +42,18 @@ export default function SignupPage() {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Passwords mismatch",
-        description: "Please ensure your passwords are identical."
-      });
+      toast.error("Passwords do not match");
       return;
     }
 
     if (formData.password.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Weak Password",
-        description: "Password should be at least 6 characters."
-      });
+      toast.error("Password must be at least 6 characters");
       return;
     }
 
     setLoading(true);
+    const signupToast = toast.loading("Creating your account...");
+    
     try {
       // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
@@ -85,31 +79,19 @@ export default function SignupPage() {
         lastLogin: serverTimestamp()
       });
 
-      toast({
-        title: "Account Created!",
-        description: "Welcome to Bhartiya Swad. Let's get ordering!"
-      });
-
+      toast.success("Account created! Welcome to Bhartiya Swad.", { id: signupToast });
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Signup Error:", error);
       let message = "An unexpected error occurred during registration.";
       if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered. Please login instead.";
+        message = "This email is already registered.";
       } else if (error.code === 'auth/invalid-email') {
         message = "The email address is not valid.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        message = "Email/Password registration is not enabled. Please contact support.";
       } else if (error.code === 'auth/weak-password') {
-        message = "The password is too weak. Try adding symbols and numbers.";
-      } else if (error.code === 'auth/network-request-failed') {
-        message = "Network error. Please check your internet connection.";
+        message = "The password is too weak.";
       }
-      toast({
-        variant: "destructive",
-        title: "Signup Failed",
-        description: message
-      });
+      toast.error(message, { id: signupToast });
     } finally {
       setLoading(false);
     }
@@ -128,9 +110,9 @@ export default function SignupPage() {
         </div>
       </div>
 
-      <Card className="w-full max-w-lg shadow-2xl relative z-10 border-none rounded-[2.5rem] overflow-hidden bg-white">
+      <Card className="w-full max-w-lg shadow-2xl relative z-10 border-none rounded-[2.5rem] overflow-hidden bg-white animate-in zoom-in-95 duration-500">
         <CardHeader className="bg-primary text-white p-10 text-center">
-          <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl backdrop-blur-md">
+          <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl backdrop-blur-md transition-transform hover:rotate-6">
             <ChefHat className="w-12 h-12 text-white" />
           </div>
           <CardTitle className="text-4xl font-headline font-black tracking-tight">Join Bhartiya Swad</CardTitle>
@@ -149,7 +131,7 @@ export default function SignupPage() {
                       id="fullName"
                       name="fullName"
                       placeholder="E.g. Arjun Sharma" 
-                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20"
+                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                       value={formData.fullName}
                       onChange={handleInputChange}
                       required
@@ -166,7 +148,7 @@ export default function SignupPage() {
                       name="phone"
                       type="tel"
                       placeholder="+91 00000 00000" 
-                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20"
+                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                       value={formData.phone}
                       onChange={handleInputChange}
                       required
@@ -185,7 +167,7 @@ export default function SignupPage() {
                     name="email"
                     type="email"
                     placeholder="name@example.com" 
-                    className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20"
+                    className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                     value={formData.email}
                     onChange={handleInputChange}
                     required
@@ -204,7 +186,7 @@ export default function SignupPage() {
                       name="password"
                       type="password"
                       placeholder="••••••••" 
-                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20"
+                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                       value={formData.password}
                       onChange={handleInputChange}
                       required
@@ -221,7 +203,7 @@ export default function SignupPage() {
                       name="confirmPassword"
                       type="password"
                       placeholder="••••••••" 
-                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20"
+                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       required
@@ -239,7 +221,7 @@ export default function SignupPage() {
             >
               {loading ? (
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-6 h-6 animate-spin" /> Provisioning Account...
+                  <Loader2 className="w-6 h-6 animate-spin" /> <span>Provisioning Account...</span>
                 </div>
               ) : (
                 <span className="flex items-center gap-2">

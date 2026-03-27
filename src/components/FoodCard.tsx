@@ -1,9 +1,9 @@
 
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { Star, ShoppingCart, Leaf, Beef, Plus, Heart } from 'lucide-react';
+import { Star, ShoppingCart, Leaf, Beef, Plus, Heart, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { useCart } from '@/lib/contexts/cart-context';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 interface FoodCardProps {
   food: {
@@ -32,21 +33,32 @@ export default function FoodCard({ food }: FoodCardProps) {
   const { addToCart } = useCart();
   const { user } = useAuth();
   const router = useRouter();
+  const [isAdding, setIsAdding] = useState(false);
 
-  const handleOrderNow = (e: React.MouseEvent) => {
+  const handleOrderNow = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
+      toast.error("Please login to add items to cart");
       router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
-    addToCart({ ...food, imageURL: food.imageURL || food.image });
+    
+    setIsAdding(true);
+    try {
+      await addToCart({ ...food, imageURL: food.imageURL || food.image });
+      toast.success(`${food.name} added to cart!`);
+    } catch (err) {
+      toast.error("Failed to add item to cart");
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const displayImage = food.imageURL || food.image || `https://picsum.photos/seed/${food.id}/800/600`;
 
   return (
-    <div className="group h-full perspective-1000">
-      <Card className="relative h-full flex flex-col overflow-hidden transition-all duration-500 bg-white border border-border/40 shadow-sm hover:shadow-2xl hover:-translate-y-3 rounded-[2.5rem] group cursor-pointer">
+    <div className="group h-full perspective-1000 animate-in fade-in duration-500">
+      <Card className="relative h-full flex flex-col overflow-hidden transition-all duration-500 bg-white border border-border/40 shadow-sm hover:shadow-2xl hover:-translate-y-3 hover:scale-[1.02] rounded-[2.5rem] group cursor-pointer">
         {/* Image Container */}
         <div className="relative w-full aspect-[1/1] overflow-hidden bg-muted m-3 rounded-[2rem] shadow-inner group">
           <Image
@@ -67,7 +79,7 @@ export default function FoodCard({ food }: FoodCardProps) {
                 </Badge>
               )}
               <div className={cn(
-                "w-8 h-8 rounded-xl flex items-center justify-center border-2 backdrop-blur-md shadow-lg",
+                "w-8 h-8 rounded-xl flex items-center justify-center border-2 backdrop-blur-md shadow-lg transition-transform hover:scale-110 pointer-events-auto",
                 food.isVeg ? "bg-white/90 border-green-600 text-green-600" : "bg-white/90 border-red-600 text-red-600"
               )}>
                 {food.isVeg ? <Leaf className="w-4 h-4" /> : <Beef className="w-4 h-4" />}
@@ -75,15 +87,15 @@ export default function FoodCard({ food }: FoodCardProps) {
             </div>
             
             <div className="flex flex-col gap-2 pointer-events-auto">
-               <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-white/90 backdrop-blur-md text-muted-foreground hover:text-accent transition-colors shadow-lg">
+               <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-white/90 backdrop-blur-md text-muted-foreground hover:text-accent transition-all shadow-lg active:scale-90">
                 <Heart className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
-          <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-xl border border-white/40 flex items-center gap-1.5 transition-transform duration-500 group-hover:scale-110">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-black text-foreground">{food.rating}</span>
+          <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-xl border border-white/40 flex items-center gap-1.5 transition-all duration-500 group-hover:scale-110 group-hover:bg-primary group-hover:text-white">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 group-hover:fill-white group-hover:text-white" />
+            <span className="text-sm font-black text-foreground group-hover:text-white">{food.rating}</span>
           </div>
         </div>
 
@@ -110,10 +122,17 @@ export default function FoodCard({ food }: FoodCardProps) {
             </div>
             <Button 
               onClick={handleOrderNow}
-              className="flex-1 rounded-2xl h-14 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-xl shadow-primary/10 transition-all hover:scale-[1.05] active:scale-[0.95] group"
+              disabled={isAdding}
+              className="flex-1 rounded-2xl h-14 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-xl shadow-primary/10 transition-all hover:scale-[1.05] active:scale-[0.95] group overflow-hidden"
             >
-              <Plus className="w-4 h-4 mr-2 transition-transform group-hover:rotate-90" />
-              Add to Cart
+              {isAdding ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2 transition-transform group-hover:rotate-90" />
+                  Add to Cart
+                </>
+              )}
             </Button>
           </div>
         </div>

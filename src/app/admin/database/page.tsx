@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -11,8 +12,8 @@ import { collection, query, limit, doc, deleteDoc, addDoc, writeBatch, getDocs }
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 export const MENU_CATEGORIES = [
   'PIZZAS',
@@ -26,27 +27,24 @@ export const MENU_CATEGORIES = [
 
 export default function AdminDatabasePage() {
   const db = useFirestore();
-  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isAddDishOpen, setIsAddDishOpen] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Optimized fetching
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), limit(300));
   }, [db]);
   const { data: dishes, isLoading, error } = useCollection(dishesQuery);
 
   const handleDelete = async (id: string) => {
-    if (!confirm(`Delete this dish?`)) return;
-    
     setIsDeleting(id);
+    const deleteToast = toast.loading("Deleting dish...");
     try {
       await deleteDoc(doc(db, 'dishes', id));
-      toast({ title: "Deleted", description: "Dish removed successfully." });
+      toast.success("Dish removed successfully", { id: deleteToast });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Deletion Failed", description: e.message });
+      toast.error("Failed to delete dish", { id: deleteToast });
     } finally {
       setIsDeleting(null);
     }
@@ -54,14 +52,14 @@ export default function AdminDatabasePage() {
 
   const handleMegaSeed500 = async () => {
     setIsSeeding(true);
-    toast({ title: "Seeding Started", description: "Generating unique dishes..." });
+    const seedToast = toast.loading("Seeding mega repository...");
     
     try {
       const resSnap = await getDocs(collection(db, 'restaurants'));
       let restaurantIds = resSnap.docs.map(d => d.id);
 
       if (restaurantIds.length === 0) {
-        toast({ title: "Seeding Restaurants", description: "Adding base restaurant network first..." });
+        toast.loading("Adding base restaurants...", { id: seedToast });
         const batch = writeBatch(db);
         const resNames = ['Royal Punjab', 'South Spice', 'The Pizza Co.', 'Burger King Indian', 'Street Delights'];
         const newResIds: string[] = [];
@@ -115,10 +113,10 @@ export default function AdminDatabasePage() {
       });
       await batch.commit();
 
-      toast({ title: "Sync Complete", description: `Successfully added ${allItems.length} unique dishes.` });
+      toast.success(`Successfully added ${allItems.length} unique dishes.`, { id: seedToast });
     } catch (e: any) {
       console.error("Seeding error:", e);
-      toast({ variant: "destructive", title: "Seeding Failed", description: e.message || "Repository sync failed." });
+      toast.error("Repository sync failed.", { id: seedToast });
     } finally {
       setIsSeeding(false);
     }
@@ -141,17 +139,18 @@ export default function AdminDatabasePage() {
       restaurantId: ''
     };
 
+    const addToast = toast.loading("Adding new dish...");
     try {
       await addDoc(collection(db, 'dishes'), newDish);
       setIsAddDishOpen(false);
-      toast({ title: "Dish Added", description: `${newDish.name} is now live.` });
+      toast.success(`${newDish.name} is now live!`, { id: addToast });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message });
+      toast.error("Failed to add dish.", { id: addToast });
     }
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-12 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-headline font-black mb-2 flex items-center gap-3 text-foreground">
@@ -165,20 +164,20 @@ export default function AdminDatabasePage() {
             variant="default" 
             onClick={handleMegaSeed500} 
             disabled={isSeeding}
-            className="rounded-xl bg-accent hover:bg-accent/90 text-white font-black h-11 px-6 shadow-lg shadow-accent/20 transition-all group overflow-hidden relative"
+            className="rounded-xl bg-accent hover:bg-accent/90 text-white font-black h-11 px-6 shadow-lg shadow-accent/20 transition-all group overflow-hidden relative active:scale-95"
           >
             {isSeeding ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <Sparkles className="w-4 h-4 mr-2 group-hover:animate-bounce" />
             )}
-            <span className="relative z-10">SYNC DATA</span>
+            <span className="relative z-10">{isSeeding ? "SYNCING..." : "SYNC DATA"}</span>
           </Button>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <div className="relative w-full md:w-64 group">
+            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Search dishes..." 
-              className="pl-10 h-11 bg-white rounded-xl border shadow-sm"
+              className="pl-10 h-11 bg-white rounded-xl border shadow-sm transition-all"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -187,7 +186,7 @@ export default function AdminDatabasePage() {
       </div>
 
       {error && (
-        <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20">
+        <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20 animate-in slide-in-from-top-4">
           <AlertCircle className="w-6 h-6" />
           <p className="font-bold">Error loading repository: {error.message}</p>
         </div>
@@ -201,7 +200,7 @@ export default function AdminDatabasePage() {
           </h3>
           <Dialog open={isAddDishOpen} onOpenChange={setIsAddDishOpen}>
             <DialogTrigger asChild>
-              <Button className="rounded-xl bg-primary hover:bg-primary/90 font-bold">
+              <Button className="rounded-xl bg-primary hover:bg-primary/90 font-bold transition-transform active:scale-95">
                 <Plus className="w-4 h-4 mr-2" /> Manual Entry
               </Button>
             </DialogTrigger>
@@ -221,7 +220,7 @@ export default function AdminDatabasePage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <select name="category" className="w-full h-10 px-3 border rounded-xl bg-white text-sm" required>
+                    <select name="category" className="w-full h-10 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
                       {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                     </select>
                   </div>
@@ -235,7 +234,7 @@ export default function AdminDatabasePage() {
                   <Label htmlFor="isVeg">Vegetarian</Label>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" className="w-full rounded-xl font-bold bg-primary h-12">Save Dish</Button>
+                  <Button type="submit" className="w-full rounded-xl font-bold bg-primary h-12 shadow-lg active:scale-95">Save Dish</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -260,10 +259,10 @@ export default function AdminDatabasePage() {
                   </TableCell>
                 </TableRow>
               ) : dishes?.filter(d => d.name?.toLowerCase().includes(search.toLowerCase())).map((dish) => (
-                <TableRow key={dish.id} className="hover:bg-muted/5 transition-colors">
+                <TableRow key={dish.id} className="hover:bg-muted/5 transition-colors group">
                   <TableCell className="p-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border bg-muted shrink-0 shadow-sm">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden border bg-muted shrink-0 shadow-sm transition-transform group-hover:scale-110">
                         <img src={dish.image} alt={dish.name} className="object-cover w-full h-full" />
                       </div>
                       <span className="font-bold text-sm text-foreground">{dish.name}</span>
@@ -286,8 +285,10 @@ export default function AdminDatabasePage() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="rounded-lg text-muted-foreground hover:text-destructive" 
-                      onClick={() => handleDelete(dish.id)}
+                      className="rounded-lg text-muted-foreground hover:text-destructive transition-all active:scale-90" 
+                      onClick={() => {
+                        if(confirm(`Remove ${dish.name}?`)) handleDelete(dish.id);
+                      }}
                       disabled={isDeleting === dish.id}
                     >
                       {isDeleting === dish.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -297,8 +298,12 @@ export default function AdminDatabasePage() {
               ))}
               {dishes?.length === 0 && !isLoading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-20 text-muted-foreground font-bold italic">
-                    Catalog is empty. Onboard new dishes manually or sync the repository.
+                  <TableCell colSpan={5} className="text-center py-24 text-muted-foreground">
+                    <div className="flex flex-col items-center gap-4 opacity-40">
+                      <Database className="w-16 h-16" />
+                      <p className="font-bold italic text-xl">Repository is empty</p>
+                      <p className="text-sm">Click Sync Data to onboard items</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

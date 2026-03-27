@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -21,7 +22,8 @@ import {
   Minus,
   Trash2,
   ShoppingBag,
-  Lock
+  Lock,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -46,6 +48,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -58,7 +61,6 @@ export default function DashboardPage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
-  // Optimize: Added limit(100) to dishesQuery to avoid massive cost/payload
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), limit(100));
   }, [db]);
@@ -157,33 +159,33 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB]">
-      <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
+    <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500">
+      <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+          <Link href="/dashboard" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
               <ChefHat className="text-white w-6 h-6" />
             </div>
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
 
-          <div className="flex-1 max-w-lg relative hidden sm:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="flex-1 max-w-lg relative hidden sm:block group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Craving something specific?" 
-              className="pl-11 h-11 bg-muted/40 border-none rounded-2xl focus-visible:ring-primary/20"
+              className="pl-11 h-11 bg-muted/40 border-none rounded-2xl focus-visible:ring-primary/20 transition-all hover:bg-muted/60"
             />
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+            <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary transition-all">
               <Bell className="w-6 h-6" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-white"></span>
             </Button>
 
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group">
+                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group transition-all active:scale-90">
                   <ShoppingCart className="w-6 h-6 group-hover:text-primary transition-colors" />
                   {totalQuantity > 0 && (
                     <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
@@ -201,15 +203,15 @@ export default function DashboardPage() {
                 </SheetHeader>
                 <ScrollArea className="flex-1 py-8">
                   {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20">
+                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 animate-in fade-in">
                       <Utensils className="w-20 h-20 mb-6" />
                       <p className="font-black text-xl italic text-center">Your basket is waiting <br/>to be filled!</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
                       {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all group">
-                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white relative border shadow-sm">
+                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all group hover:bg-white hover:shadow-sm">
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white relative border shadow-sm transition-transform group-hover:scale-105">
                             <img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" />
                           </div>
                           <div className="flex-1">
@@ -219,7 +221,7 @@ export default function DashboardPage() {
                               <Button 
                                 variant="outline" 
                                 size="icon" 
-                                className="h-7 w-7 rounded-full border-primary/20"
+                                className="h-7 w-7 rounded-full border-primary/20 hover:bg-primary hover:text-white transition-colors"
                                 onClick={() => updateQuantity(item.id, -1)}
                               >
                                 <Minus className="w-3 h-3" />
@@ -228,14 +230,17 @@ export default function DashboardPage() {
                               <Button 
                                 variant="outline" 
                                 size="icon" 
-                                className="h-7 w-7 rounded-full border-primary/20"
+                                className="h-7 w-7 rounded-full border-primary/20 hover:bg-primary hover:text-white transition-colors"
                                 onClick={() => updateQuantity(item.id, 1)}
                               >
                                 <Plus className="w-3 h-3" />
                               </Button>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => {
+                            removeFromCart(item.id);
+                            toast.success("Removed from basket");
+                          }} className="text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -252,7 +257,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <Link href="/cart" className="w-full">
-                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden">
+                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden active:scale-95 transition-all">
                         <span className="relative z-10 flex items-center justify-center gap-2 text-white">View Cart <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
                       </Button>
                     </Link>
@@ -262,15 +267,18 @@ export default function DashboardPage() {
             </Sheet>
 
             <div className="flex items-center gap-3 pl-4 border-l">
-               <Avatar className="h-10 w-10 border-2 border-primary/10 shadow-sm ring-2 ring-white">
+               <Avatar className="h-10 w-10 border-2 border-primary/10 shadow-sm ring-2 ring-white transition-transform hover:scale-110">
                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} />
                 <AvatarFallback><UserIcon /></AvatarFallback>
               </Avatar>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => logout()} 
-                className="text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  logout();
+                  toast.success("See you soon!");
+                }} 
+                className="text-muted-foreground hover:text-destructive transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -281,7 +289,7 @@ export default function DashboardPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto flex">
-        <aside className="w-64 hidden lg:flex flex-col sticky top-24 h-[calc(100vh-6rem)] py-8 pr-8">
+        <aside className="w-64 hidden lg:flex flex-col sticky top-24 h-[calc(100vh-6rem)] py-8 pr-8 animate-in slide-in-from-left-4 duration-700">
           <nav className="space-y-2">
             {sidebarLinks.map((link) => (
               <Link key={link.name} href={link.href}>
@@ -299,19 +307,22 @@ export default function DashboardPage() {
             ))}
           </nav>
           
-          <div className="mt-auto p-6 bg-accent/5 rounded-[2rem] border border-accent/10 relative overflow-hidden group">
+          <div className="mt-auto p-6 bg-accent/5 rounded-[2rem] border border-accent/10 relative overflow-hidden group transition-all hover:bg-accent/10">
             <div className="relative z-10">
               <p className="font-headline font-black text-accent text-lg mb-2">Get 20% OFF</p>
               <p className="text-xs text-muted-foreground font-medium mb-4">On your first order above ₹500</p>
-              <Button size="sm" className="bg-accent text-white font-black rounded-xl">REDEEM NOW</Button>
+              <Button size="sm" className="bg-accent text-white font-black rounded-xl hover:scale-105 transition-transform active:scale-95">REDEEM NOW</Button>
             </div>
             <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-700" />
           </div>
 
           <Button 
             variant="ghost" 
-            className="mt-8 w-full justify-start h-12 rounded-2xl px-6 font-bold text-destructive hover:bg-destructive/5 gap-3"
-            onClick={() => logout()}
+            className="mt-8 w-full justify-start h-12 rounded-2xl px-6 font-bold text-destructive hover:bg-destructive/5 gap-3 transition-colors"
+            onClick={() => {
+              logout();
+              toast.success("Logged out");
+            }}
           >
             <LogOut className="w-5 h-5" />
             Log Out
@@ -319,19 +330,19 @@ export default function DashboardPage() {
         </aside>
 
         <main className="flex-1 p-8 md:p-12 space-y-24 min-w-0">
-          <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group">
+          <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group animate-in zoom-in duration-1000">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float-slow -z-10" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full blur-3xl animate-drift-slow -z-10" />
             
             <div className="relative z-10 space-y-6 max-w-lg">
-              <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Experience</Badge>
+              <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px] animate-pulse">Premium Experience</Badge>
               <h1 className="text-5xl md:text-6xl font-headline font-black text-foreground leading-[1.1] tracking-tight">
                 Authentic <span className="text-primary italic">Indian</span><br/>Delights.
               </h1>
               <p className="text-lg text-muted-foreground font-medium">From spicy street food to royal thalis, we bring the heart of Bharat to your door.</p>
               <div className="flex gap-4">
                 <Link href="/menu">
-                  <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-white">Explore Full Menu</Button>
+                  <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-white border-none">Explore Full Menu</Button>
                 </Link>
               </div>
             </div>
@@ -357,7 +368,7 @@ export default function DashboardPage() {
 
           <section className="space-y-10">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="animate-in slide-in-from-left-4 duration-700">
                 <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
                   <ShoppingBag className="w-10 h-10 text-primary" /> 
                   Your Journey
@@ -374,7 +385,7 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-headline font-black text-foreground">My Orders</h3>
                     <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                      Track your live orders or browse through your delicious history.
+                      Track your live orders or browse through your history.
                     </p>
                   </div>
                   <Button variant="ghost" className="mt-auto font-black text-primary group-hover:translate-x-2 transition-transform">
@@ -391,7 +402,7 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-headline font-black text-foreground">Full Menu</h3>
                     <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                      Explore our delicacies curated for you.
+                      Explore delicacies curated for you.
                     </p>
                   </div>
                   <Button variant="ghost" className="mt-auto font-black text-accent group-hover:translate-x-2 transition-transform">
@@ -408,7 +419,7 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-headline font-black text-foreground">Favorites</h3>
                     <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                      Quickly re-order the dishes that won your heart.
+                      Re-order dishes that won your heart.
                     </p>
                   </div>
                   <Button variant="ghost" className="mt-auto font-black text-pink-600 group-hover:translate-x-2 transition-transform">
@@ -430,13 +441,17 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground font-medium mt-1">Our community's current favorites this week.</p>
                 </div>
                 <Link href="/menu">
-                  <Button variant="ghost" className="rounded-xl font-bold text-primary group">
+                  <Button variant="ghost" className="rounded-xl font-bold text-primary group hover:bg-primary/5">
                     See All <ChevronRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                {trendingDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
+                {trendingDishes.map((dish, i) => (
+                  <div key={dish.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                    <FoodCard food={{...dish, imageURL: dish.image}} />
+                  </div>
+                ))}
               </div>
             </section>
           )}
@@ -453,7 +468,11 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                {topRatedDishes.map(dish => <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />)}
+                {topRatedDishes.map((dish, i) => (
+                  <div key={dish.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                    <FoodCard food={{...dish, imageURL: dish.image}} />
+                  </div>
+                ))}
               </div>
             </section>
           )}
@@ -474,9 +493,14 @@ export default function DashboardPage() {
               </div>
 
               <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                {recommendations.map(dish => <FoodCard key={dish.id} food={dish} />)}
+                {recommendations.map((dish, i) => (
+                  <div key={dish.id} className="animate-in fade-in zoom-in duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                    <FoodCard food={dish} />
+                  </div>
+                ))}
                 {!loadingRecs && recommendations.length === 0 && (
-                  <div className="col-span-full py-20 text-center opacity-40 italic font-bold text-xl">
+                  <div className="col-span-full py-20 text-center opacity-40 italic font-bold text-xl flex flex-col items-center gap-4">
+                    <ShoppingBag className="w-12 h-12" />
                     Order a few more items to get tailored AI suggestions!
                   </div>
                 )}
@@ -494,7 +518,7 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground font-medium mt-1">Manage your access and keep your profile secure.</p>
               </div>
             </div>
-            <div className="max-w-2xl mx-auto w-full">
+            <div className="max-w-2xl mx-auto w-full transition-all hover:scale-[1.01]">
               <ChangePasswordForm />
             </div>
           </section>
@@ -502,8 +526,8 @@ export default function DashboardPage() {
           <section className="text-center py-20 border-t border-dashed">
             <h3 className="text-3xl font-headline font-black mb-6 text-foreground">Didn't find what you like?</h3>
             <Link href="/menu">
-              <Button size="lg" variant="outline" className="h-16 px-12 rounded-2xl border-2 font-black text-lg hover:bg-primary hover:text-white transition-all shadow-xl">
-                Browse Full Catalog
+              <Button size="lg" variant="outline" className="h-16 px-12 rounded-2xl border-2 font-black text-lg hover:bg-primary hover:text-white transition-all shadow-xl active:scale-95 group">
+                Browse Full Catalog <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
           </section>
@@ -518,9 +542,9 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-muted-foreground font-bold italic opacity-60 text-center md:text-left">© 2025 Bhartiya Swad. Delivering authentic taste across Bharat.</p>
           <div className="flex gap-6">
-            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Terms</Button>
-            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Privacy</Button>
-            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Help</Button>
+            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Terms</Button>
+            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Privacy</Button>
+            <Button variant="ghost" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Help</Button>
           </div>
         </div>
       </footer>

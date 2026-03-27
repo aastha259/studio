@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -29,14 +30,13 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useFirestore } from '@/firebase';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import toast from 'react-hot-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const db = useFirestore();
-  const { toast } = useToast();
   const { user, loading: authLoading, logout } = useAuth();
   const { items, totalPrice, clearCart, totalQuantity, isLoading: cartLoading } = useCart();
   
@@ -76,11 +76,7 @@ export default function CheckoutPage() {
     if (!user) return;
 
     if (!deliveryDetails.name || !deliveryDetails.phone || !deliveryDetails.address) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please fill in all delivery details."
-      });
+      toast.error("Please fill in all delivery details.");
       return;
     }
 
@@ -95,6 +91,7 @@ export default function CheckoutPage() {
     }
 
     setIsProcessing(true);
+    const orderToast = toast.loading("Processing your order...");
     
     const orderRef = doc(collection(db, 'orders'));
     const orderData = {
@@ -120,10 +117,7 @@ export default function CheckoutPage() {
       await setDoc(orderRef, orderData);
       setIsOrdered(true);
       clearCart();
-      toast({
-        title: "Order Placed!",
-        description: "Your meal is on its way."
-      });
+      toast.success("Order Placed Successfully!", { id: orderToast });
     } catch (error: any) {
       console.error("Order Creation Error:", error);
       
@@ -134,12 +128,9 @@ export default function CheckoutPage() {
           requestResourceData: orderData,
         });
         errorEmitter.emit('permission-error', permissionError);
+        toast.error("Security permission error.", { id: orderToast });
       } else {
-        toast({
-          variant: "destructive",
-          title: "Order Failed",
-          description: "We couldn't process your order right now. Please try again."
-        });
+        toast.error("Failed to place order. Try again.", { id: orderToast });
       }
     } finally {
       setIsProcessing(false);
@@ -159,7 +150,7 @@ export default function CheckoutPage() {
           </div>
           <div className="pt-8 flex flex-col gap-4">
             <Link href="/dashboard">
-              <Button className="w-full h-14 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20">
+              <Button className="w-full h-14 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20 hover:scale-105 transition-transform">
                 Track My Order
               </Button>
             </Link>
@@ -184,18 +175,18 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB]">
+    <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/cart" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+          <Link href="/cart" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
               <ChefHat className="text-white w-6 h-6" />
             </div>
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/cart">
-              <Button variant="ghost" className="font-bold gap-2 rounded-xl">
+              <Button variant="ghost" className="font-bold gap-2 rounded-xl hover:bg-primary/10">
                 <ArrowLeft className="w-4 h-4" /> Back to Cart
               </Button>
             </Link>
@@ -204,7 +195,7 @@ export default function CheckoutPage() {
                 variant="ghost" 
                 size="icon" 
                 onClick={() => logout()} 
-                className="text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -221,7 +212,7 @@ export default function CheckoutPage() {
             <h1 className="text-5xl font-headline font-black tracking-tight">Checkout</h1>
             
             <form onSubmit={handlePlaceOrder} className="space-y-8">
-              <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
+              <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white transition-all hover:shadow-md">
                 <CardHeader className="bg-muted/30 p-8 border-b">
                   <CardTitle className="flex items-center gap-3 text-xl font-headline font-black text-foreground">
                     <MapPin className="w-6 h-6 text-primary" /> Delivery Logistics
@@ -236,7 +227,7 @@ export default function CheckoutPage() {
                         <Input 
                           id="name" 
                           placeholder="Receiver's name" 
-                          className="pl-10 h-12 rounded-xl"
+                          className="pl-10 h-12 rounded-xl focus:ring-primary/20"
                           value={deliveryDetails.name}
                           onChange={(e) => setDeliveryDetails({...deliveryDetails, name: e.target.value})}
                           required
@@ -251,7 +242,7 @@ export default function CheckoutPage() {
                         <Input 
                           id="phone" 
                           placeholder="+91 00000 00000" 
-                          className="pl-10 h-12 rounded-xl"
+                          className="pl-10 h-12 rounded-xl focus:ring-primary/20"
                           value={deliveryDetails.phone}
                           onChange={(e) => setDeliveryDetails({...deliveryDetails, phone: e.target.value})}
                           required
@@ -275,7 +266,7 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white">
+              <Card className="rounded-[2.5rem] border shadow-sm overflow-hidden bg-white transition-all hover:shadow-md">
                 <CardHeader className="bg-muted/30 p-8 border-b">
                   <CardTitle className="flex items-center gap-3 text-xl font-headline font-black text-foreground">
                     <CreditCard className="w-6 h-6 text-primary" /> Payment Method
@@ -288,21 +279,21 @@ export default function CheckoutPage() {
                     className="grid grid-cols-1 md:grid-cols-2 gap-4"
                     disabled={isProcessing}
                   >
-                    <div>
+                    <div className="transition-transform hover:scale-[1.02]">
                       <RadioGroupItem value="COD" id="cod" className="peer sr-only" />
                       <Label
                         htmlFor="cod"
-                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
+                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
                       >
                         <Package className="mb-3 h-6 w-6 text-primary" />
                         <span className="font-black">Cash on Delivery</span>
                       </Label>
                     </div>
-                    <div>
+                    <div className="transition-transform hover:scale-[1.02]">
                       <RadioGroupItem value="Online" id="online" className="peer sr-only" />
                       <Label
                         htmlFor="online"
-                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
+                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
                       >
                         <CreditCard className="mb-3 h-6 w-6 text-primary" />
                         <span className="font-black">Online Payment</span>
@@ -315,7 +306,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="w-full lg:w-[450px] space-y-6">
-            <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white">
+            <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white sticky top-32">
               <CardHeader className="bg-primary p-8 text-white">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-2xl font-headline font-black">Order Summary</CardTitle>
@@ -326,9 +317,9 @@ export default function CheckoutPage() {
                 <ScrollArea className="max-h-[300px] pr-4">
                   <div className="space-y-4">
                     {items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center gap-4">
+                      <div key={item.id} className="flex justify-between items-center gap-4 transition-all hover:translate-x-1">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0 border">
                             <img src={item.imageURL} alt={item.name} className="object-cover w-full h-full" />
                           </div>
                           <div>
@@ -375,7 +366,7 @@ export default function CheckoutPage() {
                 >
                   {isProcessing ? (
                     <div className="flex items-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin" /> <span>Transacting...</span>
+                      <Loader2 className="w-6 h-6 animate-spin" /> <span>Processing...</span>
                     </div>
                   ) : (
                     <span className="flex items-center gap-2">
@@ -391,7 +382,7 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
-            <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10 flex items-start gap-4">
+            <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10 flex items-start gap-4 animate-in slide-in-from-right-4 duration-700">
               <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
                 <ChefHat className="w-5 h-5 text-accent" />
               </div>

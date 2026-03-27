@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -21,7 +22,8 @@ import {
   Pizza,
   Plus,
   Minus,
-  Trash2
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -43,6 +45,7 @@ import FoodCard from '@/components/FoodCard';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 const categoriesConfig = [
   { name: 'PIZZAS', icon: Pizza },
@@ -67,6 +70,7 @@ export default function MenuPage() {
   const [isVegOnly, setIsVegOnly] = useState<boolean | null>(null);
   const [maxPrice, setMaxPrice] = useState(1000);
   const [showFilters, setShowFilters] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -78,7 +82,17 @@ export default function MenuPage() {
     }
   }, [user, loading, router, mounted]);
 
-  // Optimize: Added limit(100) to avoid fetching massive collections if synced
+  // Simulate search feedback
+  useEffect(() => {
+    if (search) {
+      setIsSearching(true);
+      const timer = setTimeout(() => setIsSearching(false), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSearching(false);
+    }
+  }, [search]);
+
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), limit(100));
   }, [db]);
@@ -107,6 +121,7 @@ export default function MenuPage() {
     setMaxPrice(1000);
     setSearch('');
     setSelectedCategory('All');
+    toast.success("Filters cleared");
   };
 
   if (!mounted || loading || !user) {
@@ -121,22 +136,24 @@ export default function MenuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB]" suppressHydrationWarning>
-      <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
+    <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500" suppressHydrationWarning>
+      <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
               <ChefHat className="text-white w-6 h-6" />
             </div>
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
 
           <div className="flex-1 max-w-xl flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="flex-1 relative group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-primary">
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4 text-muted-foreground" />}
+              </div>
               <Input 
                 placeholder="Search authentic dishes..." 
-                className="pl-11 h-11 bg-muted/40 border-none rounded-2xl focus-visible:ring-primary/20 w-full"
+                className="pl-11 h-11 bg-muted/40 border-none rounded-2xl focus-visible:ring-primary/20 w-full transition-all hover:bg-muted/60"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -145,14 +162,14 @@ export default function MenuPage() {
 
           <div className="flex items-center gap-4">
             {user && (
-              <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3">
+              <Link href="/dashboard" className="hidden sm:flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors px-3 py-2 rounded-xl hover:bg-primary/5">
                 <LayoutDashboard className="w-5 h-5" />
               </Link>
             )}
             
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group">
+                <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group transition-all active:scale-90">
                   <ShoppingCart className="w-6 h-6 group-hover:text-primary transition-colors" />
                   {totalQuantity > 0 && (
                     <span className="absolute top-0 right-0 w-5 h-5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
@@ -169,15 +186,15 @@ export default function MenuPage() {
                 </SheetHeader>
                 <ScrollArea className="flex-1 py-8">
                   {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20">
+                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 animate-in fade-in slide-in-from-bottom-4">
                       <Utensils className="w-20 h-20 mb-6" />
                       <p className="font-black text-xl italic text-center">Your basket is empty!</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
                       {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all group">
-                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white relative border shadow-sm">
+                        <div key={item.id} className="flex gap-4 items-center p-4 bg-muted/20 rounded-2xl border border-transparent hover:border-primary/10 transition-all group hover:bg-white hover:shadow-md">
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white relative border shadow-sm transition-transform group-hover:scale-105">
                             <img src={item.imageURL || ''} alt={item.name} className="object-cover w-full h-full" />
                           </div>
                           <div className="flex-1">
@@ -187,7 +204,7 @@ export default function MenuPage() {
                               <Button 
                                 variant="outline" 
                                 size="icon" 
-                                className="h-6 w-6 rounded-full border-primary/20"
+                                className="h-6 w-6 rounded-full border-primary/20 hover:bg-primary hover:text-white transition-colors"
                                 onClick={() => updateQuantity(item.id, -1)}
                               >
                                 <Minus className="w-3 h-3" />
@@ -196,14 +213,22 @@ export default function MenuPage() {
                               <Button 
                                 variant="outline" 
                                 size="icon" 
-                                className="h-6 w-6 rounded-full border-primary/20"
+                                className="h-6 w-6 rounded-full border-primary/20 hover:bg-primary hover:text-white transition-colors"
                                 onClick={() => updateQuantity(item.id, 1)}
                               >
                                 <Plus className="w-3 h-3" />
                               </Button>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              removeFromCart(item.id);
+                              toast.success("Removed from basket");
+                            }} 
+                            className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -220,7 +245,7 @@ export default function MenuPage() {
                       </div>
                     </div>
                     <Link href="/cart" className="w-full">
-                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20">
+                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]">
                         View Cart & Checkout
                       </Button>
                     </Link>
@@ -230,12 +255,20 @@ export default function MenuPage() {
             </Sheet>
 
             {user ? (
-              <Button variant="ghost" size="icon" onClick={() => logout()} className="rounded-full hover:bg-destructive/5 hover:text-destructive">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  logout();
+                  toast.success("Logged out successfully");
+                }} 
+                className="rounded-full hover:bg-destructive/5 hover:text-destructive transition-colors"
+              >
                 <LogOut className="w-5 h-5" />
               </Button>
             ) : (
               <Link href="/login?callbackUrl=/menu">
-                <Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90">Login</Button>
+                <Button className="rounded-full px-6 font-bold bg-primary hover:bg-primary/90 transition-all active:scale-95">Login</Button>
               </Link>
             )}
           </div>
@@ -245,14 +278,14 @@ export default function MenuPage() {
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
         <div className="space-y-10">
           <div className="flex flex-col md:flex-row justify-between items-end gap-6">
-            <div className="space-y-2">
+            <div className="space-y-2 animate-in slide-in-from-left-4 duration-700">
               <h1 className="text-5xl font-headline font-black text-foreground tracking-tight">Full Menu</h1>
               <p className="text-lg text-muted-foreground font-medium">Explore our curated selection of authentic Indian flavors.</p>
             </div>
             
             <Sheet open={showFilters} onOpenChange={setShowFilters}>
               <SheetTrigger asChild>
-                <Button variant="outline" className="h-14 px-8 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-black shadow-sm">
+                <Button variant="outline" className="h-14 px-8 rounded-2xl gap-2 border-primary/20 hover:bg-primary hover:text-white transition-all font-black shadow-sm active:scale-95">
                   <Filter className="w-5 h-5" /> Filter Selection
                 </Button>
               </SheetTrigger>
@@ -266,31 +299,34 @@ export default function MenuPage() {
                   <div className="space-y-6">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Dietary Preference</label>
                     <div className="grid grid-cols-3 gap-3">
-                      <Button variant={isVegOnly === null ? 'default' : 'outline'} onClick={() => setIsVegOnly(null)} className="rounded-2xl h-12 font-bold">All</Button>
-                      <Button variant={isVegOnly === true ? 'default' : 'outline'} onClick={() => setIsVegOnly(true)} className={cn("rounded-2xl h-12 font-bold", isVegOnly === true && "bg-green-600 border-green-600 hover:bg-green-700")}>Veg</Button>
-                      <Button variant={isVegOnly === false ? 'default' : 'outline'} onClick={() => setIsVegOnly(false)} className={cn("rounded-2xl h-12 font-bold", isVegOnly === false && "bg-red-600 border-red-600 hover:bg-red-700")}>Non-Veg</Button>
+                      <Button variant={isVegOnly === null ? 'default' : 'outline'} onClick={() => setIsVegOnly(null)} className="rounded-2xl h-12 font-bold transition-all">All</Button>
+                      <Button variant={isVegOnly === true ? 'default' : 'outline'} onClick={() => setIsVegOnly(true)} className={cn("rounded-2xl h-12 font-bold transition-all", isVegOnly === true && "bg-green-600 border-green-600 hover:bg-green-700")}>Veg</Button>
+                      <Button variant={isVegOnly === false ? 'default' : 'outline'} onClick={() => setIsVegOnly(false)} className={cn("rounded-2xl h-12 font-bold transition-all", isVegOnly === false && "bg-red-600 border-red-600 hover:bg-red-700")}>Non-Veg</Button>
                     </div>
                   </div>
                   
                   <div className="space-y-8">
                     <div className="flex justify-between items-center">
                       <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Max Price (₹)</label>
-                      <span className="font-headline font-black text-3xl text-primary">₹{maxPrice}</span>
+                      <span className="font-headline font-black text-3xl text-primary animate-in zoom-in duration-300">₹{maxPrice}</span>
                     </div>
                     <Slider value={[maxPrice]} max={1000} step={50} onValueChange={([val]) => setMaxPrice(val)} className="py-4" />
                   </div>
                 </div>
                 <div className="pt-8 border-t flex flex-col gap-4">
-                  <Button variant="ghost" className="w-full text-muted-foreground font-black" onClick={resetFilters}>Clear All</Button>
-                  <Button className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20" onClick={() => setShowFilters(false)}>Show Results</Button>
+                  <Button variant="ghost" className="w-full text-muted-foreground font-black hover:bg-muted/50 rounded-2xl" onClick={resetFilters}>Clear All</Button>
+                  <Button className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 transition-all active:scale-95" onClick={() => setShowFilters(false)}>Show Results</Button>
                 </div>
               </SheetContent>
             </Sheet>
           </div>
 
-          <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
+          <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x scroll-smooth">
             <div 
-              onClick={() => setSelectedCategory('All')} 
+              onClick={() => {
+                setSelectedCategory('All');
+                toast.success("Showing all items", { duration: 1000 });
+              }} 
               className={cn(
                 "flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-300",
                 selectedCategory === 'All' ? 'scale-105' : 'hover:scale-102'
@@ -303,7 +339,7 @@ export default function MenuPage() {
                 <Utensils className={cn("w-10 h-10 transition-colors duration-500", selectedCategory === 'All' ? 'text-white' : 'text-primary')} />
               </div>
               <p className={cn(
-                "text-center mt-4 font-black text-[10px] uppercase tracking-widest",
+                "text-center mt-4 font-black text-[10px] uppercase tracking-widest transition-colors",
                 selectedCategory === 'All' ? 'text-primary' : 'text-muted-foreground'
               )}>All Dishes</p>
             </div>
@@ -311,7 +347,10 @@ export default function MenuPage() {
             {categoriesConfig.map((cat) => (
               <div 
                 key={cat.name} 
-                onClick={() => setSelectedCategory(cat.name)} 
+                onClick={() => {
+                  setSelectedCategory(cat.name);
+                  toast.success(`Category: ${cat.name}`, { duration: 1000 });
+                }} 
                 className={cn(
                   "flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-300",
                   selectedCategory === cat.name ? 'scale-105' : 'hover:scale-102'
@@ -324,7 +363,7 @@ export default function MenuPage() {
                   <cat.icon className={cn("w-10 h-10 transition-colors duration-500", selectedCategory === cat.name ? 'text-white' : 'text-primary')} />
                 </div>
                 <p className={cn(
-                  "text-center mt-4 font-black text-[10px] uppercase tracking-widest",
+                  "text-center mt-4 font-black text-[10px] uppercase tracking-widest transition-colors",
                   selectedCategory === cat.name ? 'text-primary' : 'text-muted-foreground'
                 )}>{cat.name.replace('_', ' ')}</p>
               </div>
@@ -342,19 +381,23 @@ export default function MenuPage() {
             <>
               {filteredDishes.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                  {filteredDishes.map(dish => (
-                    <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />
+                  {filteredDishes.map((dish, index) => (
+                    <div key={dish.id} style={{ animationDelay: `${index * 50}ms` }}>
+                      <FoodCard food={{...dish, imageURL: dish.image}} />
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-40 bg-white rounded-[4rem] border border-dashed border-primary/10">
+                <div className="text-center py-40 bg-white rounded-[4rem] border border-dashed border-primary/10 animate-in zoom-in duration-500">
                   <div className="max-w-md mx-auto space-y-6">
-                    <div className="w-24 h-24 bg-muted/30 rounded-full flex items-center justify-center mx-auto">
-                      <Search className="w-10 h-10 text-muted-foreground" />
+                    <div className="w-24 h-24 bg-muted/30 rounded-full flex items-center justify-center mx-auto transition-transform hover:rotate-12">
+                      <AlertCircle className="w-10 h-10 text-muted-foreground" />
                     </div>
                     <h3 className="text-3xl font-headline font-black text-foreground">No matches found</h3>
-                    <p className="text-muted-foreground font-medium">Try adjusting your filters or search keywords to find what you're craving.</p>
-                    <Button variant="outline" onClick={resetFilters} className="rounded-2xl h-12 px-8 font-black border-primary text-primary">Reset All Filters</Button>
+                    <p className="text-muted-foreground font-medium">We couldn't find any dishes matching "{search}". Try exploring our categories!</p>
+                    <Button variant="outline" onClick={resetFilters} className="rounded-2xl h-12 px-8 font-black border-primary text-primary transition-all hover:bg-primary hover:text-white">
+                      Clear Search & Filters
+                    </Button>
                   </div>
                 </div>
               )}
@@ -363,7 +406,7 @@ export default function MenuPage() {
         </section>
 
         {!dishesLoading && allDishes?.length === 0 && (
-          <div className="bg-primary/5 p-16 rounded-[4rem] border border-dashed border-primary/20 flex flex-col items-center gap-8 text-center">
+          <div className="bg-primary/5 p-16 rounded-[4rem] border border-dashed border-primary/20 flex flex-col items-center gap-8 text-center animate-in fade-in">
             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center">
               <ChefHat className="w-12 h-12 text-primary" />
             </div>

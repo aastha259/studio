@@ -51,11 +51,20 @@ export default function ContactPage() {
     const contactToast = toast.loading("Sending your query...");
 
     try {
+      // 1. Save Support Ticket
       await addDoc(collection(db, 'supportTickets'), {
         ...formData,
         userId: user?.uid || null,
         status: 'open',
         replies: [],
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Trigger Admin Notification
+      await addDoc(collection(db, 'notifications_admin'), {
+        message: `New support query received from ${formData.name}`,
+        type: 'support',
+        read: false,
         createdAt: serverTimestamp()
       });
 

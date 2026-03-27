@@ -37,6 +37,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ADMIN NOTIFICATIONS: Restricted to system admins
+    match /notifications_admin/{notificationId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true; // Allow creation via support submission or other triggers
+    }
+
     // DISHES: Publicly viewable menu items. Admin can manage.
     match /dishes/{dishId} {
       allow read: if true;

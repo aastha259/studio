@@ -351,7 +351,7 @@ export default function DashboardPage() {
                 <img 
                   src="https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80" 
                   alt="Delicious Indian Food" 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s]" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2000ms]" 
                 />
               </div>
               <div className="absolute top-0 right-0 bg-white p-4 rounded-3xl shadow-xl border flex items-center gap-3 animate-bounce">

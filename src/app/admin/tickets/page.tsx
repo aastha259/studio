@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo, useState } from 'react';
@@ -8,7 +7,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc, updateDoc, query, orderBy, arrayUnion, Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/lib/contexts/auth-context';
+import { collection, doc, deleteDoc, updateDoc, query, orderBy, arrayUnion, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminTicketsPage() {
   const db = useFirestore();
+  const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -35,17 +36,14 @@ export default function AdminTicketsPage() {
     return tickets.find(t => String(t.id) === String(selectedId));
   }, [tickets, selectedId]);
 
-  // Debug logging for production verification
-  console.log("Selected ID:", selectedId);
-  console.log("Tickets:", tickets);
-  console.log("Active Ticket:", activeTicket);
-
   const handleResolve = async (id: string) => {
-    if (!id) return;
+    if (!id || !user) return;
     const resolveToast = toast.loading("Updating status...");
     try {
       await updateDoc(doc(db, 'supportTickets', id), { 
-        status: 'resolved' 
+        status: 'resolved',
+        resolvedAt: serverTimestamp(),
+        resolvedBy: user.uid
       });
       toast.success("Ticket marked as resolved", { id: resolveToast });
     } catch (err) {
@@ -345,13 +343,14 @@ export default function AdminTicketsPage() {
                   </div>
 
                   <div className="flex items-center justify-between gap-4 pt-2">
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       {activeTicket && activeTicket.status !== 'resolved' && (
                         <Button 
-                          className="rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 h-11"
+                          variant="default"
+                          className="rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white h-11"
                           onClick={() => handleResolve(activeTicket.id)}
                         >
-                          Mark Resolved
+                          Resolve
                         </Button>
                       )}
                       <Button 
@@ -360,7 +359,7 @@ export default function AdminTicketsPage() {
                         onClick={() => handleDelete(activeTicket.id)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Discard
+                        Delete
                       </Button>
                     </div>
                     <Button 

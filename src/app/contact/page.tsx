@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ChefHat, ArrowLeft, Send, MessageSquare, Mail, User, Loader2, Clock, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -29,16 +29,26 @@ export default function ContactPage() {
   });
 
   // Fetch user's previous inquiries
+  // Fixed: Removed orderBy to avoid requiring a composite index (userId + createdAt)
   const ticketsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(
       collection(db, 'supportTickets'), 
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
   }, [db, user?.uid]);
 
-  const { data: myTickets, isLoading: ticketsLoading } = useCollection(ticketsQuery);
+  const { data: rawTickets, isLoading: ticketsLoading } = useCollection(ticketsQuery);
+
+  // Client-side sorting to handle order without requiring a composite index
+  const myTickets = useMemo(() => {
+    if (!rawTickets) return [];
+    return [...rawTickets].sort((a, b) => {
+      const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
+  }, [rawTickets]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

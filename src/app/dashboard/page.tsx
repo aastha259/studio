@@ -100,16 +100,22 @@ export default function DashboardPage() {
         const lastDay = new Date();
         lastDay.setHours(lastDay.getHours() - 24);
         
+        // Fixed: Simplified query to avoid composite index requirement.
+        // We fetch the most recent notifications for the user and check client-side.
         const q = query(
           collection(db, 'notifications'),
           where('userId', '==', user.uid),
-          where('type', '==', 'ai'),
-          where('createdAt', '>=', Timestamp.fromDate(lastDay)),
-          limit(1)
+          limit(20)
         );
         
         const existingSnap = await getDocs(q);
-        if (!existingSnap.empty) return; // Prevent spam
+        const hasRecentAINotif = existingSnap.docs.some(doc => {
+          const data = doc.data();
+          const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+          return data.type === 'ai' && createdAt >= lastDay;
+        });
+
+        if (hasRecentAINotif) return; // Prevent spam
 
         // 2. Fetch history
         const orderRef = collection(db, 'orders');

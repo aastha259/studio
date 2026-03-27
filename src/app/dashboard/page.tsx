@@ -46,8 +46,9 @@ import FoodCard from '@/components/FoodCard';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import NotificationBell from '@/components/NotificationBell';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
+import { smartNotifications } from '@/ai/flows/smart-notifications-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, getDocs, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
@@ -87,6 +88,67 @@ export default function DashboardPage() {
       router.push('/login');
     }
   }, [user, loading, router, mounted]);
+
+  // Smart AI Notifications Trigger
+  useEffect(() => {
+    const triggerSmartNotification = async () => {
+      if (!user?.uid || !allDishes || allDishes.length === 0) return;
+
+      try {
+        // 1. Check if AI notification was already sent in the last 24 hours
+        const lastDay = new Date();
+        lastDay.setHours(lastDay.getHours() - 24);
+        
+        const q = query(
+          collection(db, 'notifications'),
+          where('userId', '==', user.uid),
+          where('type', '==', 'ai'),
+          where('createdAt', '>=', Timestamp.fromDate(lastDay)),
+          limit(1)
+        );
+        
+        const existingSnap = await getDocs(q);
+        if (!existingSnap.empty) return; // Prevent spam
+
+        // 2. Fetch history
+        const orderRef = collection(db, 'orders');
+        const historyQ = query(orderRef, where('userId', '==', user.uid), limit(10));
+        const orderSnap = await getDocs(historyQ);
+        
+        const history: { name: string; category?: string }[] = [];
+        orderSnap.forEach((doc) => {
+          doc.data().items?.forEach((item: any) => {
+            if (item.name) history.push({ name: item.name });
+          });
+        });
+
+        if (history.length === 0) return; // Need some history to be smart
+
+        // 3. Generate AI message
+        const result = await smartNotifications({
+          userFoodHistory: history,
+          userName: user.displayName || 'Friend'
+        });
+
+        // 4. Save to Firestore
+        if (result.message) {
+          await addDoc(collection(db, 'notifications'), {
+            userId: user.uid,
+            message: result.message,
+            type: 'ai',
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
+      } catch (e) {
+        console.warn("Smart notification failed:", e);
+      }
+    };
+
+    if (mounted && user && allDishes) {
+      triggerSmartNotification();
+    }
+  }, [user?.uid, allDishes, mounted]);
 
   const getPersonalizedRecommendations = async () => {
     if (!user?.uid || !allDishes || allDishes.length === 0) {
@@ -328,7 +390,7 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground font-medium mb-4">On your first order above ₹500</p>
               <Button size="sm" className="bg-accent text-white font-black rounded-xl hover:scale-105 transition-transform active:scale-95">REDEEM NOW</Button>
             </div>
-            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-700" />
+            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-[2000ms]" />
           </div>
 
           <Button 

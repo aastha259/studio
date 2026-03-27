@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Bell, Check, Info, ShoppingBag, X, Volume2, VolumeX } from 'lucide-react';
+import { Bell, Check, Info, ShoppingBag, X, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection, query, where, limit, doc, updateDoc, writeBatch } from 'firebase/firestore';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -217,35 +218,50 @@ export default function NotificationBell() {
                     "flex items-start gap-4 p-5 rounded-[1.5rem] cursor-pointer transition-all border group relative",
                     !n.read 
                       ? "bg-primary/[0.03] border-primary/10 shadow-sm hover:bg-primary/[0.06]" 
-                      : "bg-white border-muted hover:bg-muted/30"
+                      : "bg-white border-muted hover:bg-muted/30",
+                    n.type === 'ai' && !n.read && "border-accent/30 bg-accent/[0.02]"
                   )}
                 >
                   {/* Status Icon */}
                   <div className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner",
-                    n.type === 'order' ? "bg-green-100 text-green-600" : "bg-blue-100 text-blue-600"
+                    n.type === 'order' ? "bg-green-100 text-green-600" : 
+                    n.type === 'ai' ? "bg-orange-100 text-orange-600" :
+                    "bg-blue-100 text-blue-600"
                   )}>
-                    {n.type === 'order' ? <ShoppingBag className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+                    {n.type === 'order' ? <ShoppingBag className="w-6 h-6" /> : 
+                     n.type === 'ai' ? <Sparkles className="w-6 h-6" /> :
+                     <Info className="w-6 h-6" />}
                   </div>
 
                   {/* Text Content */}
                   <div className="flex-1 space-y-1.5 min-w-0">
-                    <p className={cn(
-                      "text-sm leading-relaxed", 
-                      !n.read ? "font-black text-foreground" : "font-medium text-muted-foreground"
-                    )}>
-                      {n.message}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-2">
-                      <span className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
-                      {n.createdAt ? format(n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt), 'MMM dd, p') : 'Just now'}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={cn(
+                        "text-sm leading-relaxed", 
+                        !n.read ? "font-black text-foreground" : "font-medium text-muted-foreground"
+                      )}>
+                        {n.message}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-2">
+                        <span className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                        {n.createdAt ? format(n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt), 'MMM dd, p') : 'Just now'}
+                      </p>
+                      {n.type === 'ai' && (
+                        <Badge className="bg-orange-100 text-orange-700 border-none text-[8px] font-black h-4 px-1.5 uppercase">✨ AI Suggestion</Badge>
+                      )}
+                    </div>
                   </div>
 
                   {/* Unread Indicator */}
                   {!n.read && (
                     <div className="absolute top-5 right-5">
-                      <div className="w-2.5 h-2.5 bg-accent rounded-full animate-pulse shadow-sm shadow-accent/50" />
+                      <div className={cn(
+                        "w-2.5 h-2.5 rounded-full animate-pulse shadow-sm",
+                        n.type === 'ai' ? "bg-accent shadow-accent/50" : "bg-primary shadow-primary/50"
+                      )} />
                     </div>
                   )}
                 </div>

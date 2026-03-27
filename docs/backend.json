@@ -92,7 +92,7 @@
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "message": { "type": "string" },
-        "type": { "type": "string", "enum": ["order", "system"] },
+        "type": { "type": "string", "enum": ["order", "system", "ai"] },
         "read": { "type": "boolean" },
         "createdAt": { "type": "object" }
       },

@@ -22,6 +22,7 @@ export default function AdminTicketsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   // Real-time subscription to support tickets
   const ticketsQuery = useMemoFirebase(() => {
@@ -54,14 +55,24 @@ export default function AdminTicketsPage() {
 
   const handleDelete = async (id: string) => {
     if (!id || !confirm("Are you sure you want to delete this inquiry?")) return;
+    
+    setIsDeletingId(id);
     const deleteToast = toast.loading("Removing inquiry...");
+    
     try {
       await deleteDoc(doc(db, 'supportTickets', id));
       toast.success("Inquiry removed", { id: deleteToast });
-      setIsDetailsOpen(false);
-      setSelectedId(null);
+      
+      // If we are currently viewing the ticket we just deleted, close the console
+      if (selectedId === id) {
+        setIsDetailsOpen(false);
+        setSelectedId(null);
+      }
     } catch (err) {
+      console.error("Delete error:", err);
       toast.error("Failed to delete", { id: deleteToast });
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -190,47 +201,50 @@ export default function AdminTicketsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right pr-10">
-                  <div className="flex items-center justify-end gap-2">
-  
-  {/* Resolve Button */}
-  {ticket.status !== 'resolved' && (
-    <Button
-      variant="default"
-      size="sm"
-      className="rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold"
-      onClick={(e) => {
-        e.stopPropagation();
-        handleResolve(ticket.id);
-      }}
-    >
-      Resolve
-    </Button>
-  )}
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Resolve Button */}
+                      {ticket.status !== 'resolved' && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleResolve(ticket.id);
+                          }}
+                        >
+                          Resolve
+                        </Button>
+                      )}
 
-  {/* Details Button */}
-  <Button 
-    variant="ghost" 
-    size="sm" 
-    className="rounded-xl font-bold text-primary hover:bg-primary/5 gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-  >
-    <Eye className="w-4 h-4" />
-    Details
-  </Button>
+                      {/* Details Button */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="rounded-xl font-bold text-primary hover:bg-primary/5 gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Details
+                      </Button>
 
-  {/* Delete Button */}
-  <Button 
-    variant="ghost" 
-    size="icon" 
-    className="rounded-xl text-muted-foreground hover:text-destructive"
-    onClick={(e) => {
-      e.stopPropagation();
-      handleDelete(ticket.id);
-    }}
-  >
-    <Trash2 className="w-4 h-4" />
-  </Button>
-
-</div>
+                      {/* Delete Button */}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-xl text-muted-foreground hover:text-destructive transition-all active:scale-90"
+                        disabled={isDeletingId === ticket.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(ticket.id);
+                        }}
+                      >
+                        {isDeletingId === ticket.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -344,20 +358,19 @@ export default function AdminTicketsPage() {
 
                 <div className="space-y-4 pt-4 border-t border-dashed">
                   <div className="flex gap-3">
-                  <Input 
-  placeholder="Type reply here..."
-  className="rounded-xl h-12 bg-white border border-gray-300"
-  value={replyText || ""}
-  onChange={(e) => {
-    console.log("Typing:", e.target.value);
-    setReplyText(e.target.value);
-  }}
-  style={{ pointerEvents: "auto" }}
-/>
+                    <Input 
+                      placeholder="Type reply here..."
+                      className="rounded-xl h-12 bg-white border border-gray-300"
+                      value={replyText || ""}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleReply();
+                      }}
+                    />
                   
                     <Button 
                       onClick={handleReply}
-                      disabled={!activeTicket?.id}
+                      disabled={!activeTicket?.id || !replyText.trim()}
                       className="h-12 w-12 rounded-xl bg-primary hover:bg-primary/90 shadow-lg p-0 shrink-0 transition-transform active:scale-90"
                     >
                       <Send className="w-5 h-5" />
@@ -378,9 +391,14 @@ export default function AdminTicketsPage() {
                       <Button 
                         variant="ghost"
                         className="rounded-xl font-bold text-destructive hover:bg-destructive/5 h-11"
+                        disabled={isDeletingId === activeTicket.id}
                         onClick={() => handleDelete(activeTicket.id)}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
+                        {isDeletingId === activeTicket.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
                         Delete
                       </Button>
                     </div>

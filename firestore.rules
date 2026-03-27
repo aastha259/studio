@@ -23,6 +23,12 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    // SUPPORT TICKETS: Public can create, only admin can read/write.
+    match /supportTickets/{ticketId} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
+
     // NOTIFICATIONS: Users can only see and manage their own notifications.
     match /notifications/{notificationId} {
       allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;

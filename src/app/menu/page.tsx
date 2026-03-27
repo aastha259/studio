@@ -356,7 +356,7 @@ export default function MenuPage() {
                 }} 
                 className={cn(
                   "flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-300",
-                  selectedCategory === cat.name ? 'scale-105' : 'hover:scale-102'
+                  selectedCategory === 'All' ? 'scale-105' : 'hover:scale-102'
                 )}
               >
                 <div className={cn(
@@ -436,6 +436,7 @@ export default function MenuPage() {
             <p className="text-muted-foreground font-medium max-w-xs text-center md:text-left opacity-70">Authentic Indian culinary experiences delivered directly to your home.</p>
           </div>
           <div className="flex gap-10">
+            <Link href="/contact" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Contact Us</Link>
             <Link href="/privacy-policy" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
             <Link href="/terms-and-conditions" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Terms</Link>
             <Link href="/refund-policy" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Refund Policy</Link>

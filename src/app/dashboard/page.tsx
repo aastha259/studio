@@ -24,7 +24,8 @@ import {
   ShoppingBag,
   Lock,
   ArrowRight,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -235,6 +236,7 @@ export default function DashboardPage() {
     { name: 'Full Menu', href: '/menu', active: false, icon: Utensils },
     { name: 'My Orders', href: '/orders', active: false, icon: ShoppingBag },
     { name: 'Favorites', href: '/favorites', active: false, icon: Heart },
+    { name: 'Support', href: '/contact', active: false, icon: MessageSquare },
     { name: 'Security', href: '#security', active: false, icon: Lock },
   ];
 
@@ -390,7 +392,7 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground font-medium mb-4">On your first order above ₹500</p>
               <Button size="sm" className="bg-accent text-white font-black rounded-xl hover:scale-105 transition-transform active:scale-95">REDEEM NOW</Button>
             </div>
-            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-[2000ms]" />
+            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-2000" />
           </div>
 
           <Button 
@@ -428,7 +430,7 @@ export default function DashboardPage() {
                 <img 
                   src="https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80" 
                   alt="Delicious Indian Food" 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2000ms]" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-2000" 
                 />
               </div>
               <div className="absolute top-0 right-0 bg-white p-4 rounded-3xl shadow-xl border flex items-center gap-3 animate-bounce">
@@ -667,6 +669,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-muted-foreground font-bold italic opacity-60 text-center md:text-left">© 2025 Bhartiya Swad. Delivering authentic taste across Bharat.</p>
           <div className="flex gap-6">
+            <Link href="/contact" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Contact</Link>
             <Link href="/privacy-policy" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Terms</Link>
             <Link href="/refund-policy" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Refund Policy</Link>

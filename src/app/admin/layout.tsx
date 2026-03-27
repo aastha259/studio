@@ -19,7 +19,8 @@ import {
   Store,
   Menu,
   Sparkles,
-  Settings
+  Settings,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Sales Intelligence', href: '/admin/sales', icon: BarChart3 },
     { name: 'Customer Insights', href: '/admin/customers', icon: Users },
+    { name: 'Support Tickets', href: '/admin/tickets', icon: MessageSquare },
     { name: 'Partner Network', href: '/admin/restaurants', icon: Store },
     { name: 'Order Management', href: '/admin/orders', icon: ShoppingBag },
     { name: 'AI Recommendations', href: '/admin/recommendations', icon: Sparkles },

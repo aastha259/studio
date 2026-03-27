@@ -97,6 +97,21 @@
         "createdAt": { "type": "object" }
       },
       "required": ["userId", "message", "read", "createdAt"]
+    },
+    "SupportTicket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SupportTicket",
+      "type": "object",
+      "description": "Represents a customer support inquiry.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved"] },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["name", "email", "message", "createdAt"]
     }
   },
   "auth": {
@@ -122,6 +137,10 @@
     "/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Stores user notifications."
+    },
+    "/supportTickets/{ticketId}": {
+      "schema": "SupportTicket",
+      "description": "Stores customer inquiries."
     }
   }
 }

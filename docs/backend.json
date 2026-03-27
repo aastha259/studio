@@ -17,6 +17,7 @@
         "totalSpent": { "type": "number" },
         "address": { "type": "string" },
         "phone": { "type": "string" },
+        "fcmToken": { "type": "string", "description": "Firebase Cloud Messaging token for push notifications." },
         "createdAt": { "type": "object" },
         "lastLogin": { "type": "object" }
       },

@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import { CartProvider } from '@/lib/contexts/cart-context';
 import { AuthProvider } from '@/lib/contexts/auth-context';
 import { FirebaseClientProvider } from '@/firebase';
+import PushNotificationManager from '@/components/PushNotificationManager';
 
 export const metadata: Metadata = {
   title: 'Bhartiya Swad – Taste of India at Your Doorstep',
@@ -28,6 +29,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             <CartProvider>
+              <PushNotificationManager />
               <Toaster position="top-right" reverseOrder={false} />
               {children}
               <ShadcnToaster />

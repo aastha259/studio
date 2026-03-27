@@ -27,6 +27,7 @@ import { collection, doc, setDoc, serverTimestamp, addDoc } from 'firebase/fires
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import confetti from 'canvas-confetti';
 
 function PaymentContent() {
   const router = useRouter();
@@ -102,6 +103,15 @@ function PaymentContent() {
 
       setIsSuccess(true);
       clearCart();
+
+      // Celebration Confetti
+      confetti({
+        particleCount: 200,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ['#E55C0A', '#FF9933', '#FFFFFF']
+      });
+
       toast({
         title: "Payment Successful!",
         description: "Your order has been placed and is being prepared."
@@ -140,7 +150,7 @@ function PaymentContent() {
           </div>
           <div className="pt-8 flex flex-col gap-4">
             <Link href="/dashboard">
-              <Button className="w-full h-14 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20">
+              <Button className="w-full h-14 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20 hover:scale-105 transition-transform">
                 Go to Dashboard
               </Button>
             </Link>
@@ -162,18 +172,18 @@ function PaymentContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB]">
+    <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/checkout" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg transition-transform hover:scale-110">
               <ChefHat className="text-white w-6 h-6" />
             </div>
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/checkout">
-              <Button variant="ghost" className="font-bold gap-2 rounded-xl">
+              <Button variant="ghost" className="font-bold gap-2 rounded-xl transition-all">
                 <ArrowLeft className="w-4 h-4" /> Back to Checkout
               </Button>
             </Link>
@@ -182,7 +192,7 @@ function PaymentContent() {
                 variant="ghost" 
                 size="icon" 
                 onClick={() => logout()} 
-                className="text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -199,7 +209,7 @@ function PaymentContent() {
             <p className="text-muted-foreground">Complete your transaction to place your order</p>
           </div>
 
-          <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white">
+          <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white transition-all hover:shadow-primary/5">
             <CardHeader className="bg-primary p-8 text-white text-center">
               <div className="space-y-1">
                 <p className="text-xs font-bold uppercase tracking-widest opacity-70">Amount to Pay</p>
@@ -216,7 +226,7 @@ function PaymentContent() {
                       <Input 
                         id="cardNumber" 
                         placeholder="0000 0000 0000 0000" 
-                        className="pl-10 h-12 rounded-xl"
+                        className="pl-10 h-12 rounded-xl transition-all focus:ring-primary/20"
                         required
                         maxLength={19}
                         disabled={isProcessing}
@@ -232,7 +242,7 @@ function PaymentContent() {
                         <Input 
                           id="expiry" 
                           placeholder="MM/YY" 
-                          className="pl-10 h-12 rounded-xl"
+                          className="pl-10 h-12 rounded-xl transition-all focus:ring-primary/20"
                           required
                           maxLength={5}
                           disabled={isProcessing}
@@ -247,7 +257,7 @@ function PaymentContent() {
                           id="cvv" 
                           type="password"
                           placeholder="***" 
-                          className="pl-10 h-12 rounded-xl"
+                          className="pl-10 h-12 rounded-xl transition-all focus:ring-primary/20"
                           required
                           maxLength={3}
                           disabled={isProcessing}
@@ -261,7 +271,7 @@ function PaymentContent() {
                   <Button 
                     type="submit"
                     disabled={isProcessing}
-                    className="w-full h-16 rounded-[2rem] bg-primary text-xl font-black shadow-xl shadow-primary/20 group relative overflow-hidden transition-all active:scale-95"
+                    className="w-full h-16 rounded-[2rem] bg-primary hover:bg-primary/90 text-white text-xl font-black shadow-xl shadow-primary/20 group relative overflow-hidden transition-all active:scale-95"
                   >
                     {isProcessing ? (
                       <div className="flex items-center gap-2">
@@ -277,7 +287,7 @@ function PaymentContent() {
               </form>
 
               <div className="flex flex-col items-center gap-4 py-4">
-                <div className="flex items-center gap-6 opacity-40 grayscale">
+                <div className="flex items-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all cursor-default">
                   <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
                   <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
                 </div>

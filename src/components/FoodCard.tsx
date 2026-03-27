@@ -34,6 +34,7 @@ export default function FoodCard({ food }: FoodCardProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [isAdding, setIsAdding] = useState(false);
+  const [isBouncing, setIsBouncing] = useState(false);
 
   const handleOrderNow = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,6 +45,9 @@ export default function FoodCard({ food }: FoodCardProps) {
     }
     
     setIsAdding(true);
+    setIsBouncing(true);
+    setTimeout(() => setIsBouncing(false), 300);
+
     try {
       await addToCart({ ...food, imageURL: food.imageURL || food.image });
       toast.success(`${food.name} added to cart!`);
@@ -58,7 +62,7 @@ export default function FoodCard({ food }: FoodCardProps) {
 
   return (
     <div className="group h-full perspective-1000 animate-in fade-in duration-500">
-      <Card className="relative h-full flex flex-col overflow-hidden transition-all duration-500 bg-white border border-border/40 shadow-sm hover:shadow-2xl hover:-translate-y-3 hover:scale-[1.02] rounded-[2.5rem] group cursor-pointer">
+      <Card className="relative h-full flex flex-col overflow-hidden transition-all duration-500 bg-white border border-border/40 shadow-sm hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-3 hover:scale-[1.01] rounded-[2.5rem] group cursor-pointer">
         {/* Image Container */}
         <div className="relative w-full aspect-[1/1] overflow-hidden bg-muted m-3 rounded-[2rem] shadow-inner group">
           <Image
@@ -123,7 +127,10 @@ export default function FoodCard({ food }: FoodCardProps) {
             <Button 
               onClick={handleOrderNow}
               disabled={isAdding}
-              className="flex-1 rounded-2xl h-14 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-xl shadow-primary/10 transition-all hover:scale-[1.05] active:scale-[0.95] group overflow-hidden"
+              className={cn(
+                "flex-1 rounded-2xl h-14 bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-xl shadow-primary/10 transition-all active:scale-[0.95] group overflow-hidden",
+                isBouncing && "animate-bounce-subtle"
+              )}
             >
               {isAdding ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

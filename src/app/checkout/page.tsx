@@ -33,6 +33,7 @@ import { collection, doc, setDoc, serverTimestamp, addDoc } from 'firebase/fires
 import toast from 'react-hot-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -127,6 +128,15 @@ export default function CheckoutPage() {
 
       setIsOrdered(true);
       clearCart();
+      
+      // Celebration Confetti
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#E55C0A', '#FF9933', '#FFFFFF']
+      });
+
       toast.success("Order Placed Successfully!", { id: orderToast });
     } catch (error: any) {
       console.error("Order Creation Error:", error);
@@ -192,11 +202,11 @@ export default function CheckoutPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground text-glow-primary">Bhartiya Swad</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/cart">
-              <Button variant="ghost" className="font-bold gap-2 rounded-xl hover:bg-primary/10">
+              <Button variant="ghost" className="font-bold gap-2 rounded-xl hover:bg-primary/10 transition-all">
                 <ArrowLeft className="w-4 h-4" /> Back to Cart
               </Button>
             </Link>
@@ -237,7 +247,7 @@ export default function CheckoutPage() {
                         <Input 
                           id="name" 
                           placeholder="Receiver's name" 
-                          className="pl-10 h-12 rounded-xl focus:ring-primary/20"
+                          className="pl-10 h-12 rounded-xl focus:ring-primary/20 transition-all"
                           value={deliveryDetails.name}
                           onChange={(e) => setDeliveryDetails({...deliveryDetails, name: e.target.value})}
                           required
@@ -252,7 +262,7 @@ export default function CheckoutPage() {
                         <Input 
                           id="phone" 
                           placeholder="+91 00000 00000" 
-                          className="pl-10 h-12 rounded-xl focus:ring-primary/20"
+                          className="pl-10 h-12 rounded-xl focus:ring-primary/20 transition-all"
                           value={deliveryDetails.phone}
                           onChange={(e) => setDeliveryDetails({...deliveryDetails, phone: e.target.value})}
                           required
@@ -293,7 +303,7 @@ export default function CheckoutPage() {
                       <RadioGroupItem value="COD" id="cod" className="peer sr-only" />
                       <Label
                         htmlFor="cod"
-                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
+                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent/5 hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
                       >
                         <Package className="mb-3 h-6 w-6 text-primary" />
                         <span className="font-black">Cash on Delivery</span>
@@ -303,7 +313,7 @@ export default function CheckoutPage() {
                       <RadioGroupItem value="Online" id="online" className="peer sr-only" />
                       <Label
                         htmlFor="online"
-                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
+                        className="flex flex-col items-center justify-between rounded-2xl border-2 border-muted bg-popover p-6 hover:bg-primary/5 hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all cursor-pointer"
                       >
                         <CreditCard className="mb-3 h-6 w-6 text-primary" />
                         <span className="font-black">Online Payment</span>
@@ -316,7 +326,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="w-full lg:w-[450px] space-y-6">
-            <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white sticky top-32">
+            <Card className="rounded-[2.5rem] border shadow-2xl overflow-hidden bg-white sticky top-32 transition-all hover:shadow-primary/5">
               <CardHeader className="bg-primary p-8 text-white">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-2xl font-headline font-black">Order Summary</CardTitle>
@@ -329,12 +339,12 @@ export default function CheckoutPage() {
                     {items.map((item) => (
                       <div key={item.id} className="flex justify-between items-center gap-4 transition-all hover:translate-x-1">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0 border">
+                          <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0 border shadow-sm transition-transform hover:scale-110">
                             <img src={item.imageURL} alt={item.name} className="object-cover w-full h-full" />
                           </div>
                           <div>
                             <p className="font-bold text-sm line-clamp-1">{item.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Qty: {item.quantity}</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Qty: {item.quantity}</p>
                           </div>
                         </div>
                         <p className="font-black text-sm text-primary">₹{item.price * item.quantity}</p>
@@ -372,7 +382,7 @@ export default function CheckoutPage() {
                 <Button 
                   onClick={handlePlaceOrder}
                   disabled={isProcessing || !deliveryDetails.address || !deliveryDetails.phone}
-                  className="w-full h-16 rounded-[2rem] bg-primary text-xl font-black shadow-xl shadow-primary/20 group relative overflow-hidden transition-all active:scale-95"
+                  className="w-full h-16 rounded-[2rem] bg-primary hover:bg-primary/90 text-white text-xl font-black shadow-xl shadow-primary/20 group relative overflow-hidden transition-all active:scale-95"
                 >
                   {isProcessing ? (
                     <div className="flex items-center gap-2">

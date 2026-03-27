@@ -22,7 +22,8 @@ import {
   Trash2,
   ShoppingBag,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -85,58 +86,74 @@ export default function DashboardPage() {
     }
   }, [user, loading, router, mounted]);
 
-  useEffect(() => {
-    async function getPersonalizedRecommendations() {
-      if (!user?.uid || !allDishes || allDishes.length === 0) return;
-      
-      setLoadingRecs(true);
-      try {
-        const orderRef = collection(db, 'orders');
-        const q = query(orderRef, where('userId', '==', user.uid), limit(15));
-        const orderSnap = await getDocs(q);
-        
-        const history: { name: string; category?: string }[] = [];
-        orderSnap.forEach((orderDoc) => {
-          const orderData = orderDoc.data();
-          if (orderData.items && Array.isArray(orderData.items)) {
-            orderData.items.forEach((item: any) => {
-              if (item.name) {
-                history.push({
-                  name: item.name,
-                  category: allDishes.find(f => f.id === item.dishId || f.name === item.name)?.category
-                });
-              }
-            });
-          }
-        });
-
-        const uniqueHistory = Array.from(new Set(history.map(h => h.name)))
-          .map(name => history.find(h => h.name === name)!);
-
-        const result = await personalizedFoodRecommendations({
-          userFoodHistory: uniqueHistory,
-          availableFoods: allDishes.map(f => ({
-            id: f.id,
-            name: f.name,
-            price: f.price,
-            category: f.category,
-            rating: f.rating,
-            imageURL: f.image || f.imageURL
-          }))
-        });
-        setRecommendations(result.recommendations || []);
-      } catch (e) {
-        console.warn("AI recommendations unavailable:", e);
-        setRecommendations([]);
-      } finally {
-        setLoadingRecs(false);
-        setHasAttemptedRecs(true);
-      }
+  const getPersonalizedRecommendations = async () => {
+    if (!user?.uid || !allDishes || allDishes.length === 0) {
+      toast.error("Add items to your history to get suggestions!");
+      return;
     }
-    if (mounted && allDishes && allDishes.length > 0 && user) {
+    
+    setLoadingRecs(true);
+    try {
+      const orderRef = collection(db, 'orders');
+      const q = query(orderRef, where('userId', '==', user.uid), limit(15));
+      const orderSnap = await getDocs(q);
+      
+      const history: { name: string; category?: string }[] = [];
+      orderSnap.forEach((orderDoc) => {
+        const orderData = orderDoc.data();
+        if (orderData.items && Array.isArray(orderData.items)) {
+          orderData.items.forEach((item: any) => {
+            if (item.name) {
+              history.push({
+                name: item.name,
+                category: allDishes.find(f => f.id === item.dishId || f.name === item.name)?.category
+              });
+            }
+          });
+        }
+      });
+
+      if (history.length === 0) {
+        setHasAttemptedRecs(true);
+        setRecommendations([]);
+        setLoadingRecs(false);
+        return;
+      }
+
+      const uniqueHistory = Array.from(new Set(history.map(h => h.name)))
+        .map(name => history.find(h => h.name === name)!);
+
+      const result = await personalizedFoodRecommendations({
+        userFoodHistory: uniqueHistory,
+        availableFoods: allDishes.map(f => ({
+          id: f.id,
+          name: f.name,
+          price: f.price,
+          category: f.category,
+          rating: f.rating,
+          imageURL: f.image || f.imageURL
+        }))
+      });
+      
+      setRecommendations(result.recommendations || []);
+      setHasAttemptedRecs(true);
+      if (result.recommendations?.length > 0) {
+        toast.success("We found some new favorites for you!");
+      }
+    } catch (e) {
+      console.warn("AI recommendations unavailable:", e);
+      setRecommendations([]);
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
+
+  // Initial fetch on mount if dishes available
+  useEffect(() => {
+    if (mounted && allDishes && allDishes.length > 0 && user && !hasAttemptedRecs) {
       getPersonalizedRecommendations();
     }
-  }, [user?.uid, allDishes, db, mounted]);
+  }, [user?.uid, allDishes, mounted]);
 
   if (!mounted || loading || !user) {
     return (
@@ -365,6 +382,85 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          {/* New Impressive AI Recommendations Section */}
+          <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-60 animate-float-slow"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-20 animate-drift-slow"></div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full text-primary text-[10px] font-black uppercase tracking-widest border border-primary/5">
+                  <Zap className="w-3 h-3 fill-primary" />
+                  AI-Powered Recommendations
+                </div>
+                <h2 className="text-4xl font-headline font-black text-foreground flex items-center gap-4">
+                  Smart Menu Curator
+                </h2>
+                <p className="text-muted-foreground font-medium max-w-lg">
+                  Our neural network analyzes your unique flavor profile to suggest your next favorite dish.
+                </p>
+              </div>
+              
+              <Button 
+                onClick={getPersonalizedRecommendations}
+                disabled={loadingRecs}
+                className="h-16 px-8 rounded-2xl bg-white hover:bg-muted/50 text-foreground border-2 border-primary/10 font-black text-lg shadow-xl transition-all active:scale-95 group"
+              >
+                {loadingRecs ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                ) : (
+                  <span className="flex items-center gap-3">
+                    <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+                    ✨ Get AI Suggestions
+                  </span>
+                )}
+              </Button>
+            </div>
+
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+              {loadingRecs ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-4 animate-pulse">
+                    <div className="aspect-square bg-muted/50 rounded-[2.5rem]"></div>
+                    <div className="h-4 bg-muted/50 rounded w-3/4"></div>
+                    <div className="h-4 bg-muted/50 rounded w-1/2"></div>
+                  </div>
+                ))
+              ) : recommendations.length > 0 ? (
+                recommendations.map((dish, i) => (
+                  <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 150}ms` }}>
+                    <div className="relative group">
+                      <FoodCard food={dish} />
+                      <div className="absolute -top-3 -right-3 pointer-events-none">
+                        <Badge className="bg-primary text-white border-4 border-[#FDFCFB] rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-tighter shadow-lg">
+                          98% Match
+                        </Badge>
+                      </div>
+                      <div className="mt-4 px-2">
+                        <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest italic">
+                          Recommended for you because you ordered similar items
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full py-20 text-center flex flex-col items-center gap-6 opacity-50 bg-white/30 backdrop-blur-sm rounded-[3rem] border-2 border-dashed border-primary/10">
+                  <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-inner">
+                    <Utensils className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-black text-xl text-foreground">Order something to unlock AI recommendations</p>
+                    <p className="text-sm font-medium">Your palate profile is currently being built as you explore our menu.</p>
+                  </div>
+                  <Link href="/menu">
+                    <Button variant="outline" className="rounded-xl font-bold border-primary text-primary">Browse the Menu</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </section>
+
           <section className="space-y-10">
             <div className="flex items-center justify-between">
               <div className="animate-in slide-in-from-left-4 duration-700">
@@ -472,37 +568,6 @@ export default function DashboardPage() {
                     <FoodCard food={{...dish, imageURL: dish.image}} />
                   </div>
                 ))}
-              </div>
-            </section>
-          )}
-
-          {hasAttemptedRecs && (
-            <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-60 animate-float-slow"></div>
-              
-              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
-                <div>
-                  <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
-                    <span className="w-10 h-10 text-primary animate-pulse inline-block"><Sparkles /></span>
-                    Personalized For You
-                  </h2>
-                  <p className="text-muted-foreground font-medium mt-1">Smart recommendations based on your unique palate.</p>
-                </div>
-                {loadingRecs && <Loader2 className="w-8 h-8 animate-spin text-primary" />}
-              </div>
-
-              <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                {recommendations.map((dish, i) => (
-                  <div key={dish.id} className="animate-in fade-in zoom-in duration-500" style={{ animationDelay: `${i * 100}ms` }}>
-                    <FoodCard food={dish} />
-                  </div>
-                ))}
-                {!loadingRecs && recommendations.length === 0 && (
-                  <div className="col-span-full py-20 text-center opacity-40 italic font-bold text-xl flex flex-col items-center gap-4">
-                    <ShoppingBag className="w-12 h-12" />
-                    Order a few more items to get tailored AI suggestions!
-                  </div>
-                )}
               </div>
             </section>
           )}

@@ -2,22 +2,25 @@
 "use client"
 
 import React, { useMemo, useState } from 'react';
-import { MessageSquare, Clock, User, Mail, Search, CheckCircle2, Trash2, Eye, Calendar } from 'lucide-react';
+import { MessageSquare, Clock, User, Mail, Search, CheckCircle2, Trash2, Eye, Calendar, Send } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, deleteDoc, updateDoc, query, orderBy, arrayUnion, Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminTicketsPage() {
   const db = useFirestore();
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [replyText, setReplyText] = useState("");
 
   const ticketsQuery = useMemoFirebase(() => {
     return query(collection(db, 'supportTickets'), orderBy('createdAt', 'desc'));
@@ -25,13 +28,14 @@ export default function AdminTicketsPage() {
 
   const { data: tickets, isLoading } = useCollection(ticketsQuery);
 
+  const activeTicket = useMemo(() => 
+    tickets?.find(t => t.id === selectedId), 
+  [tickets, selectedId]);
+
   const handleResolve = async (id: string) => {
     try {
       await updateDoc(doc(db, 'supportTickets', id), { status: 'resolved' });
       toast.success("Ticket marked as resolved");
-      if (selectedTicket?.id === id) {
-        setSelectedTicket({ ...selectedTicket, status: 'resolved' });
-      }
     } catch (err) {
       toast.error("Failed to update status");
     }
@@ -43,8 +47,29 @@ export default function AdminTicketsPage() {
       await deleteDoc(doc(db, 'supportTickets', id));
       toast.success("Inquiry removed");
       setIsDetailsOpen(false);
+      setSelectedId(null);
     } catch (err) {
       toast.error("Failed to delete");
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !selectedId) return;
+
+    const replyToast = toast.loading("Sending reply...");
+    try {
+      await updateDoc(doc(db, 'supportTickets', selectedId), {
+        replies: arrayUnion({
+          sender: "admin",
+          text: replyText.trim(),
+          createdAt: Timestamp.now()
+        })
+      });
+      setReplyText("");
+      toast.success("Reply sent", { id: replyToast });
+    } catch (err: any) {
+      console.error("Reply error:", err);
+      toast.error("Failed to send reply", { id: replyToast });
     }
   };
 
@@ -112,7 +137,7 @@ export default function AdminTicketsPage() {
                   key={ticket.id} 
                   className="hover:bg-muted/5 transition-colors border-b last:border-none group cursor-pointer"
                   onClick={() => {
-                    setSelectedTicket(ticket);
+                    setSelectedId(ticket.id);
                     setIsDetailsOpen(true);
                   }}
                 >
@@ -206,14 +231,14 @@ export default function AdminTicketsPage() {
                 <DialogTitle className="text-3xl font-headline font-black">Support Inquiry</DialogTitle>
                 <p className="text-white/70 font-bold mt-1 flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  {selectedTicket?.createdAt ? format(selectedTicket.createdAt.toDate ? selectedTicket.createdAt.toDate() : new Date(selectedTicket.createdAt), 'MMMM dd, yyyy') : 'Recently received'}
+                  {activeTicket?.createdAt ? format(activeTicket.createdAt.toDate ? activeTicket.createdAt.toDate() : new Date(activeTicket.createdAt), 'MMMM dd, yyyy') : 'Recently received'}
                 </p>
               </div>
               <Badge className={cn(
                 "rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none",
-                selectedTicket?.status === 'resolved' ? "bg-white text-green-600" : "bg-white text-orange-600"
+                activeTicket?.status === 'resolved' ? "bg-white text-green-600" : "bg-white text-orange-600"
               )}>
-                {selectedTicket?.status?.toUpperCase() || 'OPEN'}
+                {activeTicket?.status?.toUpperCase() || 'OPEN'}
               </Badge>
             </div>
           </DialogHeader>
@@ -227,7 +252,7 @@ export default function AdminTicketsPage() {
                     <User className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-foreground">{selectedTicket?.name}</p>
+                    <p className="font-bold text-sm text-foreground">{activeTicket?.name}</p>
                     <p className="text-[10px] text-muted-foreground">Name</p>
                   </div>
                 </div>
@@ -236,46 +261,101 @@ export default function AdminTicketsPage() {
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-foreground truncate">{selectedTicket?.email}</p>
+                    <p className="font-bold text-sm text-foreground truncate">{activeTicket?.email}</p>
                     <p className="text-[10px] text-muted-foreground">Email</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Customer Message</p>
-              <div className="p-6 bg-white rounded-2xl border leading-relaxed text-foreground whitespace-pre-wrap text-sm italic">
-                "{selectedTicket?.message}"
-              </div>
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Conversation History</p>
+              <ScrollArea className="h-[300px] w-full rounded-2xl border bg-white p-4 shadow-inner">
+                <div className="space-y-6">
+                  {/* Original Message */}
+                  <div className="flex flex-col items-start gap-1.5">
+                    <div className="bg-muted p-4 rounded-2xl rounded-tl-none max-w-[85%] text-sm shadow-sm border">
+                      <p className="font-black text-[10px] text-muted-foreground uppercase mb-1 tracking-tighter">{activeTicket?.name}</p>
+                      {activeTicket?.message}
+                    </div>
+                    <span className="text-[9px] text-muted-foreground font-bold px-1 opacity-60">
+                      {activeTicket?.createdAt && format(activeTicket.createdAt.toDate ? activeTicket.createdAt.toDate() : new Date(activeTicket.createdAt), 'MMM dd, p')}
+                    </span>
+                  </div>
+
+                  {/* Replies Array */}
+                  {(activeTicket?.replies || []).map((reply: any, i: number) => (
+                    <div key={i} className={cn("flex flex-col gap-1.5", reply.sender === 'admin' ? "items-end" : "items-start")}>
+                      <div className={cn(
+                        "p-4 rounded-2xl text-sm max-w-[85%] shadow-sm",
+                        reply.sender === 'admin' 
+                          ? "bg-primary text-white rounded-tr-none" 
+                          : "bg-muted rounded-tl-none border"
+                      )}>
+                        <p className={cn(
+                          "font-black text-[10px] uppercase mb-1 tracking-tighter",
+                          reply.sender === 'admin' ? "text-white/70" : "text-muted-foreground"
+                        )}>
+                          {reply.sender === 'admin' ? "System Administrator" : activeTicket?.name}
+                        </p>
+                        {reply.text}
+                      </div>
+                      <span className="text-[9px] text-muted-foreground font-bold px-1 opacity-60">
+                        {reply.createdAt && format(reply.createdAt.toDate ? reply.createdAt.toDate() : new Date(reply.createdAt), 'MMM dd, p')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
 
-            <div className="flex items-center justify-between pt-6 border-t border-dashed">
+            <div className="space-y-4 pt-4 border-t border-dashed">
               <div className="flex gap-3">
-                {selectedTicket?.status !== 'resolved' && (
-                  <Button 
-                    className="rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
-                    onClick={() => handleResolve(selectedTicket.id)}
-                  >
-                    Resolve Ticket
-                  </Button>
-                )}
+                <Input 
+                  placeholder="Type your response..." 
+                  className="rounded-xl h-12 bg-white border-muted focus-visible:ring-primary/20"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleReply();
+                  }}
+                />
                 <Button 
-                  variant="ghost"
-                  className="rounded-xl font-bold text-destructive hover:bg-destructive/5"
-                  onClick={() => handleDelete(selectedTicket.id)}
+                  onClick={handleReply}
+                  disabled={!replyText.trim()}
+                  className="h-12 w-12 rounded-xl bg-primary hover:bg-primary/90 shadow-lg p-0 shrink-0 transition-transform active:scale-90"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Permanent
+                  <Send className="w-5 h-5" />
                 </Button>
               </div>
-              <Button 
-                variant="outline" 
-                className="rounded-xl font-bold border-primary text-primary"
-                onClick={() => setIsDetailsOpen(false)}
-              >
-                Close View
-              </Button>
+
+              <div className="flex items-center justify-between gap-4 pt-2">
+                <div className="flex gap-3">
+                  {activeTicket?.status !== 'resolved' && (
+                    <Button 
+                      className="rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 h-11"
+                      onClick={() => handleResolve(activeTicket.id)}
+                    >
+                      Resolve
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost"
+                    className="rounded-xl font-bold text-destructive hover:bg-destructive/5 h-11"
+                    onClick={() => handleDelete(activeTicket.id)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="rounded-xl font-bold border-primary text-primary h-11"
+                  onClick={() => setIsDetailsOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>

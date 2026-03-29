@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useMemo, useState } from 'react';
-import { MessageSquare, Clock, User, Mail, Search, CheckCircle2, Trash2, Eye, Calendar, Send, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { MessageSquare, Clock, User, Mail, Search, CheckCircle2, Trash2, Eye, Calendar, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminTicketsPage() {
+  const router = useRouter();
   const db = useFirestore();
   const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -106,6 +108,21 @@ export default function AdminTicketsPage() {
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
       <div>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (window.history.length > 1) {
+              router.back();
+            } else {
+              router.push('/admin/dashboard');
+            }
+          }}
+          className="flex items-center gap-2 text-sm font-bold text-primary hover:text-primary hover:bg-primary/5 p-0 h-auto mb-6 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </Button>
+        
         <h1 className="text-4xl font-headline font-black mb-2 flex items-center gap-3 text-foreground">
           <MessageSquare className="w-10 h-10 text-primary" />
           Support Intelligence

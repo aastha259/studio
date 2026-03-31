@@ -28,6 +28,7 @@ service cloud.firestore {
       allow create: if true;
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // NOTIFICATIONS: Users can only see and manage their own notifications.
@@ -46,10 +47,13 @@ service cloud.firestore {
     // DISHES: Publicly viewable menu items. Admin can manage.
     match /dishes/{dishId} {
       allow read: if true;
-      allow write: if isAdmin() && 
+      // create and update require data validation
+      allow create, update: if isAdmin() && 
         request.resource.data.name is string &&
         request.resource.data.price is number &&
         request.resource.data.category is string;
+      // delete only requires admin role
+      allow delete: if isAdmin();
     }
 
     // USER PROFILES: Owners can manage their data, admins can see all.

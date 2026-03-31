@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -36,15 +35,12 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch ALL dishes for full catalog management
+  // Fetch ALL dishes for full catalog management with proper memoization
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'));
   }, [db]);
-  const { data: dishes, isLoading, error } = useCollection(allDishesQuery());
-
-  function allDishesQuery() {
-    return query(collection(db, 'dishes'));
-  }
+  
+  const { data: dishes, isLoading, error } = useCollection(dishesQuery);
 
   const handleDelete = async (id: string, name: string) => {
     if (!id) return;

@@ -72,7 +72,7 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, cartLoading, items.length, isOrdered, router, deliveryDetails.name]);
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
+  const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
@@ -92,8 +92,6 @@ export default function CheckoutPage() {
     }
 
     setIsProcessing(true);
-    const orderToast = toast.loading("Processing your order...");
-    
     const orderRef = doc(collection(db, 'orders'));
     const orderData = {
       orderId: orderRef.id,
@@ -111,50 +109,54 @@ export default function CheckoutPage() {
       paymentMethod: paymentMethod,
       paymentStatus: 'Cash on Delivery',
       deliveryDetails: deliveryDetails,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      isCancelled: false,
+      refundInitiated: false,
+      refundCompleted: false
     };
 
-    try {
-      await setDoc(orderRef, orderData);
-      
-      // Create Order Notification
-      await addDoc(collection(db, 'notifications'), {
-        userId: user.uid,
-        message: `Your order #${orderRef.id.slice(0, 8).toUpperCase()} has been placed successfully!`,
-        type: 'order',
-        read: false,
-        createdAt: serverTimestamp()
-      });
+    setDoc(orderRef, orderData)
+      .then(() => {
+        // Create Order Notification
+        const notifData = {
+          userId: user.uid,
+          message: `Your order #${orderRef.id.slice(0, 8).toUpperCase()} has been placed successfully!`,
+          type: 'order',
+          read: false,
+          createdAt: serverTimestamp()
+        };
+        addDoc(collection(db, 'notifications'), notifData).catch(async (notifError) => {
+          const permissionError = new FirestorePermissionError({
+            path: 'notifications',
+            operation: 'create',
+            requestResourceData: notifData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
 
-      setIsOrdered(true);
-      clearCart();
-      
-      // Celebration Confetti
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#E55C0A', '#FF9933', '#FFFFFF']
-      });
+        setIsOrdered(true);
+        clearCart();
+        
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#E55C0A', '#FF9933', '#FFFFFF']
+        });
 
-      toast.success("Order Placed Successfully!", { id: orderToast });
-    } catch (error: any) {
-      console.error("Order Creation Error:", error);
-      
-      if (error.code === 'permission-denied') {
+        toast.success("Order Placed Successfully!");
+      })
+      .catch(async (error: any) => {
         const permissionError = new FirestorePermissionError({
           path: 'orders',
           operation: 'create',
           requestResourceData: orderData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast.error("Security permission error.", { id: orderToast });
-      } else {
-        toast.error("Failed to place order. Try again.", { id: orderToast });
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+      })
+      .finally(() => {
+        setIsProcessing(false);
+      });
   };
 
   if (isOrdered) {

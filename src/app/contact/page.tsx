@@ -16,6 +16,8 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { format } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -41,7 +43,6 @@ export default function ContactPage() {
 
   const { data: rawTickets, isLoading: ticketsLoading } = useCollection(ticketsQuery);
 
-  // Client-side sorting to handle order without requiring a composite index
   const myTickets = useMemo(() => {
     if (!rawTickets) return [];
     return [...rawTickets].sort((a, b) => {
@@ -51,7 +52,7 @@ export default function ContactPage() {
     });
   }, [rawTickets]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) {
       toast.error("Please fill in all fields.");
@@ -59,34 +60,47 @@ export default function ContactPage() {
     }
 
     setLoading(true);
-    const contactToast = toast.loading("Sending your query...");
+    const ticketData = {
+      ...formData,
+      userId: user?.uid || null,
+      status: 'open',
+      replies: [],
+      createdAt: serverTimestamp()
+    };
 
-    try {
-      // 1. Save Support Ticket with standardized initial state
-      await addDoc(collection(db, 'supportTickets'), {
-        ...formData,
-        userId: user?.uid || null,
-        status: 'open',
-        replies: [],
-        createdAt: serverTimestamp()
+    // 1. Save Support Ticket
+    addDoc(collection(db, 'supportTickets'), ticketData)
+      .then(() => {
+        toast.success("Your query has been submitted. We'll get back to you soon!");
+        setFormData(prev => ({ ...prev, message: '' }));
+        
+        // 2. Trigger Admin Notification
+        const adminNotifData = {
+          message: `New support query received from ${formData.name}`,
+          type: 'support',
+          read: false,
+          createdAt: serverTimestamp()
+        };
+        addDoc(collection(db, 'notifications_admin'), adminNotifData).catch(async (notifError) => {
+          const permissionError = new FirestorePermissionError({
+            path: 'notifications_admin',
+            operation: 'create',
+            requestResourceData: adminNotifData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+      })
+      .catch(async (err: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'supportTickets',
+          operation: 'create',
+          requestResourceData: ticketData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setLoading(false);
       });
-
-      // 2. Trigger Admin Notification
-      await addDoc(collection(db, 'notifications_admin'), {
-        message: `New support query received from ${formData.name}`,
-        type: 'support',
-        read: false,
-        createdAt: serverTimestamp()
-      });
-
-      toast.success("Your query has been submitted. We'll get back to you soon!", { id: contactToast });
-      setFormData(prev => ({ ...prev, message: '' }));
-    } catch (err: any) {
-      console.error("Support submission error:", err);
-      toast.error("Failed to send message. Please try again.", { id: contactToast });
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -127,7 +141,6 @@ export default function ContactPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          {/* Submission Form */}
           <Card className="rounded-[3rem] border-none shadow-2xl overflow-hidden bg-white">
             <CardHeader className="bg-primary p-10 text-white">
               <CardTitle className="text-3xl font-headline font-black">Send a Message</CardTitle>
@@ -201,7 +214,6 @@ export default function ContactPage() {
             </CardContent>
           </Card>
 
-          {/* User Inquiry History */}
           <div className="space-y-8">
             <h2 className="text-3xl font-headline font-black flex items-center gap-3">
               <Clock className="w-8 h-8 text-primary" />
@@ -279,30 +291,6 @@ export default function ContactPage() {
                 </Link>
               </div>
             )}
-          </div>
-        </div>
-
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-center pt-12 border-t">
-          <div className="p-8 space-y-3">
-            <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto text-accent mb-4">
-              <Mail className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-lg">Direct Email</h3>
-            <p className="text-sm text-muted-foreground">support@bhartiyaswad.com</p>
-          </div>
-          <div className="p-8 space-y-3">
-            <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto text-green-600 mb-4">
-              <MessageSquare className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-lg">Live Chat</h3>
-            <p className="text-sm text-muted-foreground">Available 9 AM - 11 PM</p>
-          </div>
-          <div className="p-8 space-y-3">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary mb-4">
-              <ChefHat className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-lg">Corporate</h3>
-            <p className="text-sm text-muted-foreground">Headquarters, Mumbai, Bharat</p>
           </div>
         </div>
       </main>

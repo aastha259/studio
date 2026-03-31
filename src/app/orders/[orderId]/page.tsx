@@ -32,6 +32,8 @@ import { useAuth } from "@/lib/contexts/auth-context"
 import NotificationBell from "@/components/NotificationBell"
 import { cn, computeOrderStatus, STATUS_LABELS } from "@/lib/utils"
 import { normalizeOrder } from "@/lib/normalizeOrder"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 import toast from "react-hot-toast"
 
 const TRACKING_STEPS = [
@@ -82,22 +84,25 @@ export default function OrderTrackingPage() {
       const diffInMs = currentTime.getTime() - refundTime.getTime();
       
       if (diffInMs > 5 * 60 * 1000) {
-        try {
-          await updateDoc(doc(db, "orders", order.id), {
-            paymentStatus: "refunded",
-            refundCompleted: true
+        const docRef = doc(db, "orders", order.id);
+        updateDoc(docRef, {
+          paymentStatus: "refunded",
+          refundCompleted: true
+        }).catch(async (err) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: { paymentStatus: "refunded", refundCompleted: true }
           });
-          toast.success("Refund processed successfully!");
-        } catch (e) {
-          console.warn("Auto-refund sync issue", e);
-        }
+          errorEmitter.emit('permission-error', permissionError);
+        });
       }
     };
     
     processAutoRefund();
   }, [order, currentTime, db]);
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!order) return;
 
     const statusKey = computeOrderStatus(order.createdAt);
@@ -110,48 +115,63 @@ export default function OrderTrackingPage() {
     const confirmCancel = window.confirm("Are you sure you want to cancel this order? This action cannot be undone.");
     if (!confirmCancel) return;
 
-    const cancelToast = toast.loading("Processing cancellation...");
-    try {
-      await updateDoc(doc(db, "orders", order.id), {
-        status: "cancelled",
-        isCancelled: true,
-        cancelledAt: serverTimestamp(),
-        refundInitiated: order.paymentMethod === 'Online' || order.paymentMethod === 'online',
-        refundInitiatedAt: (order.paymentMethod === 'Online' || order.paymentMethod === 'online') ? serverTimestamp() : null
+    const cancelData = {
+      status: "cancelled",
+      isCancelled: true,
+      cancelledAt: serverTimestamp(),
+      refundInitiated: order.paymentMethod?.toLowerCase() === 'online',
+      refundInitiatedAt: order.paymentMethod?.toLowerCase() === 'online' ? serverTimestamp() : null
+    };
+
+    const docRef = doc(db, "orders", order.id);
+    updateDoc(docRef, cancelData)
+      .then(() => {
+        toast.success("Order cancelled successfully.");
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: cancelData
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-      toast.success("Order cancelled successfully.", { id: cancelToast });
-    } catch (err) {
-      toast.error("Failed to cancel order.", { id: cancelToast });
-    }
   };
 
-  const handleSubmitRating = async () => {
+  const handleSubmitRating = () => {
     if (!taste || !packaging || !delivery) {
       toast.error("Please provide ratings for all factors.");
       return;
     }
 
     setIsSubmittingRating(true);
-    const ratingToast = toast.loading("Submitting your feedback...");
+    const ratingData = {
+      isRated: true,
+      ratings: {
+        taste: Number(taste),
+        packaging: Number(packaging),
+        delivery: Number(delivery)
+      },
+      reviewText: review,
+      ratedAt: serverTimestamp()
+    };
 
-    try {
-      await updateDoc(doc(db, "orders", order.id), {
-        isRated: true,
-        ratings: {
-          taste: Number(taste),
-          packaging: Number(packaging),
-          delivery: Number(delivery)
-        },
-        reviewText: review,
-        ratedAt: serverTimestamp()
+    const docRef = doc(db, "orders", order.id);
+    updateDoc(docRef, ratingData)
+      .then(() => {
+        toast.success("Thank you for your feedback!");
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: ratingData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSubmittingRating(false);
       });
-      toast.success("Thank you for your feedback!", { id: ratingToast });
-    } catch (err) {
-      console.error("Rating Error:", err);
-      toast.error("Failed to submit rating.", { id: ratingToast });
-    } finally {
-      setIsSubmittingRating(false);
-    }
   };
 
   if (authLoading || orderLoading || !currentTime) {
@@ -331,7 +351,6 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
-        {/* FEEDBACK & RATING SECTION */}
         {showRatingUI && (
           <Card className="border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white animate-in slide-in-from-bottom-8 duration-700">
             <div className="bg-primary p-8 text-white text-center">
@@ -340,7 +359,6 @@ export default function OrderTrackingPage() {
             </div>
             <CardContent className="p-10 space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Taste Rating */}
                 <div className="flex flex-col items-center gap-4 p-6 bg-muted/20 rounded-[2rem] border border-transparent hover:border-primary/10 transition-all">
                   <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary">
                     <Utensils className="w-6 h-6" />
@@ -357,7 +375,6 @@ export default function OrderTrackingPage() {
                   </div>
                 </div>
 
-                {/* Packaging Rating */}
                 <div className="flex flex-col items-center gap-4 p-6 bg-muted/20 rounded-[2rem] border border-transparent hover:border-primary/10 transition-all">
                   <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary">
                     <Package className="w-6 h-6" />
@@ -374,7 +391,6 @@ export default function OrderTrackingPage() {
                   </div>
                 </div>
 
-                {/* Delivery Rating */}
                 <div className="flex flex-col items-center gap-4 p-6 bg-muted/20 rounded-[2rem] border border-transparent hover:border-primary/10 transition-all">
                   <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary">
                     <Truck className="w-6 h-6" />

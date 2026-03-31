@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -12,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
 
 export const MENU_CATEGORIES = [
@@ -35,35 +37,38 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch ALL dishes for full catalog management with proper memoization
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'));
   }, [db]);
   
   const { data: dishes, isLoading, error } = useCollection(dishesQuery);
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = (id: string, name: string) => {
     if (!id) return;
     
     const confirmDelete = confirm(`Are you sure you want to permanently remove "${name}" from the repository?`);
     if (!confirmDelete) return;
 
     setIsDeleting(id);
-    const deleteToast = toast.loading(`Deleting ${name}...`);
+    const docRef = doc(db, 'dishes', id);
     
-    try {
-      // Correct collection name from backend.json is 'dishes'
-      await deleteDoc(doc(db, 'dishes', id));
-      toast.success(`${name} removed successfully`, { id: deleteToast });
-    } catch (err: any) {
-      console.error("Delete error:", err);
-      toast.error("Failed to delete item. Please check permissions.", { id: deleteToast });
-    } finally {
-      setIsDeleting(null);
-    }
+    deleteDoc(docRef)
+      .then(() => {
+        toast.success(`${name} removed successfully`);
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsDeleting(null);
+      });
   };
 
-  const handleAddDish = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddDish = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
@@ -81,19 +86,26 @@ export default function AdminDatabasePage() {
       restaurantId: ''
     };
 
-    const addToast = toast.loading("Adding new dish...");
-    try {
-      await addDoc(collection(db, 'dishes'), newDish);
-      setIsAddDishOpen(false);
-      toast.success(`${newDish.name} is now live!`, { id: addToast });
-    } catch (err: any) {
-      toast.error("Failed to add dish.", { id: addToast });
-    } finally {
-      setIsSaving(false);
-    }
+    const dishesRef = collection(db, 'dishes');
+    addDoc(dishesRef, newDish)
+      .then(() => {
+        toast.success(`${newDish.name} is now live!`);
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'dishes',
+          operation: 'create',
+          requestResourceData: newDish,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSaving(false);
+        setIsAddDishOpen(false);
+      });
   };
 
-  const handleUpdateDish = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateDish = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingDish) return;
     
@@ -109,17 +121,24 @@ export default function AdminDatabasePage() {
       updatedAt: serverTimestamp()
     };
 
-    const updateToast = toast.loading("Updating records...");
-    try {
-      await updateDoc(doc(db, 'dishes', editingDish.id), updatedData);
-      setIsEditOpen(false);
-      setEditingDish(null);
-      toast.success("Dish records updated", { id: updateToast });
-    } catch (err: any) {
-      toast.error("Update failed", { id: updateToast });
-    } finally {
-      setIsSaving(false);
-    }
+    const docRef = doc(db, 'dishes', editingDish.id);
+    updateDoc(docRef, updatedData)
+      .then(() => {
+        toast.success("Dish records updated");
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: updatedData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSaving(false);
+        setIsEditOpen(false);
+        setEditingDish(null);
+      });
   };
 
   const handleMegaSeed500 = async () => {
@@ -131,7 +150,6 @@ export default function AdminDatabasePage() {
       let restaurantIds = resSnap.docs.map(d => d.id);
 
       if (restaurantIds.length === 0) {
-        toast.loading("Adding base restaurants...", { id: seedToast });
         const batch = writeBatch(db);
         const resNames = ['Royal Punjab', 'South Spice', 'The Pizza Co.', 'Burger King Indian', 'Street Delights'];
         const newResIds: string[] = [];
@@ -173,7 +191,7 @@ export default function AdminDatabasePage() {
             totalOrders: Math.floor(Math.random() * 200),
             totalRevenue: 0,
             restaurantId: restaurantIds[Math.floor(Math.random() * restaurantIds.length)],
-            createdAt: new Date().toISOString()
+            createdAt: serverTimestamp()
           });
         }
       });
@@ -183,11 +201,17 @@ export default function AdminDatabasePage() {
         const newDocRef = doc(collection(db, 'dishes'));
         batch.set(newDocRef, item);
       });
-      await batch.commit();
+      
+      batch.commit().catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'dishes',
+          operation: 'write',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
 
       toast.success(`Successfully added ${allItems.length} unique dishes.`, { id: seedToast });
     } catch (e: any) {
-      console.error("Seeding error:", e);
       toast.error("Repository sync failed.", { id: seedToast });
     } finally {
       setIsSeeding(false);
@@ -378,7 +402,6 @@ export default function AdminDatabasePage() {
         </div>
       </Card>
 
-      {/* Edit Dish Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl">
           <DialogHeader>

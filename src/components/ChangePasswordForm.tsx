@@ -12,11 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { toast } from 'react-hot-toast';
-import { Loader2, Lock, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, Lock, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function ChangePasswordForm() {
   const auth = useFirebaseAuth();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -31,7 +32,6 @@ export default function ChangePasswordForm() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 1. Basic Validation
     if (!formData.currentPassword || !formData.newPassword) {
       toast.error("Please fill in all password fields.");
       return;
@@ -57,27 +57,18 @@ export default function ChangePasswordForm() {
     const updateToast = toast.loading("Verifying and updating credentials...");
 
     try {
-      // 🔐 Step 1: Create credential using current password
-      // CRITICAL: This verifies the user's identity before allowing a password change
       const credential = EmailAuthProvider.credential(user.email, formData.currentPassword);
-      
-      // 🔐 Step 2: Re-authenticate the user (MANDATORY for password update)
       await reauthenticateWithCredential(user, credential);
-      
-      // 🔐 Step 3: Update to the new password in Firebase Auth
-      // NOTE: Password is managed ONLY by Firebase Auth, never stored in Firestore.
       await updatePassword(user, formData.newPassword);
 
       toast.success("Security Updated Successfully!", { id: updateToast });
 
-      // Reset form
       setFormData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
 
-      // 🔄 Step 4: Refresh session to ensure full state synchronization
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -121,14 +112,21 @@ export default function ChangePasswordForm() {
                 <Input 
                   id="currentPassword"
                   name="currentPassword"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="Verify existing password" 
-                  className="pl-10 h-12 rounded-xl border-muted focus-visible:ring-primary/20"
+                  className="pl-10 pr-10 h-12 rounded-xl border-muted focus-visible:ring-primary/20"
                   value={formData.currentPassword}
                   onChange={handleInputChange}
                   required
                   disabled={loading}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -140,14 +138,21 @@ export default function ChangePasswordForm() {
                   <Input 
                     id="newPassword"
                     name="newPassword"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Min 6 characters" 
-                    className="pl-10 h-12 rounded-xl border-muted focus-visible:ring-primary/20"
+                    className="pl-10 pr-10 h-12 rounded-xl border-muted focus-visible:ring-primary/20"
                     value={formData.newPassword}
                     onChange={handleInputChange}
                     required
                     disabled={loading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
               <div className="space-y-2">
@@ -157,14 +162,21 @@ export default function ChangePasswordForm() {
                   <Input 
                     id="confirmPassword"
                     name="confirmPassword"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Repeat new password" 
-                    className="pl-10 h-12 rounded-xl border-muted focus-visible:ring-primary/20"
+                    className="pl-10 pr-10 h-12 rounded-xl border-muted focus-visible:ring-primary/20"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     required
                     disabled={loading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
             </div>

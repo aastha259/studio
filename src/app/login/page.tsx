@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChefHat, Mail, Lock, Shield, ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
+import { ChefHat, Mail, Lock, Shield, ArrowRight, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,6 +27,7 @@ function LoginForm() {
   const db = useFirestore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -75,33 +76,34 @@ function LoginForm() {
       let userCredential;
 
       if (role === 'admin') {
-        // System Administrator Login Logic
         try {
-          // 1. Attempt standard sign-in with provided credentials
           userCredential = await signInWithEmailAndPassword(auth, email, password);
           
-          // 2. Strict authorization check
           if (email !== 'pqr@admin.com') {
             toast.error("Access denied. Unauthorized administrator account.", { id: loginToastId });
             setLoading(false);
             return;
           }
         } catch (err: any) {
-          // 3. Handle Bootstrap Case: If user doesn't exist and matches the initial setup credentials
-          const isAuthError = ['auth/user-not-found', 'auth/invalid-credential'].includes(err.code);
+          const isBootstrapAccount = email === 'pqr@admin.com' && password === 'aastha123';
+          const canAttemptCreation = err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential';
           
-          if (isAuthError && email === 'pqr@admin.com' && password === 'aastha123') {
-            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          if (isBootstrapAccount && canAttemptCreation) {
+            try {
+              userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            } catch (createErr: any) {
+              if (createErr.code === 'auth/email-already-in-use') {
+                throw err;
+              }
+              throw createErr;
+            }
           } else {
-            // Re-throw if it's a legitimate failure (wrong password for existing admin, etc.)
             throw err;
           }
         }
 
-        // Admin Session Tagging
         if (typeof window !== 'undefined') localStorage.setItem('bhartiya_swad_admin', 'true');
 
-        // Ensure roles are mirrored in Firestore
         await setDoc(doc(db, 'admin_roles', userCredential.user.uid), {
           email: userCredential.user.email,
           role: 'admin',
@@ -122,7 +124,6 @@ function LoginForm() {
         router.push('/admin/dashboard');
 
       } else {
-        // Standard User Login
         userCredential = await signInWithEmailAndPassword(auth, email, password);
         const userRef = doc(db, 'users', userCredential.user.uid);
         
@@ -149,23 +150,11 @@ function LoginForm() {
         router.push(callbackUrl || lastPage || '/dashboard');
       }
     } catch (error: any) {
-      const isAuthError = [
-        'auth/invalid-credential',
-        'auth/user-not-found',
-        'auth/wrong-password',
-        'auth/too-many-requests'
-      ].includes(error.code);
-
-      // Silence expected auth failures in console to avoid development overlays
-      if (!isAuthError) {
-        console.error("Auth System Error:", error);
-      }
-      
+      setLoading(false);
       let message = "Invalid email or password.";
       if (error.code === 'auth/too-many-requests') {
         message = "Too many failed attempts. Try again later.";
       }
-      
       toast.error(message, { id: loginToastId });
     } finally {
       setLoading(false);
@@ -208,13 +197,20 @@ function LoginForm() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input 
-                    type="password" 
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••" 
-                    className="pl-12 h-14 rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
+                    className="pl-12 pr-12 h-14 rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </div>
 
@@ -279,13 +275,20 @@ function LoginForm() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input 
-                    type="password" 
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••" 
-                    className="pl-12 h-14 rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
+                    className="pl-12 pr-12 h-14 rounded-2xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </div>
               <Button 

@@ -1,10 +1,9 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChefHat, Mail, Lock, User, Phone, ArrowRight, Loader2 } from 'lucide-react';
+import { ChefHat, Mail, Lock, User, Phone, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +19,7 @@ export default function SignupPage() {
   const db = useFirestore();
   const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -55,16 +55,13 @@ export default function SignupPage() {
     const signupToast = toast.loading("Creating your account...");
     
     try {
-      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
 
-      // 2. Update Auth Profile with Display Name
       await updateProfile(user, {
         displayName: formData.fullName
       });
 
-      // 3. Save additional data in Firestore
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
         uid: user.uid,
@@ -101,7 +98,6 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden" suppressHydrationWarning>
-      {/* Background Pattern */}
       <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
         <div className="grid grid-cols-12 gap-4 h-full w-full rotate-12 scale-150">
           {Array.from({ length: 48 }).map((_, i) => (
@@ -184,14 +180,21 @@ export default function SignupPage() {
                     <Input 
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••" 
-                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
+                      className="pl-10 pr-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                       value={formData.password}
                       onChange={handleInputChange}
                       required
                       disabled={loading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -201,14 +204,21 @@ export default function SignupPage() {
                     <Input 
                       id="confirmPassword"
                       name="confirmPassword"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••" 
-                      className="pl-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
+                      className="pl-10 pr-10 h-12 rounded-xl bg-muted/30 border-none focus-visible:ring-primary/20 transition-all"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       required
                       disabled={loading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </div>
               </div>

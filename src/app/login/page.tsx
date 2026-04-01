@@ -32,7 +32,6 @@ function LoginForm() {
 
   const callbackUrl = searchParams.get('callbackUrl');
 
-  // Ensure clean state and handle role-based redirection if user is already logged in
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -79,8 +78,17 @@ function LoginForm() {
           try {
             userCredential = await signInWithEmailAndPassword(auth, email, password);
           } catch (err: any) {
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-              userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // Only attempt to create the account if it definitely doesn't exist
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+              try {
+                userCredential = await createUserWithEmailAndPassword(auth, email, password);
+              } catch (createErr: any) {
+                // If creation fails because it exists, the original sign-in error was likely wrong password
+                if (createErr.code === 'auth/email-already-in-use') {
+                  throw err;
+                }
+                throw createErr;
+              }
             } else {
               throw err;
             }
@@ -306,7 +314,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden" suppressHydrationWarning>
-      {/* Navigation - Back to Home */}
       <div className="absolute top-8 left-8 z-50">
         <Link href="/">
           <Button variant="ghost" className="font-bold gap-2 rounded-xl hover:bg-primary/10 transition-all text-muted-foreground hover:text-primary">

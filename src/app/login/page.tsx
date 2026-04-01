@@ -69,31 +69,39 @@ function LoginForm() {
     }
 
     setLoading(true);
-    const loginToast = toast.loading(role === 'admin' ? "Authenticating Admin..." : "Signing you in...");
+    const loginToastId = toast.loading(role === 'admin' ? "Authenticating Admin..." : "Signing you in...");
     
     try {
       if (role === 'admin') {
         if (email === 'xyz@admin.com' && password === 'admin@123') {
           let userCredential;
           try {
+            // Attempt standard sign in
             userCredential = await signInWithEmailAndPassword(auth, email, password);
           } catch (err: any) {
-            // Only attempt to create the account if it definitely doesn't exist
+            // If sign in fails, check if we need to bootstrap the account
+            // auth/invalid-credential is the common error for both wrong pwd and missing user in newer Firebase SDKs
             if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
               try {
+                // Account might not exist, attempt creation
                 userCredential = await createUserWithEmailAndPassword(auth, email, password);
               } catch (createErr: any) {
-                // If creation fails because it exists, the original sign-in error was likely wrong password
+                // If creation fails with email-already-in-use, then the original sign-in failed due to wrong password
                 if (createErr.code === 'auth/email-already-in-use') {
-                  throw err;
+                  toast.error("Incorrect password for administrator.", { id: loginToastId });
+                  setLoading(false);
+                  return;
                 }
+                // Otherwise it's a real creation error
                 throw createErr;
               }
             } else {
+              // It's a different error (network, etc)
               throw err;
             }
           }
 
+          // At this point we have a userCredential
           if (typeof window !== 'undefined') localStorage.setItem('bhartiya_swad_admin', 'true');
 
           await setDoc(doc(db, 'admin_roles', userCredential.user.uid), {
@@ -114,12 +122,13 @@ function LoginForm() {
             lastLogin: serverTimestamp()
           }, { merge: true });
           
-          toast.success("Admin Access Granted", { id: loginToast });
+          toast.success("Admin Access Granted", { id: loginToastId });
           router.push('/admin/dashboard');
         } else {
-          toast.error("Invalid admin credentials", { id: loginToast });
+          toast.error("Invalid admin credentials provided.", { id: loginToastId });
         }
       } else {
+        // Standard User Login
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const userRef = doc(db, 'users', userCredential.user.uid);
         
@@ -141,23 +150,34 @@ function LoginForm() {
           await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
         }
 
-        toast.success("Welcome back!", { id: loginToast });
-        
+        toast.success("Welcome back!", { id: loginToastId });
         const lastPage = localStorage.getItem('bhartiya_swad_last_page');
-        const redirectPath = callbackUrl || lastPage || '/dashboard';
-        router.push(redirectPath);
+        router.push(callbackUrl || lastPage || '/dashboard');
       }
     } catch (error: any) {
-      console.error("Auth Error:", error);
-      let message = "An unexpected error occurred.";
-      if (error.code === 'auth/operation-not-allowed') {
-        message = "Login provider not enabled.";
-      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        message = "Invalid email or password.";
-      } else if (error.code === 'auth/too-many-requests') {
-        message = "Too many failed attempts. Try again later.";
+      // Silence common auth errors from console to prevent Next.js Dev Overlay recursion
+      const isExpectedAuthError = [
+        'auth/invalid-credential',
+        'auth/user-not-found',
+        'auth/wrong-password',
+        'auth/too-many-requests',
+        'auth/network-request-failed'
+      ].includes(error?.code);
+
+      if (!isExpectedAuthError) {
+        console.error("Critical Authentication Failure:", error);
       }
-      toast.error(message, { id: loginToast });
+
+      let message = "An unexpected error occurred during login.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        message = "Invalid email or password. Please try again.";
+      } else if (error.code === 'auth/too-many-requests') {
+        message = "Too many failed attempts. Your account is temporarily locked.";
+      } else if (error.code === 'auth/network-request-failed') {
+        message = "Connection error. Please check your internet.";
+      }
+      
+      toast.error(message, { id: loginToastId });
     } finally {
       setLoading(false);
     }

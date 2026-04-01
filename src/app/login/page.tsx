@@ -73,19 +73,19 @@ function LoginForm() {
     
     try {
       if (role === 'admin') {
-        // Updated Admin Password Check
+        // System Administrator Hardcoded Credential Handshake
         if (email === 'xyz@admin.com' && password === 'admin@*123') {
           let userCredential;
           try {
             userCredential = await signInWithEmailAndPassword(auth, email, password);
           } catch (err: any) {
-            // Only attempt bootstrap creation if user is definitely missing
+            // Only attempt bootstrap creation if user is definitely missing from Auth
             if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
               try {
                 userCredential = await createUserWithEmailAndPassword(auth, email, password);
               } catch (createErr: any) {
                 if (createErr.code === 'auth/email-already-in-use') {
-                  toast.error("Invalid credentials for system administrator.", { id: loginToastId });
+                  toast.error("System account conflict. Please verify credentials.", { id: loginToastId });
                   setLoading(false);
                   return;
                 }
@@ -149,7 +149,7 @@ function LoginForm() {
         router.push(callbackUrl || lastPage || '/dashboard');
       }
     } catch (error: any) {
-      // Silence common auth errors from console to prevent Dev Overlay loops
+      // Silence common auth errors from console to prevent recursive Dev Overlay loops in dev environment
       const isExpectedError = [
         'auth/invalid-credential',
         'auth/user-not-found',
@@ -158,7 +158,7 @@ function LoginForm() {
       ].includes(error?.code);
 
       if (!isExpectedError) {
-        console.warn("Auth status:", error.code || "unknown");
+        console.warn("Auth check:", error.code || "Handshake logic in progress");
       }
 
       let message = "An error occurred during sign in.";

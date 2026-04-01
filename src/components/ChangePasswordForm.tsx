@@ -58,12 +58,14 @@ export default function ChangePasswordForm() {
 
     try {
       // 🔐 Step 1: Create credential using current password
+      // CRITICAL: This verifies the user's identity before allowing a password change
       const credential = EmailAuthProvider.credential(user.email, formData.currentPassword);
       
       // 🔐 Step 2: Re-authenticate the user (MANDATORY for password update)
       await reauthenticateWithCredential(user, credential);
       
-      // 🔐 Step 3: Update to the new password in Firebase Auth (STRICTLY Auth, no Firestore)
+      // 🔐 Step 3: Update to the new password in Firebase Auth
+      // NOTE: Password is managed ONLY by Firebase Auth, never stored in Firestore.
       await updatePassword(user, formData.newPassword);
 
       toast.success("Security Updated Successfully!", { id: updateToast });
@@ -75,7 +77,7 @@ export default function ChangePasswordForm() {
         confirmPassword: ''
       });
 
-      // 🔄 Step 4: Refresh session
+      // 🔄 Step 4: Refresh session to ensure full state synchronization
       setTimeout(() => {
         window.location.reload();
       }, 1000);

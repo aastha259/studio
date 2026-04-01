@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -73,59 +72,58 @@ function LoginForm() {
     const loginToastId = toast.loading(role === 'admin' ? "Authenticating Admin..." : "Signing you in...");
     
     try {
+      let userCredential;
+
       if (role === 'admin') {
-        // System Administrator Hardcoded Credential Handshake
-        if (email === 'pqr@admin.com' && password === 'aastha123') {
-          let userCredential;
-          try {
-            userCredential = await signInWithEmailAndPassword(auth, email, password);
-          } catch (err: any) {
-            // Only attempt bootstrap creation if user is definitely missing from Auth
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-              try {
-                userCredential = await createUserWithEmailAndPassword(auth, email, password);
-              } catch (createErr: any) {
-                if (createErr.code === 'auth/email-already-in-use') {
-                  // If account exists but sign-in failed, original error was correct
-                  toast.error("Account exists but credentials failed. Check your password.", { id: loginToastId });
-                  setLoading(false);
-                  return;
-                }
-                throw createErr;
-              }
-            } else {
-              throw err;
-            }
-          }
-
-          if (typeof window !== 'undefined') localStorage.setItem('bhartiya_swad_admin', 'true');
-
-          await setDoc(doc(db, 'admin_roles', userCredential.user.uid), {
-            email: userCredential.user.email,
-            role: 'admin',
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-
-          await setDoc(doc(db, 'users', userCredential.user.uid), {
-            id: userCredential.user.uid,
-            uid: userCredential.user.uid,
-            email: userCredential.user.email,
-            name: 'System Administrator',
-            displayName: 'System Administrator',
-            role: 'admin',
-            totalOrders: 0,
-            totalSpent: 0,
-            lastLogin: serverTimestamp()
-          }, { merge: true });
+        // System Administrator Login Logic
+        try {
+          // 1. Attempt standard sign-in with provided credentials
+          userCredential = await signInWithEmailAndPassword(auth, email, password);
           
-          toast.success("Admin Access Granted", { id: loginToastId });
-          router.push('/admin/dashboard');
-        } else {
-          toast.error("Invalid admin credentials provided.", { id: loginToastId });
+          // 2. Strict authorization check
+          if (email !== 'pqr@admin.com') {
+            toast.error("Access denied. Unauthorized administrator account.", { id: loginToastId });
+            setLoading(false);
+            return;
+          }
+        } catch (err: any) {
+          // 3. Handle Bootstrap Case: If user doesn't exist and matches the initial setup credentials
+          const isAuthError = ['auth/user-not-found', 'auth/invalid-credential'].includes(err.code);
+          
+          if (isAuthError && email === 'pqr@admin.com' && password === 'aastha123') {
+            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          } else {
+            // Re-throw if it's a legitimate failure (wrong password for existing admin, etc.)
+            throw err;
+          }
         }
+
+        // Admin Session Tagging
+        if (typeof window !== 'undefined') localStorage.setItem('bhartiya_swad_admin', 'true');
+
+        // Ensure roles are mirrored in Firestore
+        await setDoc(doc(db, 'admin_roles', userCredential.user.uid), {
+          email: userCredential.user.email,
+          role: 'admin',
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          id: userCredential.user.uid,
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          name: 'System Administrator',
+          displayName: 'System Administrator',
+          role: 'admin',
+          lastLogin: serverTimestamp()
+        }, { merge: true });
+        
+        toast.success("Admin Access Granted", { id: loginToastId });
+        router.push('/admin/dashboard');
+
       } else {
         // Standard User Login
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
         const userRef = doc(db, 'users', userCredential.user.uid);
         
         const userDoc = await getDoc(userRef);
@@ -151,10 +149,20 @@ function LoginForm() {
         router.push(callbackUrl || lastPage || '/dashboard');
       }
     } catch (error: any) {
-      let message = "An error occurred during sign in.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        message = "Invalid email or password.";
-      } else if (error.code === 'auth/too-many-requests') {
+      const isAuthError = [
+        'auth/invalid-credential',
+        'auth/user-not-found',
+        'auth/wrong-password',
+        'auth/too-many-requests'
+      ].includes(error.code);
+
+      // Silence expected auth failures in console to avoid development overlays
+      if (!isAuthError) {
+        console.error("Auth System Error:", error);
+      }
+      
+      let message = "Invalid email or password.";
+      if (error.code === 'auth/too-many-requests') {
         message = "Too many failed attempts. Try again later.";
       }
       

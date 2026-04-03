@@ -1,3 +1,4 @@
+console.log("PROJECT ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 export const firebaseConfig = {
   apiKey: "AIzaSyDJhSSTcOgYHt9y_bJEYn4ih6D6_4Rht4s",
   authDomain: "bhartiya-swad-1.firebaseapp.com",

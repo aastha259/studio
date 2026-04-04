@@ -10,16 +10,7 @@ import { getMessaging, isSupported } from 'firebase/messaging';
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {
-    let firebaseApp;
-    try {
-      const firebaseApp = initializeApp(firebaseConfig);
-    } catch (e) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
-    }
-
+    const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }
 

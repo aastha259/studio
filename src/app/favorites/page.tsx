@@ -21,7 +21,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import NotificationBell from '@/components/NotificationBell';
 import UserNav from '@/components/UserNav';
 import FoodCard from '@/components/FoodCard';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 
 export default function FavoritesPage() {
   const router = useRouter();
@@ -34,16 +34,26 @@ export default function FavoritesPage() {
   }, []);
 
   // Fetch user's favorites
+  // We removed the orderBy clause to avoid the need for a composite index
   const favoritesQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(
       collection(db, 'favorites'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
   }, [db, user?.uid]);
 
-  const { data: favorites, isLoading: favsLoading } = useCollection(favoritesQuery);
+  const { data: rawFavorites, isLoading: favsLoading } = useCollection(favoritesQuery);
+
+  // Perform sorting on the client side to bypass Firestore index requirements
+  const favorites = useMemo(() => {
+    if (!rawFavorites) return [];
+    return [...rawFavorites].sort((a, b) => {
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return dateB - dateA;
+    });
+  }, [rawFavorites]);
 
   useEffect(() => {
     if (mounted && !loading && !user) {

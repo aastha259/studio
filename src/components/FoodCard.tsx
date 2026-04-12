@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { Star, ShoppingCart, Leaf, Beef, Plus, Heart, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -10,8 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface FoodCardProps {
   food: {
@@ -32,14 +36,70 @@ interface FoodCardProps {
 export default function FoodCard({ food }: FoodCardProps) {
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const [isAdding, setIsAdding] = useState(false);
   const [isBouncing, setIsBouncing] = useState(false);
 
+  // Check if this dish is favorited by the user
+  const favDocId = user ? `${user.uid}_${food.id}` : null;
+  const favRef = useMemoFirebase(() => {
+    if (!favDocId) return null;
+    return doc(db, 'favorites', favDocId);
+  }, [db, favDocId]);
+
+  const { data: favoriteData } = useDoc(favRef);
+  const isFavorite = !!favoriteData;
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast.success("Log in to save your favorites!", { icon: '❤️' });
+      router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+
+    if (!favRef) return;
+
+    if (isFavorite) {
+      // Remove from favorites
+      deleteDoc(favRef).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: favRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+      toast.success("Removed from favorites", { icon: '🤍' });
+    } else {
+      // Add to favorites
+      const favData = {
+        userId: user.uid,
+        dishId: food.id,
+        name: food.name,
+        price: food.price,
+        image: food.imageURL || food.image || `https://picsum.photos/seed/${food.id}/800/600`,
+        category: food.category,
+        rating: food.rating,
+        isVeg: food.isVeg,
+        createdAt: serverTimestamp()
+      };
+
+      setDoc(favRef, favData).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: favRef.path,
+          operation: 'create',
+          requestResourceData: favData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+      toast.success("Added to favorites", { icon: '❤️' });
+    }
+  };
+
   const handleOrderNow = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
-      // Save selected item temporarily
       localStorage.setItem("pendingCartItem", JSON.stringify(food));
       toast.success("Log in to add this to your cart!", { icon: '👋' });
       router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
@@ -93,8 +153,16 @@ export default function FoodCard({ food }: FoodCardProps) {
             </div>
             
             <div className="flex flex-col gap-2 pointer-events-auto">
-               <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-white/90 backdrop-blur-md text-muted-foreground hover:text-accent transition-all shadow-lg active:scale-90">
-                <Heart className="w-4 h-4" />
+               <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleToggleFavorite}
+                className={cn(
+                  "w-8 h-8 rounded-xl backdrop-blur-md transition-all shadow-lg active:scale-90",
+                  isFavorite ? "bg-primary text-white" : "bg-white/90 text-muted-foreground hover:text-accent"
+                )}
+              >
+                <Heart className={cn("w-4 h-4", isFavorite && "fill-current")} />
               </Button>
             </div>
           </div>

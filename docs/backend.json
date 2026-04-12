@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -155,6 +156,25 @@
         "resolvedBy": { "type": "string", "description": "UID of the admin who resolved the ticket." }
       },
       "required": ["name", "email", "message", "createdAt"]
+    },
+    "Favorite": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Favorite",
+      "type": "object",
+      "description": "Represents a user's favorite dish.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "dishId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string", "format": "uri" },
+        "category": { "type": "string" },
+        "rating": { "type": "number" },
+        "isVeg": { "type": "boolean" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["userId", "dishId", "name", "price", "createdAt"]
     }
   },
   "auth": {
@@ -188,6 +208,10 @@
     "/supportTickets/{ticketId}": {
       "schema": "SupportTicket",
       "description": "Stores customer inquiries."
+    },
+    "/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "Stores user favorite dishes."
     }
   }
 }

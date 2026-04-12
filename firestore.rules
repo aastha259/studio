@@ -23,6 +23,14 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    // FAVORITES: Users manage their own favorites
+    match /favorites/{favId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
     // SUPPORT TICKETS: Users can see their own, public can create, admin manages all.
     match /supportTickets/{ticketId} {
       allow create: if true;

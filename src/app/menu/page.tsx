@@ -1,6 +1,6 @@
 
 "use client"
-
+import { collection, query, where } from 'firebase/firestore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -88,6 +88,17 @@ export default function MenuPage() {
       setIsSearching(false);
     }
   }, [search]);
+  const favQuery = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return query(
+      collection(db, 'favorites'),
+      where('userId', '==', user.uid)
+    );
+  }, [db, user?.uid]);
+  
+  const { data: favorites } = useCollection(favQuery);
+  
+  const favoriteIds = new Set(favorites?.map(f => f.dishId));
 
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), limit(100));
@@ -365,7 +376,10 @@ export default function MenuPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
                   {filteredDishes.map((dish, index) => (
                     <div key={dish.id} style={{ animationDelay: `${index * 50}ms` }}>
-                      <FoodCard food={{...dish, imageURL: dish.image}} />
+                      <FoodCard 
+  food={{...dish, imageURL: dish.image}} 
+  isFavorite={favoriteIds.has(dish.id)}
+/>
                     </div>
                   ))}
                 </div>

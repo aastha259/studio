@@ -39,8 +39,8 @@ import FoodCard from '@/components/FoodCard';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import NotificationBell from '@/components/NotificationBell';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, orderBy, limit, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import UserNav from '@/components/UserNav';
@@ -52,10 +52,7 @@ export default function DashboardPage() {
   const db = useFirestore();
 
   const [mounted, setMounted] = useState(false);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [recentlySeenIds, setRecentlySeenIds] = useState<string[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
-  const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -67,6 +64,13 @@ export default function DashboardPage() {
     }
   }, [user, loading, router, mounted]);
 
+  // Shared Source of Truth for Recommendations
+  const recsRef = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return doc(db, 'userRecommendations', user.uid);
+  }, [db, user?.uid]);
+  const { data: persistedRecs, isLoading: recsFetching } = useDoc(recsRef);
+
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), limit(150));
   }, [db]);
@@ -77,12 +81,11 @@ export default function DashboardPage() {
   }, [db]);
   const { data: trendingDishes } = useCollection(trendingQuery);
 
-  const getPersonalizedRecommendations = async () => {
+  const generateRecommendations = async () => {
     if (!user?.uid || !allDishes || allDishes.length === 0) return;
     
     setLoadingRecs(true);
     try {
-      // 1. Fetch Transactional History
       const orderRef = collection(db, 'orders');
       const q = query(orderRef, where('userId', '==', user.uid), limit(20));
       const orderSnap = await getDocs(q);
@@ -100,7 +103,7 @@ export default function DashboardPage() {
         }
       });
 
-      // 2. Call AI Flow with Exclusion tracking and Entropy
+      const entropy = Math.random();
       const result = await personalizedFoodRecommendations({
         userFoodHistory: history,
         availableFoods: allDishes.map(f => ({
@@ -113,35 +116,33 @@ export default function DashboardPage() {
           isVeg: f.isVeg,
           description: f.description
         })),
-        recentlySeenIds: recentlySeenIds,
-        entropy: Math.random()
+        entropy: entropy
       });
       
-      const newRecs = result.recommendations || [];
-      setRecommendations(newRecs);
-      
-      // Update exclusion list (circular buffer of 12 items)
-      const newIds = newRecs.map(r => r.id);
-      setRecentlySeenIds(prev => [...newIds, ...prev].slice(0, 12));
-      
-      setHasAttemptedRecs(true);
+      // Persist to Firestore for consistency across panels
+      await setDoc(doc(db, 'userRecommendations', user.uid), {
+        userId: user.uid,
+        userName: user.displayName,
+        recommendations: result.recommendations,
+        entropy: entropy,
+        updatedAt: serverTimestamp()
+      });
+
+      toast.success("Curated your menu!");
     } catch (e) {
-      console.warn("AI Fallback:", e);
-      const fallback = [...allDishes]
-        .filter(d => (d.rating || 0) >= 4.5)
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 4);
-      setRecommendations(fallback);
+      console.error("AI Error:", e);
+      toast.error("Failed to update AI menu.");
     } finally {
       setLoadingRecs(false);
     }
   };
 
+  // Initial generation if missing
   useEffect(() => {
-    if (mounted && allDishes && allDishes.length > 0 && user && !hasAttemptedRecs) {
-      getPersonalizedRecommendations();
+    if (mounted && user && allDishes && allDishes.length > 0 && persistedRecs === null && !recsFetching && !loadingRecs) {
+      generateRecommendations();
     }
-  }, [user?.uid, allDishes, mounted]);
+  }, [user?.uid, allDishes, persistedRecs, recsFetching, mounted]);
 
   if (!mounted || loading) {
     return (
@@ -155,6 +156,8 @@ export default function DashboardPage() {
   }
 
   if (!user) return null;
+
+  const recommendations = persistedRecs?.recommendations || [];
 
   const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', active: true, icon: Home },
@@ -327,8 +330,8 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground font-medium max-w-lg">Personalized picks based on your unique flavor profile.</p>
               </div>
               <Button 
-                onClick={getPersonalizedRecommendations}
-                disabled={loadingRecs}
+                onClick={generateRecommendations}
+                disabled={loadingRecs || recsFetching}
                 className="h-16 px-8 rounded-2xl bg-white hover:bg-muted/50 text-foreground border-2 border-primary/10 font-black text-lg shadow-xl active:scale-95 group"
               >
                 {loadingRecs ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Sparkles className="w-6 h-6 text-primary mr-2" /> Refresh Suggestions</>}
@@ -336,10 +339,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-              {loadingRecs ? (
+              {(loadingRecs || recsFetching) ? (
                 Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-square bg-muted rounded-[2.5rem] animate-pulse" />)
               ) : recommendations.length > 0 ? (
-                recommendations.map((dish, i) => (
+                recommendations.map((dish: any, i: number) => (
                   <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 150}ms` }}>
                     <FoodCard food={dish} />
                   </div>

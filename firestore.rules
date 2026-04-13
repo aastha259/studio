@@ -23,6 +23,12 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    // USER RECOMMENDATIONS: Persisted AI output shared between user and admin
+    match /userRecommendations/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
     // FAVORITES: Users manage their own favorites. 
     match /favorites/{favId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;

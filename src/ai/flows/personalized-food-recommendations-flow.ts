@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A robust Genkit flow for generating personalized food recommendations.
- * Handles cold-starts, injects entropy for variety, and ensures full schema mapping.
+ * Optimized for consistency and deterministic output based on provided entropy.
  */
 
 import { ai } from '@/ai/genkit';
@@ -34,7 +34,7 @@ const PersonalizedFoodRecommendationsInputSchema = z.object({
   userFoodHistory: z.array(UserFoodHistoryItemSchema),
   availableFoods: z.array(FullFoodItemSchema),
   recentlySeenIds: z.array(z.string()).optional(),
-  entropy: z.number().optional().describe('A random value to force variety in LLM output.'),
+  entropy: z.number().optional().describe('A random value to influence variety. If omitted, default random is used.'),
 });
 export type PersonalizedFoodRecommendationsInput = z.infer<typeof PersonalizedFoodRecommendationsInputSchema>;
 
@@ -103,7 +103,7 @@ const personalizedFoodRecommendationsFlow = ai.defineFlow(
         userFoodHistory: input.userFoodHistory,
         simplifiedAvailableFoods: simplified,
         recentlySeenIds: input.recentlySeenIds || [],
-        entropy: input.entropy || Math.random(),
+        entropy: input.entropy || 0.5,
       });
 
       if (!output?.recommendedFoodIds) return { recommendations: [] };
@@ -116,16 +116,14 @@ const personalizedFoodRecommendationsFlow = ai.defineFlow(
         })
         .filter((f): f is z.infer<typeof FullFoodItemSchema> => !!f);
 
-      // Diversity Shuffle: If we have enough items, shuffle the final selection
-      const shuffled = recommendations.sort(() => Math.random() - 0.5);
-
-      return { recommendations: shuffled };
+      // Deterministic return: No internal Math.random() sorting here.
+      // The order is determined by the LLM and its provided entropy.
+      return { recommendations };
     } catch (error) {
       console.error("AI Flow Error:", error);
-      // Fallback: Random high rated items
+      // Fallback: Use rating-based deterministic fallback if AI fails
       const fallback = input.availableFoods
         .filter(f => (f.rating || 0) >= 4.5)
-        .sort(() => Math.random() - 0.5)
         .slice(0, 4);
       return { recommendations: fallback };
     }

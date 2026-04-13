@@ -23,10 +23,12 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
-    // FAVORITES: Users manage their own favorites
+    // FAVORITES: Users manage their own favorites. 
+    // ID structure: {userId}_{dishId} ensures easy ownership verification.
     match /favorites/{favId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Allow read/get even if doc doesn't exist by verifying the ID prefix
+      allow read: if isSignedIn() && (favId.startsWith(request.auth.uid + '_') || (resource != null && resource.data.userId == request.auth.uid));
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }

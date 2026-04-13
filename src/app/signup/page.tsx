@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -79,10 +80,20 @@ export default function SignupPage() {
       toast.success("Account created! Welcome to Bhartiya Swad.", { id: signupToast });
       router.push('/dashboard');
     } catch (error: any) {
-      console.error("Signup Error:", error);
+      // Silence standard auth errors from dev overlay
+      const isAuthError = [
+        'auth/email-already-in-use',
+        'auth/invalid-email',
+        'auth/weak-password'
+      ].includes(error.code);
+
+      if (!isAuthError) {
+        console.error("Signup Error:", error);
+      }
+
       let message = "An unexpected error occurred during registration.";
       if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered.";
+        message = "This email is already registered. Please login instead.";
       } else if (error.code === 'auth/invalid-email') {
         message = "The email address is not valid.";
       } else if (error.code === 'auth/weak-password') {
@@ -106,7 +117,7 @@ export default function SignupPage() {
         </div>
       </div>
 
-      <Card className="w-full max-w-lg shadow-2xl relative z-10 border-none rounded-[2.5rem] overflow-hidden bg-white animate-in zoom-in-95 duration-500">
+      <Card className="w-full max-lg shadow-2xl relative z-10 border-none rounded-[2.5rem] overflow-hidden bg-white animate-in zoom-in-95 duration-500">
         <CardHeader className="bg-primary text-white p-10 text-center">
           <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl backdrop-blur-md transition-transform hover:rotate-6">
             <ChefHat className="w-12 h-12 text-white" />

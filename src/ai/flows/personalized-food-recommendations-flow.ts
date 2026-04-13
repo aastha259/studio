@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A robust Genkit flow for generating personalized food recommendations.
- * Handles cold-starts (new users) and ensures strict ID matching.
+ * Handles cold-starts, injects entropy for variety, and ensures full schema mapping.
  */
 
 import { ai } from '@/ai/genkit';
@@ -25,11 +25,16 @@ const FullFoodItemSchema = z.object({
   category: z.string(),
   rating: z.number().optional(),
   image: z.string().optional(),
+  imageURL: z.string().optional(),
+  isVeg: z.boolean().optional(),
+  description: z.string().optional(),
 });
 
 const PersonalizedFoodRecommendationsInputSchema = z.object({
   userFoodHistory: z.array(UserFoodHistoryItemSchema),
   availableFoods: z.array(FullFoodItemSchema),
+  recentlySeenIds: z.array(z.string()).optional(),
+  entropy: z.number().optional().describe('A random value to force variety in LLM output.'),
 });
 export type PersonalizedFoodRecommendationsInput = z.infer<typeof PersonalizedFoodRecommendationsInputSchema>;
 
@@ -50,28 +55,28 @@ const recommendationPrompt = ai.definePrompt({
     schema: z.object({
       userFoodHistory: z.array(UserFoodHistoryItemSchema),
       simplifiedAvailableFoods: z.array(SimpleFoodItemSchema),
+      recentlySeenIds: z.array(z.string()).optional(),
+      entropy: z.number().optional(),
     }),
   },
   output: {
     schema: z.object({
-      recommendedFoodIds: z.array(z.string()).max(5),
+      recommendedFoodIds: z.array(z.string()).max(6),
     }),
   },
   prompt: `You are an expert food recommender for Bhartiya Swad.
   
   TASK:
-  Analyze the user's history and select 3-5 dishes from the 'simplifiedAvailableFoods' list.
+  Analyze the user's history and select 4-6 dishes from the 'simplifiedAvailableFoods' list.
   
-  COLD START HANDLING:
-  If 'userFoodHistory' is EMPTY, recommend a diverse mix of popular items (e.g., 1 Burger, 1 Pizza, 1 North Indian).
+  VARIETY RULES (Entropy: {{entropy}}):
+  1. DO NOT recommend items in the 'recentlySeenIds' list: {{{json recentlySeenIds}}}.
+  2. If 'userFoodHistory' is EMPTY, recommend a diverse mix of categories (e.g., 1 Pizza, 1 South Indian, 1 Dessert).
+  3. If history exists, suggest items that match the user's taste but prioritize DISCOVERY of new items they haven't ordered.
   
-  PERSONALIZATION:
-  If history exists, suggest items similar in category or flavor profile to what they liked.
-  
-  STRICT RULES:
+  STRICT CONSTRAINTS:
   1. ONLY return IDs from the provided list.
-  2. Do not recommend items the user has already ordered if possible.
-  3. Return ONLY the JSON object.
+  2. Return ONLY the JSON object.
 
   User's past food history:
   {{{json userFoodHistory}}}
@@ -97,11 +102,13 @@ const personalizedFoodRecommendationsFlow = ai.defineFlow(
       const { output } = await recommendationPrompt({
         userFoodHistory: input.userFoodHistory,
         simplifiedAvailableFoods: simplified,
+        recentlySeenIds: input.recentlySeenIds || [],
+        entropy: input.entropy || Math.random(),
       });
 
       if (!output?.recommendedFoodIds) return { recommendations: [] };
 
-      // Sanitize IDs from AI (remove potential quotes/spaces) and find full objects
+      // Map back to FULL objects while preserving all Firestore fields
       const recommendations = output.recommendedFoodIds
         .map(id => {
           const cleanId = id.replace(/["']/g, '').trim();
@@ -109,19 +116,18 @@ const personalizedFoodRecommendationsFlow = ai.defineFlow(
         })
         .filter((f): f is z.infer<typeof FullFoodItemSchema> => !!f);
 
-      // Fallback: If AI fails to find valid IDs, return top 3 rated items
-      if (recommendations.length === 0) {
-        return { 
-          recommendations: [...input.availableFoods]
-            .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-            .slice(0, 3) 
-        };
-      }
+      // Diversity Shuffle: If we have enough items, shuffle the final selection
+      const shuffled = recommendations.sort(() => Math.random() - 0.5);
 
-      return { recommendations };
+      return { recommendations: shuffled };
     } catch (error) {
       console.error("AI Flow Error:", error);
-      return { recommendations: input.availableFoods.slice(0, 3) };
+      // Fallback: Random high rated items
+      const fallback = input.availableFoods
+        .filter(f => (f.rating || 0) >= 4.5)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 4);
+      return { recommendations: fallback };
     }
   }
 );

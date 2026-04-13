@@ -6,24 +6,19 @@ import {
   ShoppingCart, 
   ChefHat, 
   Sparkles, 
-  LogOut,
   Utensils,
   Loader2,
   Flame,
-  Bell,
-  User as UserIcon,
-  Star,
-  ChevronRight,
-  Home,
-  Heart,
   Plus,
   Minus,
   Trash2,
   ShoppingBag,
+  Home,
+  Heart,
+  MessageSquare,
   Lock,
-  ArrowRight,
-  Zap,
-  MessageSquare
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -44,22 +39,21 @@ import FoodCard from '@/components/FoodCard';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import NotificationBell from '@/components/NotificationBell';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
-import { smartNotifications } from '@/ai/flows/smart-notifications-flow';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, where, getDocs, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
 import UserNav from '@/components/UserNav';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
   const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity } = useCart();
   const db = useFirestore();
 
   const [mounted, setMounted] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recentlySeenIds, setRecentlySeenIds] = useState<string[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
@@ -74,7 +68,7 @@ export default function DashboardPage() {
   }, [user, loading, router, mounted]);
 
   const dishesQuery = useMemoFirebase(() => {
-    return query(collection(db, 'dishes'), limit(100));
+    return query(collection(db, 'dishes'), limit(150));
   }, [db]);
   const { data: allDishes } = useCollection(dishesQuery);
 
@@ -83,20 +77,14 @@ export default function DashboardPage() {
   }, [db]);
   const { data: trendingDishes } = useCollection(trendingQuery);
 
-  const topRatedQuery = useMemoFirebase(() => {
-    return query(collection(db, 'dishes'), orderBy('rating', 'desc'), limit(4));
-  }, [db]);
-  const { data: topRatedDishes } = useCollection(topRatedQuery);
-
-  // AI Recommendation Trigger
   const getPersonalizedRecommendations = async () => {
     if (!user?.uid || !allDishes || allDishes.length === 0) return;
     
     setLoadingRecs(true);
     try {
-      // 1. Fetch Real History
+      // 1. Fetch Transactional History
       const orderRef = collection(db, 'orders');
-      const q = query(orderRef, where('userId', '==', user.uid), limit(15));
+      const q = query(orderRef, where('userId', '==', user.uid), limit(20));
       const orderSnap = await getDocs(q);
       
       const history: { name: string; category?: string }[] = [];
@@ -106,35 +94,42 @@ export default function DashboardPage() {
           orderData.items.forEach((item: any) => {
             if (item.name) {
               const matchedDish = allDishes.find(d => d.id === item.dishId || d.name === item.name);
-              history.push({
-                name: item.name,
-                category: matchedDish?.category
-              });
+              history.push({ name: item.name, category: matchedDish?.category });
             }
           });
         }
       });
 
-      // 2. Call AI Flow (Even if history is empty, flow handles cold-start)
+      // 2. Call AI Flow with Exclusion tracking and Entropy
       const result = await personalizedFoodRecommendations({
         userFoodHistory: history,
         availableFoods: allDishes.map(f => ({
           id: f.id,
           name: f.name,
-          price: f.price,
+          price: Number(f.price),
           category: f.category,
           rating: f.rating,
-          image: f.image || f.imageURL
-        }))
+          image: f.image || f.imageURL,
+          isVeg: f.isVeg,
+          description: f.description
+        })),
+        recentlySeenIds: recentlySeenIds,
+        entropy: Math.random()
       });
       
-      setRecommendations(result.recommendations || []);
+      const newRecs = result.recommendations || [];
+      setRecommendations(newRecs);
+      
+      // Update exclusion list (circular buffer of 12 items)
+      const newIds = newRecs.map(r => r.id);
+      setRecentlySeenIds(prev => [...newIds, ...prev].slice(0, 12));
+      
       setHasAttemptedRecs(true);
     } catch (e) {
-      console.warn("AI recommendations fallback triggered:", e);
-      // Heuristic Fallback: Popular + High Rated
-      const fallback = allDishes
-        .filter(d => d.rating && d.rating >= 4.5)
+      console.warn("AI Fallback:", e);
+      const fallback = [...allDishes]
+        .filter(d => (d.rating || 0) >= 4.5)
+        .sort(() => Math.random() - 0.5)
         .slice(0, 4);
       setRecommendations(fallback);
     } finally {
@@ -142,7 +137,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Trigger Recommendations once when data is ready
   useEffect(() => {
     if (mounted && allDishes && allDishes.length > 0 && user && !hasAttemptedRecs) {
       getPersonalizedRecommendations();

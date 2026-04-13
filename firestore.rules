@@ -24,11 +24,17 @@ service cloud.firestore {
     // --- COLLECTION RULES ---
 
     // FAVORITES: Users manage their own favorites. 
-    // ID structure: {userId}_{dishId} ensures easy ownership verification.
     match /favorites/{favId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // Allow read/write if the ID starts with the user's UID (robust split logic)
-      allow read, update, delete: if isSignedIn() && favId.split('_')[0] == request.auth.uid;
+      // Allow read if user owns the document (ID check for get, Data check for list)
+      allow read: if isSignedIn() && (
+        (resource == null && favId.split('_')[0] == request.auth.uid) ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+      allow update, delete: if isSignedIn() && (
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        (favId.split('_')[0] == request.auth.uid)
+      );
     }
 
     // SUPPORT TICKETS: Users can see their own, public can create, admin manages all.

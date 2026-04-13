@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'source.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
@@ -36,6 +42,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'vadilalglobal.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'encrypted-tbn0.gstatic.com',
         port: '',
         pathname: '/**',
       },

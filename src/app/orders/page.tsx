@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -85,12 +84,12 @@ export default function MyOrdersPage() {
     <div className="min-h-screen bg-[#FDFCFB]">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
               <ChefHat className="text-white w-6 h-6" />
             </div>
             <span className="font-headline text-2xl font-black tracking-tight text-foreground">Bhartiya Swad</span>
-          </Link>
+          </div>
 
           <div className="flex items-center gap-4">
             <NotificationBell />

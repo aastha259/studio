@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -14,8 +13,8 @@ export default function LandingPage() {
       
       {/* Navigation */}
       <header className="fixed top-0 left-0 w-full p-6 md:p-8 flex justify-between items-center z-50">
-        <div className="flex items-center gap-3 group cursor-pointer animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-xl shadow-primary/20 transition-transform group-hover:scale-110">
+        <div className="flex items-center gap-3 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-xl shadow-primary/20">
             <ChefHat className="text-white w-6 h-6" />
           </div>
           <span className="font-headline text-xl font-black tracking-tight text-foreground">Bhartiya Swad</span>

@@ -12,12 +12,12 @@ export default function TermsPage() {
       {/* Simple Header */}
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg">
               <ChefHat className="text-white w-5 h-5" />
             </div>
             <span className="font-headline text-xl font-black text-foreground">Bhartiya Swad</span>
-          </Link>
+          </div>
           <Link href="/">
             <Button variant="ghost" className="font-bold gap-2 rounded-xl">
               <ChevronLeft className="w-4 h-4" /> Back to Home

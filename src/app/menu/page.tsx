@@ -1,4 +1,3 @@
-
 "use client"
 import { collection, query, where, limit } from 'firebase/firestore';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -146,12 +145,12 @@ export default function MenuPage() {
     <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500" suppressHydrationWarning>
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
             <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
-          </Link>
+          </div>
 
           <div className="flex-1 max-w-xl flex gap-4">
             <div className="flex-1 relative group">

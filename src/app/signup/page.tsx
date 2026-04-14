@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -34,7 +33,7 @@ export default function SignupPage() {
     setIsMounted(true);
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputChange>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -119,7 +118,7 @@ export default function SignupPage() {
 
       <Card className="w-full max-lg shadow-2xl relative z-10 border-none rounded-[2.5rem] overflow-hidden bg-white animate-in zoom-in-95 duration-500">
         <CardHeader className="bg-primary text-white p-10 text-center">
-          <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl backdrop-blur-md transition-transform hover:rotate-6">
+          <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl backdrop-blur-md transition-transform">
             <ChefHat className="w-12 h-12 text-white" />
           </div>
           <CardTitle className="text-4xl font-headline font-black tracking-tight">Join Bhartiya Swad</CardTitle>

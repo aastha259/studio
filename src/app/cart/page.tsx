@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -66,12 +65,12 @@ export default function CartPage() {
     <div className="min-h-screen bg-[#FDFCFB] pb-20">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block">Bhartiya Swad</span>
-          </Link>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
+          </div>
           <div className="flex items-center gap-4">
              <Link href="/menu">
               <Button variant="ghost" className="font-bold gap-2 rounded-xl text-muted-foreground hover:text-primary">

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, User, Utensils, History, AlertCircle } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,6 +39,13 @@ export default function AdminRecommendationsPage() {
     setLoadingMap(prev => ({ ...prev, [userId]: true }));
     
     try {
+      // Fetch current recommendations to extract exclusion IDs for variety
+      const recDocRef = doc(db, 'userRecommendations', userId);
+      const recSnap = await getDoc(recDocRef);
+      const currentIds = recSnap.exists() 
+        ? recSnap.data().recommendations?.map((r: any) => r.id) || [] 
+        : [];
+
       // Fetch real history for this user to power accurate AI prediction
       const orderRef = collection(db, 'orders');
       const q = query(orderRef, where('userId', '==', userId), limit(15));
@@ -71,6 +79,7 @@ export default function AdminRecommendationsPage() {
           isVeg: d.isVeg,
           description: d.description
         })),
+        recentlySeenIds: currentIds, // EXCLUDE CURRENTLY SHOWN ITEMS
         entropy: entropy
       });
 

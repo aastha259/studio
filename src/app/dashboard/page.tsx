@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -86,6 +87,9 @@ export default function DashboardPage() {
     
     setLoadingRecs(true);
     try {
+      // Get current IDs to exclude for variety
+      const currentIds = persistedRecs?.recommendations?.map((r: any) => r.id) || [];
+
       const orderRef = collection(db, 'orders');
       const q = query(orderRef, where('userId', '==', user.uid), limit(20));
       const orderSnap = await getDocs(q);
@@ -116,6 +120,7 @@ export default function DashboardPage() {
           isVeg: f.isVeg,
           description: f.description
         })),
+        recentlySeenIds: currentIds, // PASS EXCLUSION LIST
         entropy: entropy
       });
       
@@ -176,7 +181,9 @@ export default function DashboardPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
+            <div className="flex flex-col">
+              <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">

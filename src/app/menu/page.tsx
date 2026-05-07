@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -399,40 +400,15 @@ export default function MenuPage() {
             </>
           )}
         </section>
-
-        {!dishesLoading && allDishes?.length === 0 && (
-          <div className="bg-primary/5 p-16 rounded-[4rem] border border-dashed border-primary/20 flex flex-col items-center gap-8 text-center animate-in fade-in">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center">
-              <ChefHat className="text-primary w-12 h-12" />
-            </div>
-            <div className="max-w-lg space-y-4">
-              <h2 className="text-4xl font-headline font-black text-foreground">Our kitchen is just getting started!</h2>
-              <p className="text-lg text-muted-foreground font-medium">It looks like the repository hasn't been synced yet. Visit the Admin Portal to bootstrap the menu with 500+ authentic items.</p>
-            </div>
-            <Link href="/admin/database">
-              <Button className="h-16 px-12 rounded-3xl font-black bg-primary text-xl shadow-2xl shadow-primary/20 hover:scale-105 transition-all text-white border-none">
-                Go to Admin Repository <ChevronRight className="ml-2 w-6 h-6" />
-              </Button>
-            </Link>
-          </div>
-        )}
       </main>
 
       <footer className="bg-white border-t py-20 px-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="flex flex-col items-center md:items-start gap-4">
-            <div className="flex items-center gap-3">
-              <ChefHat className="text-primary w-8 h-8" />
-              <span className="font-headline text-2xl font-black text-foreground">Bhartiya Swad</span>
-            </div>
-            <p className="text-muted-foreground font-medium max-w-xs text-center md:text-left opacity-70">Authentic Indian culinary experiences delivered directly to your home.</p>
+          <div className="flex items-center gap-3">
+            <ChefHat className="text-primary w-8 h-8" />
+            <span className="font-headline text-2xl font-black text-foreground">Bhartiya Swad</span>
           </div>
-          <div className="flex gap-10">
-            <Link href="/contact" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Contact Us</Link>
-            <Link href="/privacy-policy" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
-            <Link href="/terms-and-conditions" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Terms</Link>
-            <Link href="/refund-policy" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Refund Policy</Link>
-          </div>
+          <p className="text-muted-foreground font-medium max-w-xs text-center md:text-left opacity-70">Authentic Indian culinary experiences delivered directly to your home.</p>
         </div>
       </footer>
     </div>

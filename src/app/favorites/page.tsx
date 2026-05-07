@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -43,7 +44,7 @@ export default function FavoritesPage() {
 
   const { data: rawFavorites, isLoading: favsLoading } = useCollection(favoritesQuery);
 
-  // Client-side sorting by creation time to avoid index complexity
+  // Client-side sorting for consistent presentation without needing complex indexes
   const favorites = useMemo(() => {
     if (!rawFavorites) return [];
     return [...rawFavorites].sort((a, b) => {
@@ -98,7 +99,7 @@ export default function FavoritesPage() {
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="animate-in slide-in-from-left-4 duration-700">
-            <h1 className="text-5xl font-headline font-black tracking-tight flex items-center gap-4">
+            <h1 className="text-5xl font-headline font-black tracking-tight flex items-center gap-4 text-foreground">
               <Heart className="w-12 h-12 text-primary fill-primary" />
               Your Favorites
             </h1>
@@ -166,11 +167,6 @@ export default function FavoritesPage() {
             <span className="font-headline text-xl font-black text-foreground">Bhartiya Swad</span>
           </div>
           <p className="text-sm text-muted-foreground font-bold italic opacity-60 text-center md:text-left">© 2025 Bhartiya Swad. Curating authentic tastes for you.</p>
-          <div className="flex gap-6">
-            <Link href="/dashboard" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Dashboard</Link>
-            <Link href="/menu" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Full Menu</Link>
-            <Link href="/contact" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Support</Link>
-          </div>
         </div>
       </footer>
     </div>

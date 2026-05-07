@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from 'react';
@@ -58,11 +59,11 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
 
     try {
       if (isFavorite) {
-        // TOGGLE: Remove if exists
+        // TOGGLE: Remove if already favorited
         await deleteDoc(favRef);
         toast.success("Removed from favorites");
       } else {
-        // TOGGLE: Add if not exists
+        // TOGGLE: Add if not favorited
         await setDoc(favRef, {
           userId: user.uid,
           dishId: food.id,
@@ -114,29 +115,20 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-          data-ai-hint="food dish"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        {/* Floating Controls */}
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-          <Badge className={cn(
-            "rounded-full px-3 py-1 border-none shadow-lg text-[10px] font-black uppercase tracking-tighter transition-all",
-            food.isVeg ? "bg-green-500 text-white" : "bg-red-500 text-white"
-          )}>
-            {food.isVeg ? <Leaf className="w-3 h-3 mr-1" /> : <Beef className="w-3 h-3 mr-1" />}
-            {food.isVeg ? 'Veg' : 'Non-Veg'}
-          </Badge>
-
+        {/* Favorite Trigger */}
+        <div className="absolute top-4 right-4 z-20">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={handleToggleFavorite}
             disabled={isFavoriting}
             className={cn(
-              "h-10 w-10 rounded-2xl backdrop-blur-md transition-all active:scale-90",
+              "h-10 w-10 rounded-2xl backdrop-blur-md transition-all active:scale-90 shadow-lg",
               isFavorite 
-                ? "bg-white text-red-500 shadow-xl" 
+                ? "bg-white text-red-500 hover:bg-white/90" 
                 : "bg-white/40 text-white hover:bg-white hover:text-red-500"
             )}
           >
@@ -148,8 +140,19 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
           </Button>
         </div>
 
+        {/* Dietary Badge */}
+        <div className="absolute top-4 left-4 z-20">
+          <Badge className={cn(
+            "rounded-full px-3 py-1 border-none shadow-lg text-[10px] font-black uppercase tracking-tighter",
+            food.isVeg ? "bg-green-500 text-white" : "bg-red-500 text-white"
+          )}>
+            {food.isVeg ? <Leaf className="w-3 h-3 mr-1" /> : <Beef className="w-3 h-3 mr-1" />}
+            {food.isVeg ? 'Veg' : 'Non-Veg'}
+          </Badge>
+        </div>
+
         {food.rating && (
-          <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-xl flex items-center gap-1 shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-xl flex items-center gap-1 shadow-lg">
             <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
             <span className="text-[10px] font-black text-foreground">{food.rating}</span>
           </div>

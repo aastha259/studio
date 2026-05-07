@@ -32,7 +32,7 @@ service cloud.firestore {
     // FAVORITES: Users manage their own favorites. 
     match /favorites/{favId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // Allow read if user owns the document (ID check for get, Data check for list)
+      // Allow read/delete if user owns the document (ID check for get/delete, Data check for list)
       allow read: if isSignedIn() && (
         (resource == null && favId.split('_')[0] == request.auth.uid) ||
         (resource != null && resource.data.userId == request.auth.uid)
@@ -54,25 +54,20 @@ service cloud.firestore {
     // NOTIFICATIONS: Users can only see and manage their own notifications.
     match /notifications/{notificationId} {
       allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn(); // Allow creation by authenticated users/triggers
+      allow create: if isSignedIn(); 
       allow delete: if isAdmin();
     }
 
     // ADMIN NOTIFICATIONS: Restricted to system admins
     match /notifications_admin/{notificationId} {
       allow read, update, delete: if isAdmin();
-      allow create: if true; // Allow creation via support submission or other triggers
+      allow create: if true; 
     }
 
     // DISHES: Publicly viewable menu items. Admin can manage.
     match /dishes/{dishId} {
       allow read: if true;
-      // create and update require data validation
-      allow create, update: if isAdmin() && 
-        request.resource.data.name is string &&
-        request.resource.data.price is number &&
-        request.resource.data.category is string;
-      // delete only requires admin role
+      allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -81,8 +76,7 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId) && 
-        request.resource.data.uid == request.auth.uid &&
-        request.resource.data.email is string;
+        request.resource.data.uid == request.auth.uid;
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
 
@@ -94,14 +88,7 @@ service cloud.firestore {
 
     // ORDERS: Users can create and read/write their own orders. Admins manage all.
     match /orders/{orderId} {
-      // Validate creation: must be owner, must have total, must start as 'placed'
-      allow create: if isSignedIn() && 
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.totalAmount is number &&
-        request.resource.data.items is list &&
-        request.resource.data.status in ['placed', 'preparing', 'out_for_delivery', 'delivered'];
-      
-      // Ownership check based on data field
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow update: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow delete: if isAdmin();
@@ -115,8 +102,7 @@ service cloud.firestore {
     // RESTAURANTS: Public read, Admin write.
     match /restaurants/{rId} {
       allow read: if true;
-      allow write: if isAdmin() && 
-        request.resource.data.name is string;
+      allow write: if isAdmin();
     }
 
     // Default deny for any unmatched paths

@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ShoppingCart, 
@@ -65,6 +65,14 @@ export default function DashboardPage() {
     }
   }, [user, loading, router, mounted]);
 
+  // Subscription to Favorites for Heart Toggles
+  const favQuery = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return query(collection(db, 'favorites'), where('userId', '==', user.uid));
+  }, [db, user?.uid]);
+  const { data: favorites } = useCollection(favQuery);
+  const favoriteIds = useMemo(() => new Set(favorites?.map(f => f.dishId)), [favorites]);
+
   // Shared Source of Truth for Recommendations
   const recsRef = useMemoFirebase(() => {
     if (!user?.uid) return null;
@@ -87,9 +95,7 @@ export default function DashboardPage() {
     
     setLoadingRecs(true);
     try {
-      // Get current IDs to exclude for variety
       const currentIds = persistedRecs?.recommendations?.map((r: any) => r.id) || [];
-
       const orderRef = collection(db, 'orders');
       const q = query(orderRef, where('userId', '==', user.uid), limit(20));
       const orderSnap = await getDocs(q);
@@ -120,11 +126,10 @@ export default function DashboardPage() {
           isVeg: f.isVeg,
           description: f.description
         })),
-        recentlySeenIds: currentIds, // PASS EXCLUSION LIST
+        recentlySeenIds: currentIds,
         entropy: entropy
       });
       
-      // Persist to Firestore for consistency across panels
       await setDoc(doc(db, 'userRecommendations', user.uid), {
         userId: user.uid,
         userName: user.displayName,
@@ -142,7 +147,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Initial generation if missing
   useEffect(() => {
     if (mounted && user && allDishes && allDishes.length > 0 && persistedRecs === null && !recsFetching && !loadingRecs) {
       generateRecommendations();
@@ -188,7 +192,6 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-4">
             <NotificationBell />
-
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group transition-all active:scale-90">
@@ -296,36 +299,9 @@ export default function DashboardPage() {
               </Link>
             ))}
           </nav>
-          
-          <div className="mt-auto p-6 bg-accent/5 rounded-[2rem] border border-accent/10 relative overflow-hidden group transition-all hover:bg-accent/10">
-            <div className="relative z-10">
-              <p className="font-headline font-black text-accent text-lg mb-2">Get 20% OFF</p>
-              <p className="text-xs text-muted-foreground font-medium mb-4">On your first order above ₹500</p>
-              <Button size="sm" className="bg-accent text-white font-black rounded-xl hover:scale-105 transition-transform active:scale-95">REDEEM NOW</Button>
-            </div>
-            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-2000" />
-          </div>
         </aside>
 
         <main className="flex-1 p-8 md:p-12 space-y-24 min-w-0">
-          <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group animate-in zoom-in duration-1000">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float-slow -z-10" />
-            <div className="relative z-10 space-y-6 max-w-lg">
-              <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px] animate-pulse">Premium Experience</Badge>
-              <h1 className="text-5xl md:text-6xl font-headline font-black text-foreground leading-[1.1] tracking-tight">
-                Authentic <span className="text-primary italic">Indian</span><br/>Delights.
-              </h1>
-              <p className="text-lg text-muted-foreground font-medium">From spicy street food to royal thalis, we bring the heart of Bharat to your door.</p>
-              <Link href="/menu">
-                <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-white border-none">Explore Menu</Button>
-              </Link>
-            </div>
-            <div className="relative w-72 h-72 md:w-96 md:h-96 bg-white rounded-full shadow-2xl border-8 border-white overflow-hidden animate-float">
-              <img src="https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80" alt="Indian Food" className="w-full h-full object-cover" />
-            </div>
-          </section>
-
-          {/* AI Recommendations Section */}
           <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
               <div className="space-y-2">
@@ -351,7 +327,7 @@ export default function DashboardPage() {
               ) : recommendations.length > 0 ? (
                 recommendations.map((dish: any, i: number) => (
                   <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 150}ms` }}>
-                    <FoodCard food={dish} />
+                    <FoodCard food={dish} isFavorite={favoriteIds.has(dish.id)} />
                   </div>
                 ))
               ) : (
@@ -363,42 +339,6 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* Journey Section */}
-          <section className="space-y-10">
-            <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
-              <ShoppingBag className="w-10 h-10 text-primary" /> Your Journey
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              <Link href="/orders" className="group block h-full">
-                <Card className="p-8 h-full bg-white border border-primary/5 shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] flex flex-col items-center text-center gap-6">
-                  <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                    <ShoppingBag className="w-10 h-10" />
-                  </div>
-                  <h3 className="text-2xl font-headline font-black">My Orders</h3>
-                  <p className="text-sm text-muted-foreground">Track your live orders or browse history.</p>
-                </Card>
-              </Link>
-              <Link href="/menu" className="group block h-full">
-                <Card className="p-8 h-full bg-white border border-primary/5 shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] flex flex-col items-center text-center gap-6">
-                  <div className="w-20 h-20 rounded-[2rem] bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all">
-                    <Utensils className="w-10 h-10" />
-                  </div>
-                  <h3 className="text-2xl font-headline font-black">Full Menu</h3>
-                  <p className="text-sm text-muted-foreground">Explore all culinary delights.</p>
-                </Card>
-              </Link>
-              <Link href="/favorites" className="group block h-full">
-                <Card className="p-8 h-full bg-white border border-primary/5 shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] flex flex-col items-center text-center gap-6">
-                  <div className="w-20 h-20 rounded-[2rem] bg-pink-100 flex items-center justify-center text-pink-600 group-hover:bg-pink-600 group-hover:text-white transition-all">
-                    <Heart className="w-10 h-10" />
-                  </div>
-                  <h3 className="text-2xl font-headline font-black">Favorites</h3>
-                  <p className="text-sm text-muted-foreground">Re-order your top flavors.</p>
-                </Card>
-              </Link>
-            </div>
-          </section>
-
           {trendingDishes && trendingDishes.length > 0 && (
             <section className="space-y-10">
               <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
@@ -406,7 +346,7 @@ export default function DashboardPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
                 {trendingDishes.map((dish) => (
-                  <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} />
+                  <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} isFavorite={favoriteIds.has(dish.id)} />
                 ))}
               </div>
             </section>
@@ -428,10 +368,6 @@ export default function DashboardPage() {
             <span className="font-headline text-xl font-black">Bhartiya Swad</span>
           </div>
           <p className="text-xs text-muted-foreground font-bold">© 2025 Bhartiya Swad. Delivering authentic taste.</p>
-          <div className="flex gap-6">
-            <Link href="/contact" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">Contact</Link>
-            <Link href="/privacy-policy" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">Privacy</Link>
-          </div>
         </div>
       </footer>
     </div>

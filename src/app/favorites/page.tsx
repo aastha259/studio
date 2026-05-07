@@ -32,8 +32,7 @@ export default function FavoritesPage() {
     setMounted(true);
   }, []);
 
-  // Fetch user's favorites
-  // We removed the orderBy clause to avoid the need for a composite index
+  // Real-time subscription to user's favorites
   const favoritesQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(
@@ -44,7 +43,7 @@ export default function FavoritesPage() {
 
   const { data: rawFavorites, isLoading: favsLoading } = useCollection(favoritesQuery);
 
-  // Perform sorting on the client side to bypass Firestore index requirements
+  // Client-side sorting by creation time to avoid index complexity
   const favorites = useMemo(() => {
     if (!rawFavorites) return [];
     return [...rawFavorites].sort((a, b) => {
@@ -127,13 +126,14 @@ export default function FavoritesPage() {
             {favorites.map((fav) => (
               <FoodCard 
                 key={fav.id} 
+                isFavorite={true}
                 food={{
                   id: fav.dishId,
                   name: fav.name,
                   price: fav.price,
                   category: fav.category,
                   rating: fav.rating,
-                  imageURL: fav.image,
+                  image: fav.image,
                   isVeg: fav.isVeg
                 }} 
               />
@@ -150,7 +150,7 @@ export default function FavoritesPage() {
                 <p className="text-muted-foreground font-medium">Explore our menu and save the dishes that win your heart!</p>
               </div>
               <Link href="/menu">
-                <Button className="h-14 px-10 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20 hover:scale-105 transition-all text-white">
+                <Button className="h-14 px-10 rounded-2xl bg-primary text-lg font-black shadow-xl shadow-primary/20 hover:scale-105 transition-all text-white border-none">
                   Explore Menu
                 </Button>
               </Link>

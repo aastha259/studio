@@ -39,6 +39,8 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
   const [isFavoriting, setIsFavoriting] = useState(false);
 
   const displayImage = food.imageURL || food.image || `https://picsum.photos/seed/${food.id}/400/400`;
+  
+  // Deterministic ID prevents duplicates and makes toggling efficient
   const favDocId = user ? `${user.uid}_${food.id}` : null;
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
@@ -56,9 +58,11 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
 
     try {
       if (isFavorite) {
+        // TOGGLE: Remove if exists
         await deleteDoc(favRef);
         toast.success("Removed from favorites");
       } else {
+        // TOGGLE: Add if not exists
         await setDoc(favRef, {
           userId: user.uid,
           dishId: food.id,
@@ -110,6 +114,7 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+          data-ai-hint="food dish"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         

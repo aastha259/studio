@@ -1,12 +1,11 @@
 "use client"
-import { collection, query, where, limit } from 'firebase/firestore';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Search, 
   ShoppingCart, 
   ChefHat, 
-  LogOut,
   Utensils,
   Loader2,
   Store,
@@ -14,7 +13,6 @@ import {
   IceCream,
   Coffee,
   Filter,
-  LayoutDashboard,
   CircleDot,
   Leaf,
   ChevronRight,
@@ -44,6 +42,7 @@ import FoodCard from '@/components/FoodCard';
 import NotificationBell from '@/components/NotificationBell';
 import UserNav from '@/components/UserNav';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -59,7 +58,7 @@ const categoriesConfig = [
 
 export default function MenuPage() {
   const router = useRouter();
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
   const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity } = useCart();
   const db = useFirestore();
   
@@ -76,7 +75,7 @@ export default function MenuPage() {
     setMounted(true);
   }, []);
 
-  // Simulate search feedback
+  // Search feedback simulation
   useEffect(() => {
     if (search) {
       setIsSearching(true);
@@ -87,6 +86,7 @@ export default function MenuPage() {
     }
   }, [search]);
 
+  // Real-time user favorites for highlighting icons
   const favQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(
@@ -96,11 +96,11 @@ export default function MenuPage() {
   }, [db, user?.uid]);
   
   const { data: favorites } = useCollection(favQuery);
-  
-  const favoriteIds = new Set(favorites?.map(f => f.dishId));
+  const favoriteIds = useMemo(() => new Set(favorites?.map(f => f.dishId)), [favorites]);
 
+  // Menu data subscription
   const dishesQuery = useMemoFirebase(() => {
-    return query(collection(db, 'dishes'), limit(100));
+    return query(collection(db, 'dishes'), limit(150));
   }, [db]);
   const { data: allDishes, isLoading: dishesLoading } = useCollection(dishesQuery);
 
@@ -142,7 +142,7 @@ export default function MenuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500" suppressHydrationWarning>
+    <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <div className="flex items-center gap-3">
@@ -188,7 +188,7 @@ export default function MenuPage() {
                 </SheetHeader>
                 <ScrollArea className="flex-1 py-8">
                   {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 animate-in fade-in">
                       <Utensils className="w-20 h-20 mb-6" />
                       <p className="font-black text-xl italic text-center">Your basket is empty!</p>
                     </div>
@@ -247,7 +247,7 @@ export default function MenuPage() {
                       </div>
                     </div>
                     <Link href="/cart" className="w-full">
-                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]">
+                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98] text-white border-none">
                         View Cart & Checkout
                       </Button>
                     </Link>
@@ -292,8 +292,8 @@ export default function MenuPage() {
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Dietary Preference</label>
                     <div className="grid grid-cols-3 gap-3">
                       <Button variant={isVegOnly === null ? 'default' : 'outline'} onClick={() => setIsVegOnly(null)} className="rounded-2xl h-12 font-bold transition-all">All</Button>
-                      <Button variant={isVegOnly === true ? 'default' : 'outline'} onClick={() => setIsVegOnly(true)} className={cn("rounded-2xl h-12 font-bold transition-all", isVegOnly === true && "bg-green-600 border-green-600 hover:bg-green-700")}>Veg</Button>
-                      <Button variant={isVegOnly === false ? 'default' : 'outline'} onClick={() => setIsVegOnly(false)} className={cn("rounded-2xl h-12 font-bold transition-all", isVegOnly === false && "bg-red-600 border-red-600 hover:bg-red-700")}>Non-Veg</Button>
+                      <Button variant={isVegOnly === true ? 'default' : 'outline'} onClick={() => setIsVegOnly(true)} className={cn("rounded-2xl h-12 font-bold transition-all", isVegOnly === true && "bg-green-600 border-green-600 hover:bg-green-700 text-white")}>Veg</Button>
+                      <Button variant={isVegOnly === false ? 'default' : 'outline'} onClick={() => setIsVegOnly(false)} className={cn("rounded-2xl h-12 font-bold transition-all", isVegOnly === false && "bg-red-600 border-red-600 hover:bg-red-700 text-white")}>Non-Veg</Button>
                     </div>
                   </div>
                   
@@ -307,7 +307,7 @@ export default function MenuPage() {
                 </div>
                 <div className="pt-8 border-t flex flex-col gap-4">
                   <Button variant="ghost" className="w-full text-muted-foreground font-black hover:bg-muted/50 rounded-2xl" onClick={resetFilters}>Clear All</Button>
-                  <Button className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 transition-all active:scale-95" onClick={() => setShowFilters(false)}>Show Results</Button>
+                  <Button className="w-full h-16 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 transition-all active:scale-95 text-white border-none" onClick={() => setShowFilters(false)}>Show Results</Button>
                 </div>
               </SheetContent>
             </Sheet>
@@ -345,7 +345,7 @@ export default function MenuPage() {
                 }} 
                 className={cn(
                   "flex-shrink-0 w-36 snap-start cursor-pointer group transition-all duration-300",
-                  selectedCategory === 'All' ? 'scale-105' : 'hover:scale-102'
+                  selectedCategory === cat.name ? 'scale-105' : 'hover:scale-102'
                 )}
               >
                 <div className={cn(
@@ -403,14 +403,14 @@ export default function MenuPage() {
         {!dishesLoading && allDishes?.length === 0 && (
           <div className="bg-primary/5 p-16 rounded-[4rem] border border-dashed border-primary/20 flex flex-col items-center gap-8 text-center animate-in fade-in">
             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center">
-              <ChefHat className="text-primary w-12 h-12 text-primary" />
+              <ChefHat className="text-primary w-12 h-12" />
             </div>
             <div className="max-w-lg space-y-4">
               <h2 className="text-4xl font-headline font-black text-foreground">Our kitchen is just getting started!</h2>
               <p className="text-lg text-muted-foreground font-medium">It looks like the repository hasn't been synced yet. Visit the Admin Portal to bootstrap the menu with 500+ authentic items.</p>
             </div>
             <Link href="/admin/database">
-              <Button className="h-16 px-12 rounded-3xl font-black bg-primary text-xl shadow-2xl shadow-primary/20 hover:scale-105 transition-all text-white">
+              <Button className="h-16 px-12 rounded-3xl font-black bg-primary text-xl shadow-2xl shadow-primary/20 hover:scale-105 transition-all text-white border-none">
                 Go to Admin Repository <ChevronRight className="ml-2 w-6 h-6" />
               </Button>
             </Link>

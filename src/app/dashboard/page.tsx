@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ShoppingCart, 
@@ -10,20 +10,20 @@ import {
   Utensils,
   Loader2,
   Flame,
+  Bell,
   User as UserIcon,
   Star,
   ChevronRight,
   Home,
   Heart,
-  Minus,
   Plus,
+  Minus,
   Trash2,
   ShoppingBag,
   Lock,
   ArrowRight,
   Zap,
-  MessageSquare,
-  RefreshCcw
+  MessageSquare
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -46,8 +46,9 @@ import NotificationBell from '@/components/NotificationBell';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
 import { smartNotifications } from '@/ai/flows/smart-notifications-flow';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, limit, where, getDocs, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, getDocs, addDoc, serverTimestamp, Timestamp, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
 import UserNav from '@/components/UserNav';
 
@@ -59,7 +60,6 @@ export default function DashboardPage() {
 
   const [mounted, setMounted] = useState(false);
   const [loadingRecs, setLoadingRecs] = useState(false);
-  const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -72,8 +72,17 @@ export default function DashboardPage() {
     }
   }, [user, loading, router, mounted]);
 
+  // Subscribe to shared recommendations from Firestore
+  const recsRef = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return doc(db, 'userRecommendations', user.uid);
+  }, [db, user?.uid]);
+  const { data: recDoc } = useDoc(recsRef);
+
+  const recommendations = recDoc?.recommendations || [];
+
   const dishesQuery = useMemoFirebase(() => {
-    return query(collection(db, 'dishes'), limit(150));
+    return query(collection(db, 'dishes'), limit(100));
   }, [db]);
   const { data: allDishes } = useCollection(dishesQuery);
 
@@ -87,82 +96,13 @@ export default function DashboardPage() {
   }, [db]);
   const { data: topRatedDishes } = useCollection(topRatedQuery);
 
-  // REAL-TIME AI RECOMMENDATIONS (Shared with Admin)
-  const recsRef = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return doc(db, 'userRecommendations', user.uid);
-  }, [db, user?.uid]);
-  const { data: recDoc, isLoading: recsLoading } = useDoc(recsRef);
-
-  const recommendations = useMemo(() => recDoc?.recommendations || [], [recDoc]);
-
-  // Smart AI Notifications Trigger
-  useEffect(() => {
-    const triggerSmartNotification = async () => {
-      if (!user?.uid || !allDishes || allDishes.length === 0) return;
-
-      try {
-        const lastDay = new Date();
-        lastDay.setHours(lastDay.getHours() - 24);
-        
-        const q = query(
-          collection(db, 'notifications'),
-          where('userId', '==', user.uid),
-          limit(20)
-        );
-        
-        const existingSnap = await getDocs(q);
-        const hasRecentAINotif = existingSnap.docs.some(doc => {
-          const data = doc.data();
-          const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-          return data.type === 'ai' && createdAt >= lastDay;
-        });
-
-        if (hasRecentAINotif) return;
-
-        const orderRef = collection(db, 'orders');
-        const historyQ = query(orderRef, where('userId', '==', user.uid), limit(10));
-        const orderSnap = await getDocs(historyQ);
-        
-        const history: { name: string; category?: string }[] = [];
-        orderSnap.forEach((doc) => {
-          doc.data().items?.forEach((item: any) => {
-            if (item.name) history.push({ name: item.name });
-          });
-        });
-
-        if (history.length === 0) return;
-
-        const result = await smartNotifications({
-          userFoodHistory: history,
-          userName: user.displayName || 'Friend'
-        });
-
-        if (result.message) {
-          await addDoc(collection(db, 'notifications'), {
-            userId: user.uid,
-            message: result.message,
-            type: 'ai',
-            read: false,
-            createdAt: serverTimestamp()
-          });
-        }
-      } catch (e) {
-        console.warn("Smart notification failed:", e);
-      }
-    };
-
-    if (mounted && user && allDishes) {
-      triggerSmartNotification();
-    }
-  }, [user?.uid, allDishes, mounted]);
-
-  const getPersonalizedRecommendations = async (isManualRefresh = false) => {
+  const getPersonalizedRecommendations = async () => {
     if (!user?.uid || !allDishes || allDishes.length === 0) return;
     
     setLoadingRecs(true);
-    setHasAttemptedRecs(true);
     try {
+      const currentIds = recommendations.map((r: any) => r.id);
+
       const orderRef = collection(db, 'orders');
       const q = query(orderRef, where('userId', '==', user.uid), limit(15));
       const orderSnap = await getDocs(q);
@@ -182,32 +122,30 @@ export default function DashboardPage() {
         }
       });
 
-      const currentIds = recommendations.map((r: any) => r.id);
       const result = await personalizedFoodRecommendations({
         userFoodHistory: history,
         availableFoods: allDishes.map(f => ({
           id: f.id,
           name: f.name,
-          price: f.price,
+          price: Number(f.price),
           category: f.category,
           rating: f.rating,
           image: f.image || f.imageURL,
           isVeg: f.isVeg,
           description: f.description
         })),
-        recentlySeenIds: isManualRefresh ? currentIds : [],
+        recentlySeenIds: currentIds,
         entropy: Math.random()
       });
 
-      // PERSIST to shared state
-      await setDoc(doc(db, 'userRecommendations', user.uid), {
+      // Update shared state
+      await addDoc(collection(db, 'userRecommendations'), {
         userId: user.uid,
-        userName: user.displayName || 'Guest',
         recommendations: result.recommendations,
         updatedAt: serverTimestamp()
-      }, { merge: true });
-      
-      if (isManualRefresh) toast.success("Refreshed your curated menu!");
+      });
+
+      toast.success("Curator refreshed!");
     } catch (e) {
       console.warn("AI recommendations unavailable:", e);
     } finally {
@@ -215,12 +153,12 @@ export default function DashboardPage() {
     }
   };
 
-  // Auto-generate if empty on mount
+  // Initial trigger if empty
   useEffect(() => {
-    if (mounted && allDishes?.length > 0 && user && !recommendations.length && !hasAttemptedRecs && !recsLoading) {
+    if (mounted && user && allDishes?.length > 0 && recommendations.length === 0 && !loadingRecs) {
       getPersonalizedRecommendations();
     }
-  }, [user?.uid, allDishes, mounted, recommendations.length, recsLoading]);
+  }, [user?.uid, allDishes, recommendations.length, mounted]);
 
   // Loading state
   if (!mounted || loading) {
@@ -234,6 +172,7 @@ export default function DashboardPage() {
     );
   }
 
+  // Guard
   if (!user) return null;
 
   const sidebarLinks = [
@@ -333,8 +272,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <Link href="/cart" className="w-full">
-                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden active:scale-95 transition-all text-white border-none">
-                        View Cart & Checkout
+                      <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden active:scale-95 transition-all">
+                        <span className="relative z-10 flex items-center justify-center gap-2 text-white">View Cart <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></span>
                       </Button>
                     </Link>
                   </SheetFooter>
@@ -427,7 +366,7 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* AI Recommendations Section - UNGATED */}
+          {/* AI Recommendations Section */}
           <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-60 animate-float-slow"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-20 animate-drift-slow"></div>
@@ -442,29 +381,29 @@ export default function DashboardPage() {
                   Smart Menu Curator
                 </h2>
                 <p className="text-muted-foreground font-medium max-w-lg">
-                  Analyzing available selection and community favorites to curate your next meal.
+                  Our neural network analyzes your unique flavor profile to suggest your next favorite dish.
                 </p>
               </div>
               
               <Button 
-                onClick={() => getPersonalizedRecommendations(true)}
-                disabled={loadingRecs || recsLoading}
+                onClick={getPersonalizedRecommendations}
+                disabled={loadingRecs}
                 className="h-16 px-8 rounded-2xl bg-white hover:bg-muted/50 text-foreground border-2 border-primary/10 font-black text-lg shadow-xl transition-all active:scale-95 group"
               >
                 {loadingRecs ? (
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 ) : (
                   <span className="flex items-center gap-3">
-                    <RefreshCcw className="w-6 h-6 text-primary group-hover:rotate-180 transition-transform duration-500" />
-                    Refresh Curated Menu
+                    <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+                    ✨ Get AI Suggestions
                   </span>
                 )}
               </Button>
             </div>
 
-            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
-              {(loadingRecs || recsLoading) ? (
-                Array.from({ length: 5 }).map((_, i) => (
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+              {loadingRecs ? (
+                Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-4 animate-pulse">
                     <div className="aspect-square bg-muted/50 rounded-[2.5rem]"></div>
                     <div className="h-4 bg-muted/50 rounded w-3/4"></div>
@@ -473,28 +412,31 @@ export default function DashboardPage() {
                 ))
               ) : recommendations.length > 0 ? (
                 recommendations.map((dish: any, i: number) => (
-                  <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 100}ms` }}>
+                  <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 150}ms` }}>
                     <div className="relative group">
-                      <FoodCard food={dish} />
-                      <div className="absolute -top-2 -right-2 pointer-events-none z-10">
-                        <Badge className="bg-primary text-white border-2 border-white rounded-full px-2 py-0.5 text-[8px] font-black uppercase shadow-md">
-                          Top Choice
-                        </Badge>
-                      </div>
-                      <div className="mt-3 px-1">
-                        <p className="text-[9px] font-black text-primary/70 uppercase tracking-widest italic line-clamp-2 leading-tight">
-                          {dish.reason || "Recommended for you"}
-                        </p>
-                      </div>
+                      <FoodCard food={{...dish, imageURL: dish.image}} />
+                      {dish.reason && (
+                        <div className="mt-4 px-2">
+                          <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest italic">
+                            AI: {dish.reason}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="col-span-full py-20 text-center flex flex-col items-center gap-6 opacity-50 bg-white/30 backdrop-blur-sm rounded-[3rem] border-2 border-dashed border-primary/10">
                   <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-inner">
-                    <Sparkles className="w-10 h-10 text-muted-foreground" />
+                    <Utensils className="w-10 h-10 text-muted-foreground" />
                   </div>
-                  <p className="font-black text-xl text-foreground italic">Generating your custom menu...</p>
+                  <div className="space-y-2">
+                    <p className="font-black text-xl text-foreground">Order something to unlock AI recommendations</p>
+                    <p className="text-sm font-medium">Your palate profile is currently being built as you explore our menu.</p>
+                  </div>
+                  <Link href="/menu">
+                    <Button variant="outline" className="rounded-xl font-bold border-primary text-primary">Browse the Menu</Button>
+                  </Link>
                 </div>
               )}
             </div>
@@ -582,6 +524,27 @@ export default function DashboardPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
                 {trendingDishes.map((dish, i) => (
+                  <div key={dish.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                    <FoodCard food={{...dish, imageURL: dish.image}} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {topRatedDishes && topRatedDishes.length > 0 && (
+            <section className="space-y-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                    <Star className="w-10 h-10 text-yellow-500 fill-current" /> 
+                    User Choice
+                  </h2>
+                  <p className="text-muted-foreground font-medium mt-1">Exquisite dishes rated 4.5+ by our connoisseurs.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                {topRatedDishes.map((dish, i) => (
                   <div key={dish.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
                     <FoodCard food={{...dish, imageURL: dish.image}} />
                   </div>

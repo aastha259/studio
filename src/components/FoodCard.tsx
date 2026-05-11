@@ -9,9 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/lib/contexts/cart-context';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { useFavorites } from '@/lib/contexts/favorites-context';
 import { useRouter } from 'next/navigation';
-import { useFirestore } from '@/firebase';
-import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -27,13 +26,13 @@ interface FoodCardProps {
     image?: string;
     isVeg?: boolean;
   };
-  isFavorite?: boolean;
+  isFavorite?: boolean; // Prop is now optional, context is primary source of truth
 }
 
-export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
+export default function FoodCard({ food, isFavorite: propIsFavorite }: FoodCardProps) {
   const { addToCart } = useCart();
   const { user } = useAuth();
-  const db = useFirestore();
+  const { toggleFavorite, isFavorited } = useFavorites();
   const router = useRouter();
 
   const [isAdding, setIsAdding] = useState(false);
@@ -41,8 +40,8 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
 
   const displayImage = food.imageURL || food.image || `https://picsum.photos/seed/${food.id}/400/400`;
   
-  // Deterministic ID prevents duplicates and makes toggling efficient
-  const favDocId = user ? `${user.uid}_${food.id}` : null;
+  // Use context state but allow prop override if explicitly provided
+  const activeFavorite = propIsFavorite !== undefined ? propIsFavorite : isFavorited(food.id);
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,31 +54,8 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
     }
 
     setIsFavoriting(true);
-    const favRef = doc(db, 'favorites', favDocId!);
-
     try {
-      if (isFavorite) {
-        // TOGGLE: Remove if already favorited
-        await deleteDoc(favRef);
-        toast.success("Removed from favorites");
-      } else {
-        // TOGGLE: Add if not favorited
-        await setDoc(favRef, {
-          userId: user.uid,
-          dishId: food.id,
-          name: food.name,
-          price: food.price,
-          image: displayImage,
-          category: food.category || 'General',
-          rating: food.rating || 4.5,
-          isVeg: !!food.isVeg,
-          createdAt: serverTimestamp()
-        });
-        toast.success("Added to favorites ❤️");
-      }
-    } catch (err) {
-      console.error("Favorite toggle failed:", err);
-      toast.error("Action failed. Please try again.");
+      await toggleFavorite(food);
     } finally {
       setIsFavoriting(false);
     }
@@ -127,7 +103,7 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
             disabled={isFavoriting}
             className={cn(
               "h-10 w-10 rounded-2xl backdrop-blur-md transition-all active:scale-90 shadow-lg",
-              isFavorite 
+              activeFavorite 
                 ? "bg-white text-red-500 hover:bg-white/90" 
                 : "bg-white/40 text-white hover:bg-white hover:text-red-500"
             )}
@@ -135,7 +111,7 @@ export default function FoodCard({ food, isFavorite = false }: FoodCardProps) {
             {isFavoriting ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Heart className={cn("w-5 h-5", isFavorite && "fill-current")} />
+              <Heart className={cn("w-5 h-5", activeFavorite && "fill-current")} />
             )}
           </Button>
         </div>

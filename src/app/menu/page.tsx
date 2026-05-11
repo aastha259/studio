@@ -16,7 +16,6 @@ import {
   Filter,
   CircleDot,
   Leaf,
-  ChevronRight,
   Pizza,
   Plus,
   Minus,
@@ -39,11 +38,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useCart } from '@/lib/contexts/cart-context';
+import { useFavorites } from '@/lib/contexts/favorites-context';
 import FoodCard from '@/components/FoodCard';
 import NotificationBell from '@/components/NotificationBell';
 import UserNav from '@/components/UserNav';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { collection, query, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -86,18 +86,6 @@ export default function MenuPage() {
       setIsSearching(false);
     }
   }, [search]);
-
-  // Real-time user favorites for highlighting icons
-  const favQuery = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return query(
-      collection(db, 'favorites'),
-      where('userId', '==', user.uid)
-    );
-  }, [db, user?.uid]);
-  
-  const { data: favorites } = useCollection(favQuery);
-  const favoriteIds = useMemo(() => new Set(favorites?.map(f => f.dishId)), [favorites]);
 
   // Menu data subscription
   const dishesQuery = useMemoFirebase(() => {
@@ -378,14 +366,13 @@ export default function MenuPage() {
                     <div key={dish.id} style={{ animationDelay: `${index * 50}ms` }}>
                       <FoodCard 
                         food={{...dish, imageURL: dish.image}} 
-                        isFavorite={favoriteIds.has(dish.id)}
                       />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-40 bg-white rounded-[4rem] border border-dashed border-primary/10 animate-in zoom-in duration-500">
-                  <div className="max-w-md mx-auto space-y-6">
+                  <div className="max-md mx-auto space-y-6">
                     <div className="w-24 h-24 bg-muted/30 rounded-full flex items-center justify-center mx-auto transition-transform hover:rotate-12">
                       <AlertCircle className="w-10 h-10 text-muted-foreground" />
                     </div>

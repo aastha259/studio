@@ -5,6 +5,7 @@ import { Toaster as ShadcnToaster } from "@/components/ui/toaster"
 import { Toaster } from 'react-hot-toast';
 import { CartProvider } from '@/lib/contexts/cart-context';
 import { AuthProvider } from '@/lib/contexts/auth-context';
+import { FavoritesProvider } from '@/lib/contexts/favorites-context';
 import { FirebaseClientProvider } from '@/firebase';
 import PushNotificationManager from '@/components/PushNotificationManager';
 
@@ -28,12 +29,14 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background text-foreground" suppressHydrationWarning>
         <FirebaseClientProvider>
           <AuthProvider>
-            <CartProvider>
-              <PushNotificationManager />
-              <Toaster position="top-right" reverseOrder={false} />
-              {children}
-              <ShadcnToaster />
-            </CartProvider>
+            <FavoritesProvider>
+              <CartProvider>
+                <PushNotificationManager />
+                <Toaster position="top-right" reverseOrder={false} />
+                {children}
+                <ShadcnToaster />
+              </CartProvider>
+            </FavoritesProvider>
           </AuthProvider>
         </FirebaseClientProvider>
       </body>

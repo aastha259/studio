@@ -28,13 +28,14 @@ const FullFoodItemSchema = z.object({
   imageURL: z.string().optional(),
   isVeg: z.boolean().optional(),
   description: z.string().optional(),
+  reason: z.string().optional().describe('A brief explanation of why this dish was recommended.'),
 });
 
 const PersonalizedFoodRecommendationsInputSchema = z.object({
   userFoodHistory: z.array(UserFoodHistoryItemSchema),
   availableFoods: z.array(FullFoodItemSchema),
   recentlySeenIds: z.array(z.string()).optional(),
-  entropy: z.number().optional().describe('A random value to influence variety. If omitted, default random is used.'),
+  entropy: z.number().optional().describe('A random value to influence variety.'),
 });
 export type PersonalizedFoodRecommendationsInput = z.infer<typeof PersonalizedFoodRecommendationsInputSchema>;
 
@@ -61,22 +62,26 @@ const recommendationPrompt = ai.definePrompt({
   },
   output: {
     schema: z.object({
-      recommendedFoodIds: z.array(z.string()).max(6),
+      recommendations: z.array(z.object({
+        id: z.string(),
+        reason: z.string().describe('Max 60 chars explanatory reason.')
+      })).max(5),
     }),
   },
   prompt: `You are an expert food recommender for Bhartiya Swad.
   
   TASK:
-  Analyze the user's history and select 4-6 dishes from the 'simplifiedAvailableFoods' list.
+  Analyze the user's history and select 5 dishes from the 'simplifiedAvailableFoods' list.
   
   VARIETY RULES (Entropy: {{entropy}}):
   1. DO NOT recommend items in the 'recentlySeenIds' list: {{{json recentlySeenIds}}}.
-  2. If 'userFoodHistory' is EMPTY, recommend a diverse mix of categories (e.g., 1 Pizza, 1 South Indian, 1 Dessert).
-  3. If history exists, suggest items that match the user's taste but prioritize DISCOVERY of new items they haven't ordered.
+  2. If 'userFoodHistory' is EMPTY, select a diverse mix of 5 high-performing items (1 Pizza, 1 North Indian, 1 South Indian, 1 Burger, 1 Dessert).
+  3. If history exists, suggest items that match their taste but prioritize items they HAVEN'T ordered yet.
   
-  STRICT CONSTRAINTS:
-  1. ONLY return IDs from the provided list.
-  2. Return ONLY the JSON object.
+  OUTPUT REQUIREMENTS:
+  1. Provide a brief 'reason' for each (e.g. "Matches your love for spicy food", "A highly-rated favorite at Bhartiya Swad", "Classic North Indian delight").
+  2. ONLY return IDs from the provided list.
+  3. Return ONLY the JSON object.
 
   User's past food history:
   {{{json userFoodHistory}}}
@@ -103,28 +108,29 @@ const personalizedFoodRecommendationsFlow = ai.defineFlow(
         userFoodHistory: input.userFoodHistory,
         simplifiedAvailableFoods: simplified,
         recentlySeenIds: input.recentlySeenIds || [],
-        entropy: input.entropy || 0.5,
+        entropy: input.entropy || Math.random(),
       });
 
-      if (!output?.recommendedFoodIds) return { recommendations: [] };
+      if (!output?.recommendations) return { recommendations: [] };
 
-      // Map back to FULL objects while preserving all Firestore fields
-      const recommendations = output.recommendedFoodIds
-        .map(id => {
-          const cleanId = id.replace(/["']/g, '').trim();
-          return input.availableFoods.find(food => food.id === cleanId);
+      // Map back to FULL objects while preserving all Firestore fields and attaching the AI reason
+      const recommendations = output.recommendations
+        .map(rec => {
+          const cleanId = rec.id.replace(/["']/g, '').trim();
+          const baseFood = input.availableFoods.find(food => food.id === cleanId);
+          if (!baseFood) return null;
+          return { ...baseFood, reason: rec.reason };
         })
         .filter((f): f is z.infer<typeof FullFoodItemSchema> => !!f);
 
-      // Deterministic return: No internal Math.random() sorting here.
-      // The order is determined by the LLM and its provided entropy.
       return { recommendations };
     } catch (error) {
       console.error("AI Flow Error:", error);
-      // Fallback: Use rating-based deterministic fallback if AI fails
+      // Fallback: Use rating-based fallback if AI fails
       const fallback = input.availableFoods
         .filter(f => (f.rating || 0) >= 4.5)
-        .slice(0, 4);
+        .slice(0, 5)
+        .map(f => ({ ...f, reason: "A community favorite!" }));
       return { recommendations: fallback };
     }
   }

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -7,19 +6,24 @@ import {
   ShoppingCart, 
   ChefHat, 
   Sparkles, 
+  LogOut,
   Utensils,
   Loader2,
   Flame,
-  Plus,
-  Minus,
-  Trash2,
-  ShoppingBag,
+  User as UserIcon,
+  Star,
+  ChevronRight,
   Home,
   Heart,
-  MessageSquare,
+  Minus,
+  Plus,
+  Trash2,
+  ShoppingBag,
   Lock,
-  ChevronRight,
-  Zap
+  ArrowRight,
+  Zap,
+  MessageSquare,
+  RefreshCcw
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -40,45 +44,33 @@ import FoodCard from '@/components/FoodCard';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import NotificationBell from '@/components/NotificationBell';
 import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-recommendations-flow';
+import { smartNotifications } from '@/ai/flows/smart-notifications-flow';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, limit, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, getDocs, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import UserNav from '@/components/UserNav';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { items, removeFromCart, updateQuantity, totalPrice, totalQuantity } = useCart();
   const db = useFirestore();
 
   const [mounted, setMounted] = useState(false);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [hasAttemptedRecs, setHasAttemptedRecs] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Protect route
   useEffect(() => {
     if (mounted && !loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router, mounted]);
-
-  // Subscription to Favorites for Heart Toggles
-  const favQuery = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return query(collection(db, 'favorites'), where('userId', '==', user.uid));
-  }, [db, user?.uid]);
-  const { data: favorites } = useCollection(favQuery);
-  const favoriteIds = useMemo(() => new Set(favorites?.map(f => f.dishId)), [favorites]);
-
-  // Shared Source of Truth for Recommendations
-  const recsRef = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return doc(db, 'userRecommendations', user.uid);
-  }, [db, user?.uid]);
-  const { data: persistedRecs, isLoading: recsFetching } = useDoc(recsRef);
 
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), limit(150));
@@ -90,14 +82,89 @@ export default function DashboardPage() {
   }, [db]);
   const { data: trendingDishes } = useCollection(trendingQuery);
 
-  const generateRecommendations = async () => {
+  const topRatedQuery = useMemoFirebase(() => {
+    return query(collection(db, 'dishes'), orderBy('rating', 'desc'), limit(4));
+  }, [db]);
+  const { data: topRatedDishes } = useCollection(topRatedQuery);
+
+  // REAL-TIME AI RECOMMENDATIONS (Shared with Admin)
+  const recsRef = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return doc(db, 'userRecommendations', user.uid);
+  }, [db, user?.uid]);
+  const { data: recDoc, isLoading: recsLoading } = useDoc(recsRef);
+
+  const recommendations = useMemo(() => recDoc?.recommendations || [], [recDoc]);
+
+  // Smart AI Notifications Trigger
+  useEffect(() => {
+    const triggerSmartNotification = async () => {
+      if (!user?.uid || !allDishes || allDishes.length === 0) return;
+
+      try {
+        const lastDay = new Date();
+        lastDay.setHours(lastDay.getHours() - 24);
+        
+        const q = query(
+          collection(db, 'notifications'),
+          where('userId', '==', user.uid),
+          limit(20)
+        );
+        
+        const existingSnap = await getDocs(q);
+        const hasRecentAINotif = existingSnap.docs.some(doc => {
+          const data = doc.data();
+          const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+          return data.type === 'ai' && createdAt >= lastDay;
+        });
+
+        if (hasRecentAINotif) return;
+
+        const orderRef = collection(db, 'orders');
+        const historyQ = query(orderRef, where('userId', '==', user.uid), limit(10));
+        const orderSnap = await getDocs(historyQ);
+        
+        const history: { name: string; category?: string }[] = [];
+        orderSnap.forEach((doc) => {
+          doc.data().items?.forEach((item: any) => {
+            if (item.name) history.push({ name: item.name });
+          });
+        });
+
+        if (history.length === 0) return;
+
+        const result = await smartNotifications({
+          userFoodHistory: history,
+          userName: user.displayName || 'Friend'
+        });
+
+        if (result.message) {
+          await addDoc(collection(db, 'notifications'), {
+            userId: user.uid,
+            message: result.message,
+            type: 'ai',
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
+      } catch (e) {
+        console.warn("Smart notification failed:", e);
+      }
+    };
+
+    if (mounted && user && allDishes) {
+      triggerSmartNotification();
+    }
+  }, [user?.uid, allDishes, mounted]);
+
+  const getPersonalizedRecommendations = async (isManualRefresh = false) => {
     if (!user?.uid || !allDishes || allDishes.length === 0) return;
     
     setLoadingRecs(true);
+    setHasAttemptedRecs(true);
     try {
-      const currentIds = persistedRecs?.recommendations?.map((r: any) => r.id) || [];
       const orderRef = collection(db, 'orders');
-      const q = query(orderRef, where('userId', '==', user.uid), limit(20));
+      const q = query(orderRef, where('userId', '==', user.uid), limit(15));
       const orderSnap = await getDocs(q);
       
       const history: { name: string; category?: string }[] = [];
@@ -106,53 +173,56 @@ export default function DashboardPage() {
         if (orderData.items && Array.isArray(orderData.items)) {
           orderData.items.forEach((item: any) => {
             if (item.name) {
-              const matchedDish = allDishes.find(d => d.id === item.dishId || d.name === item.name);
-              history.push({ name: item.name, category: matchedDish?.category });
+              history.push({
+                name: item.name,
+                category: allDishes.find(f => f.id === item.dishId || f.name === item.name)?.category
+              });
             }
           });
         }
       });
 
-      const entropy = Math.random();
+      const currentIds = recommendations.map((r: any) => r.id);
       const result = await personalizedFoodRecommendations({
         userFoodHistory: history,
         availableFoods: allDishes.map(f => ({
           id: f.id,
           name: f.name,
-          price: Number(f.price),
+          price: f.price,
           category: f.category,
           rating: f.rating,
           image: f.image || f.imageURL,
           isVeg: f.isVeg,
           description: f.description
         })),
-        recentlySeenIds: currentIds,
-        entropy: entropy
-      });
-      
-      await setDoc(doc(db, 'userRecommendations', user.uid), {
-        userId: user.uid,
-        userName: user.displayName,
-        recommendations: result.recommendations,
-        entropy: entropy,
-        updatedAt: serverTimestamp()
+        recentlySeenIds: isManualRefresh ? currentIds : [],
+        entropy: Math.random()
       });
 
-      toast.success("Curated your menu!");
+      // PERSIST to shared state
+      await setDoc(doc(db, 'userRecommendations', user.uid), {
+        userId: user.uid,
+        userName: user.displayName || 'Guest',
+        recommendations: result.recommendations,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      if (isManualRefresh) toast.success("Refreshed your curated menu!");
     } catch (e) {
-      console.error("AI Error:", e);
-      toast.error("Failed to update AI menu.");
+      console.warn("AI recommendations unavailable:", e);
     } finally {
       setLoadingRecs(false);
     }
   };
 
+  // Auto-generate if empty on mount
   useEffect(() => {
-    if (mounted && user && allDishes && allDishes.length > 0 && persistedRecs === null && !recsFetching && !loadingRecs) {
-      generateRecommendations();
+    if (mounted && allDishes?.length > 0 && user && !recommendations.length && !hasAttemptedRecs && !recsLoading) {
+      getPersonalizedRecommendations();
     }
-  }, [user?.uid, allDishes, persistedRecs, recsFetching, mounted]);
+  }, [user?.uid, allDishes, mounted, recommendations.length, recsLoading]);
 
+  // Loading state
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
@@ -165,8 +235,6 @@ export default function DashboardPage() {
   }
 
   if (!user) return null;
-
-  const recommendations = persistedRecs?.recommendations || [];
 
   const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', active: true, icon: Home },
@@ -181,17 +249,16 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#FDFCFB] animate-in fade-in duration-500">
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-xl border-b px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <ChefHat className="text-white w-6 h-6" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
-            </div>
+            <span className="font-headline text-2xl font-black tracking-tight hidden md:block text-foreground">Bhartiya Swad</span>
           </div>
 
           <div className="flex items-center gap-4">
             <NotificationBell />
+
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" className="relative p-2 rounded-full hover:bg-primary/5 group transition-all active:scale-90">
@@ -206,7 +273,8 @@ export default function DashboardPage() {
               <SheetContent className="w-full sm:max-w-md flex flex-col rounded-l-[2.5rem] border-none shadow-2xl">
                 <SheetHeader className="pb-6 border-b">
                   <SheetTitle className="text-2xl font-headline font-black flex items-center gap-3">
-                    <ShoppingCart className="w-8 h-8 text-primary" /> Basket
+                    <ShoppingCart className="w-8 h-8 text-primary" /> 
+                    Your Basket
                   </SheetTitle>
                 </SheetHeader>
                 <ScrollArea className="flex-1 py-8">
@@ -266,7 +334,7 @@ export default function DashboardPage() {
                     </div>
                     <Link href="/cart" className="w-full">
                       <Button className="w-full h-16 bg-primary text-xl font-black rounded-3xl shadow-xl shadow-primary/20 group overflow-hidden active:scale-95 transition-all text-white border-none">
-                        View Cart <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        View Cart & Checkout
                       </Button>
                     </Link>
                   </SheetFooter>
@@ -299,64 +367,251 @@ export default function DashboardPage() {
               </Link>
             ))}
           </nav>
+          
+          <div className="mt-auto p-6 bg-accent/5 rounded-[2rem] border border-accent/10 relative overflow-hidden group transition-all hover:bg-accent/10">
+            <div className="relative z-10">
+              <p className="font-headline font-black text-accent text-lg mb-2">Get 20% OFF</p>
+              <p className="text-xs text-muted-foreground font-medium mb-4">On your first order above ₹500</p>
+              <Button size="sm" className="bg-accent text-white font-black rounded-xl hover:scale-105 transition-transform active:scale-95">REDEEM NOW</Button>
+            </div>
+            <Sparkles className="absolute -bottom-2 -right-2 w-20 h-20 text-accent/10 rotate-12 group-hover:scale-125 transition-transform duration-2000" />
+          </div>
+
+          <Button 
+            variant="ghost" 
+            className="mt-8 w-full justify-start h-12 rounded-2xl px-6 font-bold text-destructive hover:bg-destructive/5 gap-3 transition-colors"
+            onClick={() => {
+              logout();
+              toast.success("Logged out");
+            }}
+          >
+            <LogOut className="w-5 h-5" />
+            Log Out
+          </Button>
         </aside>
 
         <main className="flex-1 p-8 md:p-12 space-y-24 min-w-0">
+          <section className="relative rounded-[3rem] overflow-hidden bg-primary/10 border border-primary/5 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12 group animate-in zoom-in duration-1000">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float-slow -z-10" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full blur-3xl animate-drift-slow -z-10" />
+            
+            <div className="relative z-10 space-y-6 max-w-lg">
+              <Badge className="bg-primary text-white border-none rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[10px] animate-pulse">Premium Experience</Badge>
+              <h1 className="text-5xl md:text-6xl font-headline font-black text-foreground leading-[1.1] tracking-tight">
+                Authentic <span className="text-primary italic">Indian</span><br/>Delights.
+              </h1>
+              <p className="text-lg text-muted-foreground font-medium">From spicy street food to royal thalis, we bring the heart of Bharat to your door.</p>
+              <div className="flex gap-4">
+                <Link href="/menu">
+                  <Button className="h-16 px-10 rounded-2xl bg-primary text-lg font-black shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-white border-none">Explore Full Menu</Button>
+                </Link>
+              </div>
+            </div>
+            <div className="relative flex-1 flex justify-center">
+              <div className="w-72 h-72 md:w-96 md:h-96 bg-white rounded-full shadow-2xl border-8 border-white overflow-hidden animate-float">
+                <img 
+                  src="https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80" 
+                  alt="Delicious Indian Food" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-2000" 
+                />
+              </div>
+              <div className="absolute top-0 right-0 bg-white p-4 rounded-3xl shadow-xl border flex items-center gap-3 animate-bounce">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Flame className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase text-muted-foreground">Order Now</p>
+                  <p className="font-black text-foreground text-sm">Fastest Delivery</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* AI Recommendations Section - UNGATED */}
           <section className="bg-muted/30 p-12 md:p-16 rounded-[4rem] border border-primary/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-60 animate-float-slow"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-20 animate-drift-slow"></div>
+            
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full text-primary text-[10px] font-black uppercase tracking-widest border border-primary/5">
                   <Zap className="w-3 h-3 fill-primary" />
                   AI-Powered Recommendations
                 </div>
-                <h2 className="text-4xl font-headline font-black text-foreground">Smart Menu Curator</h2>
-                <p className="text-muted-foreground font-medium max-w-lg">Personalized picks based on your unique flavor profile.</p>
+                <h2 className="text-4xl font-headline font-black text-foreground flex items-center gap-4">
+                  Smart Menu Curator
+                </h2>
+                <p className="text-muted-foreground font-medium max-w-lg">
+                  Analyzing available selection and community favorites to curate your next meal.
+                </p>
               </div>
+              
               <Button 
-                onClick={generateRecommendations}
-                disabled={loadingRecs || recsFetching}
-                className="h-16 px-8 rounded-2xl bg-white hover:bg-muted/50 text-foreground border-2 border-primary/10 font-black text-lg shadow-xl active:scale-95 group"
+                onClick={() => getPersonalizedRecommendations(true)}
+                disabled={loadingRecs || recsLoading}
+                className="h-16 px-8 rounded-2xl bg-white hover:bg-muted/50 text-foreground border-2 border-primary/10 font-black text-lg shadow-xl transition-all active:scale-95 group"
               >
-                {loadingRecs ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Sparkles className="w-6 h-6 text-primary mr-2" /> Refresh Suggestions</>}
+                {loadingRecs ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                ) : (
+                  <span className="flex items-center gap-3">
+                    <RefreshCcw className="w-6 h-6 text-primary group-hover:rotate-180 transition-transform duration-500" />
+                    Refresh Curated Menu
+                  </span>
+                )}
               </Button>
             </div>
 
-            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-              {(loadingRecs || recsFetching) ? (
-                Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-square bg-muted rounded-[2.5rem] animate-pulse" />)
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+              {(loadingRecs || recsLoading) ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="space-y-4 animate-pulse">
+                    <div className="aspect-square bg-muted/50 rounded-[2.5rem]"></div>
+                    <div className="h-4 bg-muted/50 rounded w-3/4"></div>
+                    <div className="h-4 bg-muted/50 rounded w-1/2"></div>
+                  </div>
+                ))
               ) : recommendations.length > 0 ? (
                 recommendations.map((dish: any, i: number) => (
-                  <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 150}ms` }}>
-                    <FoodCard food={dish} isFavorite={favoriteIds.has(dish.id)} />
+                  <div key={dish.id} className="animate-in fade-in zoom-in duration-700" style={{ animationDelay: `${i * 100}ms` }}>
+                    <div className="relative group">
+                      <FoodCard food={dish} />
+                      <div className="absolute -top-2 -right-2 pointer-events-none z-10">
+                        <Badge className="bg-primary text-white border-2 border-white rounded-full px-2 py-0.5 text-[8px] font-black uppercase shadow-md">
+                          Top Choice
+                        </Badge>
+                      </div>
+                      <div className="mt-3 px-1">
+                        <p className="text-[9px] font-black text-primary/70 uppercase tracking-widest italic line-clamp-2 leading-tight">
+                          {dish.reason || "Recommended for you"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ))
               ) : (
-                <div className="col-span-full py-20 text-center flex flex-col items-center opacity-50">
-                  <Utensils className="w-16 h-16 mb-4" />
-                  <p className="font-black text-xl">Curating your first suggestions...</p>
+                <div className="col-span-full py-20 text-center flex flex-col items-center gap-6 opacity-50 bg-white/30 backdrop-blur-sm rounded-[3rem] border-2 border-dashed border-primary/10">
+                  <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-inner">
+                    <Sparkles className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <p className="font-black text-xl text-foreground italic">Generating your custom menu...</p>
                 </div>
               )}
             </div>
           </section>
 
+          <section className="space-y-10">
+            <div className="flex items-center justify-between">
+              <div className="animate-in slide-in-from-left-4 duration-700">
+                <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                  <ShoppingBag className="w-10 h-10 text-primary" /> 
+                  Your Journey
+                </h2>
+                <p className="text-muted-foreground font-medium mt-1">Quick access to your activity and favorites.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <Link href="/orders" className="group block">
+                <Card className="p-8 h-full bg-white border border-primary/5 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem] flex flex-col items-center text-center gap-6">
+                  <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
+                    <ShoppingBag className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-headline font-black text-foreground">My Orders</h3>
+                    <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                      Track your live orders or browse through your history.
+                    </p>
+                  </div>
+                  <Button variant="ghost" className="mt-auto font-black text-primary group-hover:translate-x-2 transition-transform">
+                    View History <ChevronRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Card>
+              </Link>
+
+              <Link href="/menu" className="group block">
+                <Card className="p-8 h-full bg-white border border-primary/5 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem] flex flex-col items-center text-center gap-6">
+                  <div className="w-20 h-20 rounded-[2rem] bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all duration-500 shadow-inner">
+                    <Utensils className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-headline font-black text-foreground">Full Menu</h3>
+                    <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                      Explore delicacies curated for you.
+                    </p>
+                  </div>
+                  <Button variant="ghost" className="mt-auto font-black text-accent group-hover:translate-x-2 transition-transform">
+                    Explore Now <ChevronRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Card>
+              </Link>
+
+              <Link href="/favorites" className="group block">
+                <Card className="p-8 h-full bg-white border border-primary/5 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem] flex flex-col items-center text-center gap-6">
+                  <div className="w-20 h-20 rounded-[2rem] bg-pink-100 flex items-center justify-center text-pink-600 group-hover:bg-pink-600 group-hover:text-white transition-all duration-500 shadow-inner">
+                    <Heart className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-headline font-black text-foreground">Favorites</h3>
+                    <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                      Re-order dishes that won your heart.
+                    </p>
+                  </div>
+                  <Button variant="ghost" className="mt-auto font-black text-pink-600 group-hover:translate-x-2 transition-transform">
+                    See Favorites <ChevronRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Card>
+              </Link>
+            </div>
+          </section>
+
           {trendingDishes && trendingDishes.length > 0 && (
             <section className="space-y-10">
-              <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
-                <Flame className="w-10 h-10 text-accent animate-pulse" /> Hot & Trending
-              </h2>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                    <Flame className="w-10 h-10 text-accent animate-pulse" /> 
+                    Hot & Trending
+                  </h2>
+                  <p className="text-muted-foreground font-medium mt-1">Our community's current favorites this week.</p>
+                </div>
+                <Link href="/menu">
+                  <Button variant="ghost" className="rounded-xl font-bold text-primary group hover:bg-primary/5">
+                    See All <ChevronRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                {trendingDishes.map((dish) => (
-                  <FoodCard key={dish.id} food={{...dish, imageURL: dish.image}} isFavorite={favoriteIds.has(dish.id)} />
+                {trendingDishes.map((dish, i) => (
+                  <div key={dish.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                    <FoodCard food={{...dish, imageURL: dish.image}} />
+                  </div>
                 ))}
               </div>
             </section>
           )}
 
-          <section id="security" className="max-w-2xl mx-auto w-full space-y-10">
-            <h2 className="text-4xl font-headline font-black flex items-center gap-4">
-              <Lock className="w-10 h-10 text-primary" /> Account Security
-            </h2>
-            <ChangePasswordForm />
+          <section id="security" className="space-y-10 scroll-mt-24">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-4xl font-headline font-black flex items-center gap-4 text-foreground">
+                  <Lock className="w-10 h-10 text-primary" /> 
+                  Account Security
+                </h2>
+                <p className="text-muted-foreground font-medium mt-1">Manage your access and keep your profile secure.</p>
+              </div>
+            </div>
+            <div className="max-w-2xl mx-auto w-full transition-all hover:scale-[1.01]">
+              <ChangePasswordForm />
+            </div>
+          </section>
+
+          <section className="text-center py-20 border-t border-dashed">
+            <h3 className="text-3xl font-headline font-black mb-6 text-foreground">Didn't find what you like?</h3>
+            <Link href="/menu">
+              <Button size="lg" variant="outline" className="h-16 px-12 rounded-2xl border-2 font-black text-lg hover:bg-primary hover:text-white transition-all shadow-xl active:scale-95 group">
+                Browse Full Catalog <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
           </section>
         </main>
       </div>
@@ -365,9 +620,15 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3">
             <ChefHat className="text-primary w-8 h-8" />
-            <span className="font-headline text-xl font-black">Bhartiya Swad</span>
+            <span className="font-headline text-xl font-black text-foreground">Bhartiya Swad</span>
           </div>
-          <p className="text-xs text-muted-foreground font-bold">© 2025 Bhartiya Swad. Delivering authentic taste.</p>
+          <p className="text-sm text-muted-foreground font-bold italic opacity-60 text-center md:text-left">© 2025 Bhartiya Swad. Delivering authentic taste across Bharat.</p>
+          <div className="flex gap-6">
+            <Link href="/contact" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Contact</Link>
+            <Link href="/privacy-policy" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Privacy</Link>
+            <Link href="/terms-and-conditions" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Terms</Link>
+            <Link href="/refund-policy" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">Refund Policy</Link>
+          </div>
         </div>
       </footer>
     </div>

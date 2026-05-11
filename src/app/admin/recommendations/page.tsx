@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -46,7 +45,7 @@ export default function AdminRecommendationsPage() {
         ? recSnap.data().recommendations?.map((r: any) => r.id) || [] 
         : [];
 
-      // Fetch real history for this user to power accurate AI prediction
+      // Fetch real history for this user
       const orderRef = collection(db, 'orders');
       const q = query(orderRef, where('userId', '==', userId), limit(15));
       const orderSnap = await getDocs(q);
@@ -66,7 +65,6 @@ export default function AdminRecommendationsPage() {
         }
       });
 
-      const entropy = Math.random();
       const result = await personalizedFoodRecommendations({
         userFoodHistory: history,
         availableFoods: dishes.map(d => ({
@@ -79,16 +77,15 @@ export default function AdminRecommendationsPage() {
           isVeg: d.isVeg,
           description: d.description
         })),
-        recentlySeenIds: currentIds, // EXCLUDE CURRENTLY SHOWN ITEMS
-        entropy: entropy
+        recentlySeenIds: currentIds,
+        entropy: Math.random()
       });
 
-      // Persist to shared collection so User Panel sees the same updates
+      // Persist to shared collection
       await setDoc(doc(db, 'userRecommendations', userId), {
         userId: userId,
         userName: userName,
         recommendations: result.recommendations,
-        entropy: entropy,
         updatedAt: serverTimestamp()
       });
 
@@ -114,15 +111,8 @@ export default function AdminRecommendationsPage() {
           <Sparkles className="w-10 h-10 text-primary" />
           AI Recommendations
         </h1>
-        <p className="text-muted-foreground">Preview generated suggestions for your active customer base.</p>
+        <p className="text-muted-foreground">Preview and manage suggestions for your active customer base.</p>
       </div>
-
-      {usersError && (
-        <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20">
-          <AlertCircle className="w-6 h-6" />
-          <p className="font-bold">Error loading customer list: {usersError.message}</p>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {users?.map((user) => (
@@ -159,7 +149,7 @@ function UserRecCard({ user, dishes, loading, onGenerate }: any) {
           </div>
         </div>
         <Button 
-          className="w-full bg-primary hover:bg-primary/90 rounded-xl h-12 font-bold shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full bg-primary hover:bg-primary/90 rounded-xl h-12 font-bold shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98] text-white border-none"
           onClick={onGenerate}
           disabled={loading || !dishes}
         >
@@ -168,7 +158,7 @@ function UserRecCard({ user, dishes, loading, onGenerate }: any) {
           ) : (
             <Sparkles className="w-5 h-5 mr-2" />
           )}
-          {recommendations.length > 0 ? "Regenerate AI" : "Run Prediction"}
+          {recommendations.length > 0 ? "Regenerate AI" : "Run Initial Prediction"}
         </Button>
       </CardHeader>
       <CardContent className="p-8 pt-6 flex-1 flex flex-col">
@@ -176,7 +166,7 @@ function UserRecCard({ user, dishes, loading, onGenerate }: any) {
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
               <Utensils className="w-3 h-3" />
-              Recommended for User
+              User's Smart Menu
             </h4>
             {recommendations.length > 0 && (
               <Badge className="rounded-full text-[10px] font-bold bg-primary/10 text-primary border-none">Shared State</Badge>
@@ -185,19 +175,26 @@ function UserRecCard({ user, dishes, loading, onGenerate }: any) {
           
           {recommendations.length > 0 ? (
             <ScrollArea className="flex-1 h-64 pr-4">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {recommendations.map((food: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-white hover:border-primary/20 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border relative overflow-hidden">
-                        <img src={food.imageURL || food.image} alt={food.name} className="object-cover w-full h-full" />
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-white hover:border-primary/20 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white border relative overflow-hidden">
+                          <img src={food.image || food.imageURL} alt={food.name} className="object-cover w-full h-full" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold">{food.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">{food.category}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold">{food.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium">{food.category}</p>
-                      </div>
+                      <p className="text-xs font-black text-primary">₹{food.price}</p>
                     </div>
-                    <p className="text-xs font-black text-primary">₹{food.price}</p>
+                    {food.reason && (
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter px-2">
+                         AI: {food.reason}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -207,8 +204,8 @@ function UserRecCard({ user, dishes, loading, onGenerate }: any) {
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                 <History className="w-8 h-8" />
               </div>
-              <p className="text-sm font-bold">Pending AI Prediction</p>
-              <p className="text-[10px]">Results will be shared sitewide</p>
+              <p className="text-sm font-bold">Pending Prediction</p>
+              <p className="text-[10px]">Parity with user dashboard required</p>
             </div>
           )}
         </div>

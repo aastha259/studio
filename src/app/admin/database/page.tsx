@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
@@ -42,12 +41,10 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
-  // FIXED: Multi-select partners state
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
 
-  // DEBUG: Monitor state updates
   useEffect(() => {
-    console.log("Active Partner Selections:", selectedPartners);
+    console.log("Selected Partners Sync:", selectedPartners);
   }, [selectedPartners]);
 
   const dishesQuery = useMemoFirebase(() => {
@@ -70,7 +67,6 @@ export default function AdminDatabasePage() {
     });
   }, [dishes, search, partnerFilter]);
 
-  // FIXED: Pre-load partners when editing starts
   useEffect(() => {
     if (editingDish && isEditOpen) {
       setSelectedPartners(editingDish.partnerIds || []);
@@ -114,7 +110,6 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     
-    // Resolve partner names from the selection
     const partnerNames = selectedPartners.map(id => {
       const p = partners?.find(part => part.id === id);
       return p ? p.restaurantName : 'Unknown';
@@ -162,7 +157,6 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
 
-    // Resolve partner names from the updated selection
     const partnerNames = selectedPartners.map(id => {
       const p = partners?.find(part => part.id === id);
       return p ? p.restaurantName : 'Unknown';
@@ -255,31 +249,46 @@ export default function AdminDatabasePage() {
       <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfillment Partners</Label>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted">
+          <Button 
+            type="button"
+            variant="outline" 
+            className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted cursor-pointer"
+          >
             <span className="truncate">
               {selected.length === 0 ? "Select Partners..." : `${selected.length} Partners Selected`}
             </span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[450px] p-0 rounded-2xl shadow-2xl border-none" align="start">
+        <PopoverContent 
+          className="w-[450px] p-0 rounded-2xl shadow-2xl border-none" 
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <ScrollArea className="h-[300px]">
             <div className="p-4 space-y-1">
               {partners?.map((p) => (
                 <div 
                   key={p.id}
-                  onClick={() => onToggle(p.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Partner Row Clicked:", p.id);
+                    onToggle(p.id);
+                  }}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-transparent",
-                    selected.includes(p.id) ? "bg-primary/5 border-primary/20 text-primary" : "hover:bg-muted"
+                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2",
+                    selected.includes(p.id) ? "bg-primary/10 border-primary/40 text-primary shadow-sm" : "border-transparent hover:bg-muted"
                   )}
                 >
-                  <Checkbox 
+                  <input 
+                    type="checkbox"
                     checked={selected.includes(p.id)}
-                    onCheckedChange={() => onToggle(p.id)}
-                    className="pointer-events-none"
+                    onChange={() => {}} // Controlled via parent div click
+                    onClick={(e) => e.stopPropagation()}
+                    className="cursor-pointer h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
-                  <div className="flex flex-col min-w-0">
+                  <div className="flex flex-col min-w-0 pointer-events-none">
                     <span className="font-bold text-sm truncate">{p.restaurantName}</span>
                     <span className="text-[10px] uppercase font-black opacity-40">{p.city}</span>
                   </div>

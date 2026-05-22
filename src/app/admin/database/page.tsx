@@ -6,14 +6,13 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame, AlertCircle, Edit, Store, Check, ChevronDown, Filter } from 'lucide-react';
+import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame, AlertCircle, Edit, Store, Check, ChevronDown, Filter, X } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, deleteDoc, addDoc, updateDoc, writeBatch, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -32,8 +31,8 @@ export const MENU_CATEGORIES = [
 
 /**
  * PartnerSelector Component
- * Implements a robust single-selection pattern for assigning a dish to a partner.
- * Uses pointer-event isolation to resolve interaction issues in nested Radix modals.
+ * Optimized for stability inside Dialogs. Uses a simple state-driven dropdown
+ * to avoid portal-related focus traps.
  */
 const PartnerSelector = ({ 
   partners, 
@@ -44,52 +43,71 @@ const PartnerSelector = ({
   selectedId: string | null, 
   onSelect: (id: string | null) => void 
 }) => {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  
   const selectedPartner = partners?.find(p => p.id === selectedId);
 
+  const filtered = useMemo(() => {
+    if (!partners) return [];
+    return partners.filter(p => 
+      p.restaurantName?.toLowerCase().includes(search.toLowerCase()) ||
+      p.city?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [partners, search]);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative">
       <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Fulfillment Assignment</Label>
-      <Popover open={open} onOpenChange={setOpen} modal={false}>
-        <PopoverTrigger asChild>
-          <Button 
-            type="button"
-            variant="outline" 
-            className="w-full h-14 justify-between rounded-2xl px-6 font-bold border-muted-foreground/20 bg-white hover:bg-white text-foreground shadow-sm transition-all"
-          >
-            <span className="truncate">
-              {selectedPartner ? selectedPartner.restaurantName : "Select Fulfilling Partner..."}
-            </span>
-            <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform opacity-50", open && "rotate-180")} />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0 rounded-3xl shadow-2xl border-none z-[100]" 
-          align="start"
-          sideOffset={8}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="p-2 border-b bg-muted/20">
-            <p className="text-[10px] font-black uppercase tracking-widest text-center py-1 opacity-40">Choose from Network</p>
+      
+      <Button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        variant="outline" 
+        className={cn(
+          "w-full h-14 justify-between rounded-2xl px-6 font-bold border-muted-foreground/20 bg-white hover:bg-white text-foreground shadow-sm transition-all",
+          isOpen && "ring-2 ring-primary/20 border-primary/40"
+        )}
+      >
+        <span className="truncate flex items-center gap-2">
+          {selectedPartner ? <Store className="w-4 h-4 text-primary" /> : null}
+          {selectedPartner ? selectedPartner.restaurantName : "Select Fulfilling Partner..."}
+        </span>
+        <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform opacity-50", isOpen && "rotate-180")} />
+      </Button>
+
+      {isOpen && (
+        <div className="absolute top-[calc(100%+8px)] left-0 w-full z-50 bg-white border rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-4 border-b bg-muted/20">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Find partner..."
+                className="pl-9 h-10 rounded-xl bg-white border-none shadow-inner"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
           </div>
-          <ScrollArea className="h-[300px]">
-            <div className="p-3 space-y-1">
-              {partners?.map((p) => {
+          
+          <ScrollArea className="h-[250px]">
+            <div className="p-2 space-y-1">
+              {filtered.map((p) => {
                 const isSelected = selectedId === p.id;
-                
                 return (
-                  <div
+                  <button
                     key={p.id}
-                    onPointerDown={(e) => {
-                      // CRITICAL: Prevent Radix from stealing focus which makes clicks non-functional in nested modals
+                    type="button"
+                    onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // Toggle selection logic
                       onSelect(isSelected ? null : p.id);
-                      setOpen(false); // Close on selection for single-select workflow
+                      setIsOpen(false);
+                      setSearch('');
                     }}
                     className={cn(
-                      "flex items-center gap-4 p-4 rounded-2xl transition-all border-2 cursor-pointer group select-none relative",
+                      "w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2 text-left group",
                       isSelected
                         ? "bg-primary/5 border-primary/30 shadow-inner"
                         : "border-transparent hover:bg-muted/50"
@@ -99,12 +117,12 @@ const PartnerSelector = ({
                       "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
                       isSelected 
                         ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" 
-                        : "border-primary/20 group-hover:border-primary/50 bg-white"
+                        : "border-primary/20 bg-white"
                     )}>
                       {isSelected && <Check className="h-3.5 w-3.5 stroke-[4px]" />}
                     </div>
                     
-                    <div className="flex flex-col min-w-0 pointer-events-none">
+                    <div className="flex flex-col min-w-0">
                       <span className={cn(
                         "font-black text-sm truncate leading-none mb-1",
                         isSelected ? "text-primary" : "text-foreground"
@@ -118,19 +136,19 @@ const PartnerSelector = ({
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
-              {partners?.length === 0 && (
+              {filtered.length === 0 && (
                 <div className="p-12 text-center flex flex-col items-center gap-3 opacity-30">
                   <AlertCircle className="w-8 h-8" />
-                  <p className="font-bold text-xs italic">No active partners found.</p>
+                  <p className="font-bold text-xs italic">No matching partners.</p>
                 </div>
               )}
             </div>
           </ScrollArea>
-        </PopoverContent>
-      </Popover>
+        </div>
+      )}
     </div>
   );
 };
@@ -374,33 +392,40 @@ export default function AdminDatabasePage() {
               />
             </div>
             
-            <Popover>
-              <PopoverTrigger asChild>
+            <Dialog>
+              <DialogTrigger asChild>
                 <Button variant="outline" className="h-11 rounded-xl font-bold gap-2 px-4 shadow-sm border-none bg-white ring-1 ring-primary/10">
                   <Filter className="w-4 h-4 text-primary" />
                   {partnerFilter === 'All' ? 'All Partners' : partners?.find(p => p.id === partnerFilter)?.restaurantName}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-2 rounded-2xl shadow-xl border-none">
-                <Button 
-                  variant="ghost" 
-                  className={cn("w-full justify-start rounded-xl mb-1", partnerFilter === 'All' && "bg-primary/10 text-primary font-black")}
-                  onClick={() => setPartnerFilter('All')}
-                >
-                  All Partners
-                </Button>
-                {partners?.map(p => (
-                  <Button 
-                    key={p.id}
-                    variant="ghost" 
-                    className={cn("w-full justify-start rounded-xl mb-1 text-left truncate", partnerFilter === p.id && "bg-primary/10 text-primary font-black")}
-                    onClick={() => setPartnerFilter(p.id)}
-                  >
-                    {p.restaurantName}
-                  </Button>
-                ))}
-              </PopoverContent>
-            </Popover>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[300px] rounded-[2rem]">
+                <DialogHeader>
+                  <DialogTitle>Filter by Partner</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="h-[300px] pr-4">
+                  <div className="space-y-1">
+                    <Button 
+                      variant="ghost" 
+                      className={cn("w-full justify-start rounded-xl", partnerFilter === 'All' && "bg-primary/10 text-primary font-black")}
+                      onClick={() => setPartnerFilter('All')}
+                    >
+                      All Partners
+                    </Button>
+                    {partners?.map(p => (
+                      <Button 
+                        key={p.id}
+                        variant="ghost" 
+                        className={cn("w-full justify-start rounded-xl text-left truncate", partnerFilter === p.id && "bg-primary/10 text-primary font-black")}
+                        onClick={() => setPartnerFilter(p.id)}
+                      >
+                        {p.restaurantName}
+                      </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>

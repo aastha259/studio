@@ -26,7 +26,8 @@ import {
   Activity,
   MessageSquare,
   ShoppingBag,
-  Zap
+  Zap,
+  LayoutList
 } from 'lucide-react';
 import { 
   Card, 
@@ -362,7 +363,7 @@ export default function AdminPartnersPage() {
                 onClick={() => setViewViewMode('list')}
                 className="rounded-xl font-bold h-10 gap-2 px-4 transition-all"
              >
-               <TableHead className="w-4 h-4" /> Operations
+               <LayoutList className="w-4 h-4" /> Operations
              </Button>
           </div>
 

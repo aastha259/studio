@@ -22,7 +22,8 @@ import {
   Card, 
   CardHeader, 
   CardTitle, 
-  CardContent 
+  CardContent,
+  CardDescription
 } from '@/components/ui/card';
 import { 
   Table, 
@@ -184,8 +185,8 @@ export default function AdminPartnersPage() {
               <DialogTitle className="text-3xl font-headline font-black text-primary">
                 {editingPartner ? 'Edit Partner Records' : 'New Restaurant Partner'}
               </DialogTitle>
-              <DialogDescription className="sr-only">
-                Fill in the restaurant details to onboard a new partner location.
+              <DialogDescription>
+                Fill in the restaurant details to onboard or update a partner location in the network.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSavePartner} className="space-y-6 py-4">

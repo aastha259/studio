@@ -31,9 +31,9 @@ export const MENU_CATEGORIES = [
 ];
 
 /**
- * REFACTORED: PartnerSelector
- * Implements a robust single-selection pattern.
- * Uses pointer-event isolation to prevent nested modal focus conflicts.
+ * PartnerSelector Component
+ * Implements a robust single-selection pattern for assigning a dish to a partner.
+ * Uses pointer-event isolation to resolve interaction issues in nested Radix modals.
  */
 const PartnerSelector = ({ 
   partners, 
@@ -42,9 +42,10 @@ const PartnerSelector = ({
 }: { 
   partners: any[] | null, 
   selectedId: string | null, 
-  onSelect: (id: string) => void 
+  onSelect: (id: string | null) => void 
 }) => {
   const [open, setOpen] = useState(false);
+  const selectedPartner = partners?.find(p => p.id === selectedId);
 
   return (
     <div className="space-y-2">
@@ -57,7 +58,7 @@ const PartnerSelector = ({
             className="w-full h-14 justify-between rounded-2xl px-6 font-bold border-muted-foreground/20 bg-white hover:bg-white text-foreground shadow-sm transition-all"
           >
             <span className="truncate">
-              {!selectedId ? "Select Fulfilling Partner..." : partners?.find(p => p.id === selectedId)?.restaurantName || "Partner Assigned"}
+              {selectedPartner ? selectedPartner.restaurantName : "Select Fulfilling Partner..."}
             </span>
             <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform opacity-50", open && "rotate-180")} />
           </Button>
@@ -80,10 +81,11 @@ const PartnerSelector = ({
                   <div
                     key={p.id}
                     onPointerDown={(e) => {
-                      // CRITICAL: Prevent Radix from stealing focus which makes checkboxes non-functional in nested modals
+                      // CRITICAL: Prevent Radix from stealing focus which makes clicks non-functional in nested modals
                       e.preventDefault();
                       e.stopPropagation();
-                      onSelect(p.id);
+                      // Toggle selection logic
+                      onSelect(isSelected ? null : p.id);
                       setOpen(false); // Close on selection for single-select workflow
                     }}
                     className={cn(
@@ -150,7 +152,7 @@ export default function AdminDatabasePage() {
     return query(collection(db, 'dishes'), orderBy('name', 'asc'));
   }, [db]);
   
-  const { data: dishes, isLoading, error } = useCollection(dishesQuery);
+  const { data: dishes, isLoading } = useCollection(dishesQuery);
 
   const partnersQuery = useMemoFirebase(() => {
     return query(collection(db, 'partners'), orderBy('restaurantName', 'asc'));

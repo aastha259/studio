@@ -31,8 +31,8 @@ export const MENU_CATEGORIES = [
 ];
 
 /**
- * STABLE COMPONENT: PartnerMultiSelect
- * Uses aggressive pointer-event isolation to bypass focus conflicts in nested Radix modals.
+ * FOOLPROOF INTERACTION COMPONENT: PartnerMultiSelect
+ * Uses pointer-event isolation to bypass Radix focus conflicts.
  */
 const PartnerMultiSelect = ({ 
   partners, 
@@ -48,7 +48,7 @@ const PartnerMultiSelect = ({
   return (
     <div className="space-y-2">
       <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Fulfillment Assignment</Label>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <Button 
             type="button"
@@ -62,7 +62,7 @@ const PartnerMultiSelect = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0 rounded-3xl shadow-2xl border-none z-[110]" 
+          className="w-[var(--radix-popover-trigger-width)] p-0 rounded-3xl shadow-2xl border-none z-[100]" 
           align="start"
           sideOffset={8}
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -79,7 +79,7 @@ const PartnerMultiSelect = ({
                   <div
                     key={p.id}
                     onPointerDown={(e) => {
-                      // CRITICAL: Prevent Radix from taking focus which breaks the checkbox click
+                      // CRITICAL: Prevent Radix from taking focus which breaks the interaction in nested modals
                       e.preventDefault();
                       e.stopPropagation();
                       onToggle(p.id);
@@ -100,7 +100,7 @@ const PartnerMultiSelect = ({
                       {isChecked && <Check className="h-3.5 w-3.5 stroke-[4px]" />}
                     </div>
                     
-                    <div className="flex flex-col min-w-0">
+                    <div className="flex flex-col min-w-0 pointer-events-none">
                       <span className={cn(
                         "font-black text-sm truncate leading-none mb-1",
                         isChecked ? "text-primary" : "text-foreground"

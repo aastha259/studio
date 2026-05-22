@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
@@ -32,7 +31,7 @@ export const MENU_CATEGORIES = [
 
 /**
  * STABLE COMPONENT: PartnerMultiSelect
- * Uses controlled Checkbox + Label pattern for reliable interaction inside Dialogs.
+ * Uses a direct row-click pattern to ensure stability inside nested Dialog/Popover overlays.
  */
 const PartnerMultiSelect = ({ 
   partners, 
@@ -59,44 +58,50 @@ const PartnerMultiSelect = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[450px] p-0 rounded-2xl shadow-2xl border-none z-[100]" 
+        className="w-[350px] p-0 rounded-2xl shadow-2xl border-none z-[100]" 
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <ScrollArea className="h-[300px]">
-          <div className="p-4 space-y-1">
+          <div className="p-3 space-y-1">
             {partners?.map((p) => {
               const isChecked = selected.includes(p.id);
-              const checkboxId = `partner-select-${p.id}`;
               
               return (
                 <div
                   key={p.id}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggle(p.id);
+                  }}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl transition-all border-2 select-none",
+                    "flex items-center gap-4 p-3 rounded-xl transition-all border-2 cursor-pointer group select-none",
                     isChecked
-                      ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
-                      : "border-transparent hover:bg-muted"
+                      ? "bg-primary/5 border-primary/30 shadow-sm"
+                      : "border-transparent hover:bg-muted/50"
                   )}
                 >
-                  <Checkbox 
-                    id={checkboxId}
-                    checked={isChecked}
-                    onCheckedChange={() => onToggle(p.id)}
-                    className="h-5 w-5 border-2 rounded-md transition-all data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                  />
+                  <div className={cn(
+                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                    isChecked 
+                      ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" 
+                      : "border-primary/40 group-hover:border-primary"
+                  )}>
+                    {isChecked && <Check className="h-4 w-4 stroke-[3px]" />}
+                  </div>
                   
-                  <Label
-                    htmlFor={checkboxId}
-                    className="flex-1 flex flex-col min-w-0 cursor-pointer py-0.5"
-                  >
-                    <span className="font-bold text-sm truncate leading-none mb-1">
+                  <div className="flex flex-col min-w-0">
+                    <span className={cn(
+                      "font-bold text-sm truncate leading-none mb-1",
+                      isChecked ? "text-primary" : "text-foreground"
+                    )}>
                       {p.restaurantName}
                     </span>
-                    <span className="text-[10px] uppercase font-black opacity-40 leading-none">
+                    <span className="text-[10px] uppercase font-black opacity-30 leading-none tracking-widest">
                       {p.city}
                     </span>
-                  </Label>
+                  </div>
                 </div>
               );
             })}
@@ -121,7 +126,6 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
-  // PRIMARY SELECTION STATE
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
 
   const dishesQuery = useMemoFirebase(() => {

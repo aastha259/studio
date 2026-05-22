@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame, AlertCircle, Edit, Store, Check, ChevronDown, Filter } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, deleteDoc, addDoc, updateDoc, writeBatch, getDocs, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, addDoc, updateDoc, writeBatch, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -197,10 +197,10 @@ export default function AdminDatabasePage() {
       const batch = writeBatch(db);
       templates.forEach(tpl => {
         tpl.items.forEach((itemName, i) => {
-          const new docRef = doc(collection(db, 'dishes'));
-          const randomPartners = partners.sort(() => 0.5 - Math.random()).slice(0, 2);
+          const docRef = doc(collection(db, 'dishes'));
+          const randomPartners = [...partners].sort(() => 0.5 - Math.random()).slice(0, 2);
           
-          batch.set(newDocRef, {
+          batch.set(docRef, {
             name: `${itemName} #${Math.floor(Math.random() * 1000)}`,
             category: tpl.category,
             price: Math.floor(Math.random() * 400 + 100),
@@ -220,6 +220,7 @@ export default function AdminDatabasePage() {
       await batch.commit();
       toast.success(`Successfully seeded dishes across ${partners.length} partners.`, { id: seedToast });
     } catch (e: any) {
+      console.error("Seeding error:", e);
       toast.error("Seeding failed.", { id: seedToast });
     } finally {
       setIsSeeding(false);

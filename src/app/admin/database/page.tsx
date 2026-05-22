@@ -29,6 +29,83 @@ export const MENU_CATEGORIES = [
   'BEVERAGES'
 ];
 
+/**
+ * STABLE COMPONENT: PartnerMultiSelect
+ * Defined outside the main page to prevent remounting/focus loss issues.
+ */
+const PartnerMultiSelect = ({ 
+  partners, 
+  selected, 
+  onToggle 
+}: { 
+  partners: any[] | null, 
+  selected: string[], 
+  onToggle: (id: string) => void 
+}) => (
+  <div className="space-y-2">
+    <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfillment Partners</Label>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button 
+          type="button"
+          variant="outline" 
+          className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted cursor-pointer"
+        >
+          <span className="truncate">
+            {selected.length === 0 ? "Select Partners..." : `${selected.length} Partners Selected`}
+          </span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent 
+        className="w-[450px] p-0 rounded-2xl shadow-2xl border-none" 
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <ScrollArea className="h-[300px]">
+          <div className="p-4 space-y-1">
+            {partners?.map((p) => (
+              <div
+                key={p.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle(p.id);
+                }}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 select-none",
+                  selected.includes(p.id)
+                    ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
+                    : "border-transparent hover:bg-muted"
+                )}
+              >
+                <div className={cn(
+                  "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors",
+                  selected.includes(p.id) ? "bg-primary border-primary" : "border-muted-foreground/30"
+                )}>
+                  {selected.includes(p.id) && <Check className="w-3 h-3 text-white stroke-[4px]" />}
+                </div>
+              
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-sm truncate">
+                    {p.restaurantName}
+                  </span>
+              
+                  <span className="text-[10px] uppercase font-black opacity-40">
+                    {p.city}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {partners?.length === 0 && (
+              <div className="p-8 text-center opacity-30 italic text-sm">No partners found. Onboard partners first.</div>
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  </div>
+);
+
 export default function AdminDatabasePage() {
   const db = useFirestore();
   const [search, setSearch] = useState('');
@@ -42,11 +119,6 @@ export default function AdminDatabasePage() {
   
   // PRIMARY SELECTION STATE
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
-
-  // DEBUGGING LOG
-  useEffect(() => {
-    console.log("Current Selected Partners:", selectedPartners);
-  }, [selectedPartners]);
 
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), orderBy('name', 'asc'));
@@ -71,10 +143,11 @@ export default function AdminDatabasePage() {
   useEffect(() => {
     if (editingDish && isEditOpen) {
       setSelectedPartners(editingDish.partnerIds || []);
+    } else if (!isEditOpen && !isAddDishOpen) {
+      setSelectedPartners([]);
     }
-  }, [editingDish, isEditOpen]);
+  }, [editingDish, isEditOpen, isAddDishOpen]);
 
-  // WORKING TOGGLE LOGIC
   const togglePartner = (partnerId: string) => {
     setSelectedPartners((prev) => {
       const isSelected = prev.includes(partnerId);
@@ -218,10 +291,10 @@ export default function AdminDatabasePage() {
       const batch = writeBatch(db);
       templates.forEach(tpl => {
         tpl.items.forEach((itemName, i) => {
-          const docRef = doc(collection(db, 'dishes'));
+          const dishDocRef = doc(collection(db, 'dishes'));
           const randomPartners = [...partners].sort(() => 0.5 - Math.random()).slice(0, 2);
           
-          batch.set(docRef, {
+          batch.set(dishDocRef, {
             name: `${itemName} #${Math.floor(Math.random() * 1000)}`,
             category: tpl.category,
             price: Math.floor(Math.random() * 400 + 100),
@@ -247,68 +320,6 @@ export default function AdminDatabasePage() {
       setIsSeeding(false);
     }
   };
-
-  const PartnerMultiSelect = ({ selected, onToggle }: { selected: string[], onToggle: (id: string) => void }) => (
-    <div className="space-y-2">
-      <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfillment Partners</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button 
-            type="button"
-            variant="outline" 
-            className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted cursor-pointer"
-          >
-            <span className="truncate">
-              {selected.length === 0 ? "Select Partners..." : `${selected.length} Partners Selected`}
-            </span>
-            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-[450px] p-0 rounded-2xl shadow-2xl border-none" 
-          align="start"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <ScrollArea className="h-[300px]">
-            <div className="p-4 space-y-1">
-              {partners?.map((p) => (
-                <label
-                  key={p.id}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 select-none",
-                    selected.includes(p.id)
-                      ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
-                      : "border-transparent hover:bg-muted"
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(p.id)}
-                    onChange={() => onToggle(p.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-5 w-5 cursor-pointer accent-primary"
-                  />
-                
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-sm truncate">
-                      {p.restaurantName}
-                    </span>
-                
-                    <span className="text-[10px] uppercase font-black opacity-40">
-                      {p.city}
-                    </span>
-                  </div>
-                </label>
-              ))}
-              {partners?.length === 0 && (
-                <div className="p-8 text-center opacity-30 italic text-sm">No partners found. Onboard partners first.</div>
-              )}
-            </div>
-          </ScrollArea>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
@@ -389,10 +400,7 @@ export default function AdminDatabasePage() {
             <Flame className="w-6 h-6 text-orange-500" />
             Repository Stream
           </h3>
-          <Dialog open={isAddDishOpen} onOpenChange={(open) => {
-             setIsAddDishOpen(open);
-             if(!open) setSelectedPartners([]);
-          }}>
+          <Dialog open={isAddDishOpen} onOpenChange={setIsAddDishOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-2xl bg-primary hover:bg-primary/90 font-black h-12 px-8 transition-transform active:scale-95 shadow-xl shadow-primary/20">
                 <Plus className="w-5 h-5 mr-2" /> Manual Entry
@@ -424,6 +432,7 @@ export default function AdminDatabasePage() {
                 </div>
                 
                 <PartnerMultiSelect 
+                  partners={partners}
                   selected={selectedPartners} 
                   onToggle={togglePartner} 
                 />
@@ -551,13 +560,7 @@ export default function AdminDatabasePage() {
         </div>
       </Card>
 
-      <Dialog open={isEditOpen} onOpenChange={(open) => {
-        setIsEditOpen(open);
-        if (!open) {
-          setEditingDish(null);
-          setSelectedPartners([]);
-        }
-      }}>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
           <DialogHeader>
             <DialogTitle className="font-headline font-black text-3xl text-primary">Update Catalog Info</DialogTitle>
@@ -585,6 +588,7 @@ export default function AdminDatabasePage() {
               </div>
 
               <PartnerMultiSelect 
+                partners={partners}
                 selected={selectedPartners} 
                 onToggle={togglePartner} 
               />

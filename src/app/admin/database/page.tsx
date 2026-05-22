@@ -41,10 +41,12 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
+  // PRIMARY SELECTION STATE
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
 
+  // DEBUGGING LOG
   useEffect(() => {
-    console.log("Selected Partners Sync:", selectedPartners);
+    console.log("Current Selected Partners:", selectedPartners);
   }, [selectedPartners]);
 
   const dishesQuery = useMemoFirebase(() => {
@@ -73,12 +75,15 @@ export default function AdminDatabasePage() {
     }
   }, [editingDish, isEditOpen]);
 
+  // WORKING TOGGLE LOGIC
   const togglePartner = (partnerId: string) => {
-    setSelectedPartners((prev) =>
-      prev.includes(partnerId)
-        ? prev.filter((id) => id !== partnerId)
-        : [...prev, partnerId]
-    );
+    setSelectedPartners((prev) => {
+      const isSelected = prev.includes(partnerId);
+      if (isSelected) {
+        return prev.filter((id) => id !== partnerId);
+      }
+      return [...prev, partnerId];
+    });
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -270,12 +275,7 @@ export default function AdminDatabasePage() {
               {partners?.map((p) => (
                 <div 
                   key={p.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("Partner Row Clicked:", p.id);
-                    onToggle(p.id);
-                  }}
+                  onClick={() => onToggle(p.id)}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2",
                     selected.includes(p.id) ? "bg-primary/10 border-primary/40 text-primary shadow-sm" : "border-transparent hover:bg-muted"
@@ -284,9 +284,9 @@ export default function AdminDatabasePage() {
                   <input 
                     type="checkbox"
                     checked={selected.includes(p.id)}
-                    onChange={() => {}} // Controlled via parent div click
+                    onChange={() => onToggle(p.id)}
                     onClick={(e) => e.stopPropagation()}
-                    className="cursor-pointer h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    className="h-5 w-5 cursor-pointer accent-primary"
                   />
                   <div className="flex flex-col min-w-0 pointer-events-none">
                     <span className="font-bold text-sm truncate">{p.restaurantName}</span>

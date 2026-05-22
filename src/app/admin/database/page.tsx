@@ -31,17 +31,18 @@ export const MENU_CATEGORIES = [
 ];
 
 /**
- * FOOLPROOF INTERACTION COMPONENT: PartnerMultiSelect
- * Uses pointer-event isolation to bypass Radix focus conflicts.
+ * REFACTORED: PartnerSelector
+ * Implements a robust single-selection pattern.
+ * Uses pointer-event isolation to prevent nested modal focus conflicts.
  */
-const PartnerMultiSelect = ({ 
+const PartnerSelector = ({ 
   partners, 
-  selected, 
-  onToggle 
+  selectedId, 
+  onSelect 
 }: { 
   partners: any[] | null, 
-  selected: string[], 
-  onToggle: (id: string) => void 
+  selectedId: string | null, 
+  onSelect: (id: string) => void 
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -56,7 +57,7 @@ const PartnerMultiSelect = ({
             className="w-full h-14 justify-between rounded-2xl px-6 font-bold border-muted-foreground/20 bg-white hover:bg-white text-foreground shadow-sm transition-all"
           >
             <span className="truncate">
-              {selected.length === 0 ? "Select Fulfilling Partners..." : `${selected.length} Partners Assigned`}
+              {!selectedId ? "Select Fulfilling Partner..." : partners?.find(p => p.id === selectedId)?.restaurantName || "Partner Assigned"}
             </span>
             <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform opacity-50", open && "rotate-180")} />
           </Button>
@@ -73,37 +74,38 @@ const PartnerMultiSelect = ({
           <ScrollArea className="h-[300px]">
             <div className="p-3 space-y-1">
               {partners?.map((p) => {
-                const isChecked = selected.includes(p.id);
+                const isSelected = selectedId === p.id;
                 
                 return (
                   <div
                     key={p.id}
                     onPointerDown={(e) => {
-                      // CRITICAL: Prevent Radix from taking focus which breaks the interaction in nested modals
+                      // CRITICAL: Prevent Radix from stealing focus which makes checkboxes non-functional in nested modals
                       e.preventDefault();
                       e.stopPropagation();
-                      onToggle(p.id);
+                      onSelect(p.id);
+                      setOpen(false); // Close on selection for single-select workflow
                     }}
                     className={cn(
                       "flex items-center gap-4 p-4 rounded-2xl transition-all border-2 cursor-pointer group select-none relative",
-                      isChecked
+                      isSelected
                         ? "bg-primary/5 border-primary/30 shadow-inner"
                         : "border-transparent hover:bg-muted/50"
                     )}
                   >
                     <div className={cn(
                       "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
-                      isChecked 
+                      isSelected 
                         ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" 
                         : "border-primary/20 group-hover:border-primary/50 bg-white"
                     )}>
-                      {isChecked && <Check className="h-3.5 w-3.5 stroke-[4px]" />}
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[4px]" />}
                     </div>
                     
                     <div className="flex flex-col min-w-0 pointer-events-none">
                       <span className={cn(
                         "font-black text-sm truncate leading-none mb-1",
-                        isChecked ? "text-primary" : "text-foreground"
+                        isSelected ? "text-primary" : "text-foreground"
                       )}>
                         {p.restaurantName}
                       </span>
@@ -142,7 +144,7 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), orderBy('name', 'asc'));
@@ -164,24 +166,14 @@ export default function AdminDatabasePage() {
     });
   }, [dishes, search, partnerFilter]);
 
-  // Sync selectedPartners state with modal open/close
+  // Sync state when editing
   useEffect(() => {
     if (editingDish && isEditOpen) {
-      setSelectedPartners(editingDish.partnerIds || []);
+      setSelectedPartnerId(editingDish.partnerIds?.[0] || null);
     } else if (!isEditOpen && !isAddDishOpen) {
-      setSelectedPartners([]);
+      setSelectedPartnerId(null);
     }
   }, [editingDish, isEditOpen, isAddDishOpen]);
-
-  const togglePartner = (partnerId: string) => {
-    setSelectedPartners((prev) => {
-      const isSelected = prev.includes(partnerId);
-      if (isSelected) {
-        return prev.filter((id) => id !== partnerId);
-      }
-      return [...prev, partnerId];
-    });
-  };
 
   const handleDelete = (id: string, name: string) => {
     if (!id) return;
@@ -212,11 +204,10 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     
-    // Resolve partner names from IDs
-    const partnerNames = selectedPartners.map(id => {
-      const p = partners?.find(part => part.id === id);
-      return p ? p.restaurantName : 'Unknown';
-    });
+    // Resolve partner name from ID
+    const partner = partners?.find(p => p.id === selectedPartnerId);
+    const partnerIds = selectedPartnerId ? [selectedPartnerId] : [];
+    const partnerNames = partner ? [partner.restaurantName] : [];
 
     const newDish = {
       name: formData.get('name') as string,
@@ -229,8 +220,8 @@ export default function AdminDatabasePage() {
       createdAt: serverTimestamp(),
       totalOrders: 0,
       totalRevenue: 0,
-      partnerIds: selectedPartners,
-      partnerNames: partnerNames
+      partnerIds,
+      partnerNames
     };
 
     const dishesRef = collection(db, 'dishes');
@@ -238,7 +229,7 @@ export default function AdminDatabasePage() {
       .then(() => {
         toast.success(`${newDish.name} added to catalog`);
         setIsAddDishOpen(false);
-        setSelectedPartners([]);
+        setSelectedPartnerId(null);
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -260,10 +251,9 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
 
-    const partnerNames = selectedPartners.map(id => {
-      const p = partners?.find(part => part.id === id);
-      return p ? p.restaurantName : 'Unknown';
-    });
+    const partner = partners?.find(p => p.id === selectedPartnerId);
+    const partnerIds = selectedPartnerId ? [selectedPartnerId] : [];
+    const partnerNames = partner ? [partner.restaurantName] : [];
 
     const updatedData = {
       name: formData.get('name') as string,
@@ -272,8 +262,8 @@ export default function AdminDatabasePage() {
       description: formData.get('description') as string,
       image: formData.get('image') as string,
       isVeg: formData.get('isVeg') === 'on',
-      partnerIds: selectedPartners,
-      partnerNames: partnerNames,
+      partnerIds,
+      partnerNames,
       updatedAt: serverTimestamp()
     };
 
@@ -283,7 +273,7 @@ export default function AdminDatabasePage() {
         toast.success("Dish records updated");
         setIsEditOpen(false);
         setEditingDish(null);
-        setSelectedPartners([]);
+        setSelectedPartnerId(null);
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -318,7 +308,7 @@ export default function AdminDatabasePage() {
       templates.forEach(tpl => {
         tpl.items.forEach((itemName, i) => {
           const dishDocRef = doc(collection(db, 'dishes'));
-          const randomPartners = [...partners].sort(() => 0.5 - Math.random()).slice(0, 2);
+          const randomPartner = partners[Math.floor(Math.random() * partners.length)];
           
           batch.set(dishDocRef, {
             name: `${itemName} #${Math.floor(Math.random() * 1000)}`,
@@ -330,8 +320,8 @@ export default function AdminDatabasePage() {
             rating: 4.5,
             totalOrders: Math.floor(Math.random() * 50),
             totalRevenue: 0,
-            partnerIds: randomPartners.map(p => p.id),
-            partnerNames: randomPartners.map(p => p.restaurantName),
+            partnerIds: [randomPartner.id],
+            partnerNames: [randomPartner.restaurantName],
             createdAt: serverTimestamp()
           });
         });
@@ -413,13 +403,6 @@ export default function AdminDatabasePage() {
         </div>
       </div>
 
-      {error && (
-        <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20">
-          <AlertCircle className="w-6 h-6" />
-          <p className="font-bold">Error loading catalog: {error.message}</p>
-        </div>
-      )}
-
       <Card className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
         <div className="p-8 border-b flex justify-between items-center bg-muted/20">
           <h3 className="font-black text-xl text-foreground flex items-center gap-2">
@@ -439,7 +422,7 @@ export default function AdminDatabasePage() {
               <DialogHeader>
                 <DialogTitle className="font-headline font-black text-3xl text-primary">New Catalog Item</DialogTitle>
                 <DialogDescription>
-                  Add a new dish to the centralized menu catalog and assign it to fulfilling partners.
+                  Add a new dish to the centralized menu catalog and assign it to a fulfilling partner.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddDish} className="space-y-6 py-6">
@@ -460,10 +443,10 @@ export default function AdminDatabasePage() {
                   </div>
                 </div>
                 
-                <PartnerMultiSelect 
+                <PartnerSelector 
                   partners={partners || []}
-                  selected={selectedPartners} 
-                  onToggle={togglePartner} 
+                  selectedId={selectedPartnerId} 
+                  onSelect={setSelectedPartnerId} 
                 />
 
                 <div className="space-y-2">
@@ -497,7 +480,7 @@ export default function AdminDatabasePage() {
               <TableRow className="border-none">
                 <TableHead className="font-black px-8 h-20 uppercase tracking-widest text-[10px]">Dish Info</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Type / Category</TableHead>
-                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Linked Partners</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Linked Partner</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Price</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-right pr-8">Actions</TableHead>
               </TableRow>
@@ -534,14 +517,11 @@ export default function AdminDatabasePage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1 max-w-[250px]">
-                      {(dish.partnerNames || []).slice(0, 2).map((name: string, i: number) => (
+                      {(dish.partnerNames || []).map((name: string, i: number) => (
                         <Badge key={i} variant="secondary" className="rounded-full text-[8px] font-bold h-5 bg-primary/5 text-primary border-none">
                           {name}
                         </Badge>
                       ))}
-                      {dish.partnerNames?.length > 2 && (
-                        <Badge variant="secondary" className="rounded-full text-[8px] font-black h-5">+{(dish.partnerNames.length - 2)} more</Badge>
-                      )}
                       {!dish.partnerNames?.length && (
                         <span className="text-[10px] font-bold text-destructive italic flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" /> Unassigned
@@ -576,17 +556,6 @@ export default function AdminDatabasePage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredDishes.length === 0 && !isLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-32 text-muted-foreground">
-                    <div className="flex flex-col items-center gap-4 opacity-40">
-                      <Database className="w-16 h-16" />
-                      <p className="font-black italic text-2xl">Repository is empty</p>
-                      <p className="text-sm font-medium">Synchronize all or add manual entries to fulfill orders.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>
@@ -622,10 +591,10 @@ export default function AdminDatabasePage() {
                 </div>
               </div>
 
-              <PartnerMultiSelect 
+              <PartnerSelector 
                 partners={partners || []}
-                selected={selectedPartners} 
-                onToggle={togglePartner} 
+                selectedId={selectedPartnerId} 
+                onSelect={setSelectedPartnerId} 
               />
 
               <div className="space-y-2">

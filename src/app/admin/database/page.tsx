@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -273,26 +272,33 @@ export default function AdminDatabasePage() {
           <ScrollArea className="h-[300px]">
             <div className="p-4 space-y-1">
               {partners?.map((p) => (
-                <div 
+                <label
                   key={p.id}
-                  onClick={() => onToggle(p.id)}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2",
-                    selected.includes(p.id) ? "bg-primary/10 border-primary/40 text-primary shadow-sm" : "border-transparent hover:bg-muted"
+                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 select-none",
+                    selected.includes(p.id)
+                      ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
+                      : "border-transparent hover:bg-muted"
                   )}
                 >
-                  <input 
+                  <input
                     type="checkbox"
                     checked={selected.includes(p.id)}
                     onChange={() => onToggle(p.id)}
                     onClick={(e) => e.stopPropagation()}
                     className="h-5 w-5 cursor-pointer accent-primary"
                   />
-                  <div className="flex flex-col min-w-0 pointer-events-none">
-                    <span className="font-bold text-sm truncate">{p.restaurantName}</span>
-                    <span className="text-[10px] uppercase font-black opacity-40">{p.city}</span>
+                
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm truncate">
+                      {p.restaurantName}
+                    </span>
+                
+                    <span className="text-[10px] uppercase font-black opacity-40">
+                      {p.city}
+                    </span>
                   </div>
-                </div>
+                </label>
               ))}
               {partners?.length === 0 && (
                 <div className="p-8 text-center opacity-30 italic text-sm">No partners found. Onboard partners first.</div>

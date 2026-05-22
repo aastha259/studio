@@ -1,21 +1,24 @@
 
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame, AlertCircle, Edit } from 'lucide-react';
+import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame, AlertCircle, Edit, Store, Check, ChevronDown, Filter } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, deleteDoc, addDoc, updateDoc, writeBatch, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, addDoc, updateDoc, writeBatch, getDocs, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 
 export const MENU_CATEGORIES = [
   'PIZZAS',
@@ -30,23 +33,40 @@ export const MENU_CATEGORIES = [
 export default function AdminDatabasePage() {
   const db = useFirestore();
   const [search, setSearch] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState('All');
   const [isAddDishOpen, setIsAddDishOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingDish, setEditingDish] = useState<any>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Multi-select partners state
+  const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
 
   const dishesQuery = useMemoFirebase(() => {
-    return query(collection(db, 'dishes'));
+    return query(collection(db, 'dishes'), orderBy('name', 'asc'));
   }, [db]);
   
   const { data: dishes, isLoading, error } = useCollection(dishesQuery);
 
+  const partnersQuery = useMemoFirebase(() => {
+    return query(collection(db, 'partners'), orderBy('restaurantName', 'asc'));
+  }, [db]);
+  const { data: partners } = useCollection(partnersQuery);
+
+  const filteredDishes = useMemo(() => {
+    if (!dishes) return [];
+    return dishes.filter(d => {
+      const matchesSearch = d.name?.toLowerCase().includes(search.toLowerCase());
+      const matchesPartner = partnerFilter === 'All' || d.partnerIds?.includes(partnerFilter);
+      return matchesSearch && matchesPartner;
+    });
+  }, [dishes, search, partnerFilter]);
+
   const handleDelete = (id: string, name: string) => {
     if (!id) return;
-    
-    const confirmDelete = confirm(`Are you sure you want to permanently remove "${name}" from the repository?`);
+    const confirmDelete = confirm(`Are you sure you want to permanently remove "${name}"?`);
     if (!confirmDelete) return;
 
     setIsDeleting(id);
@@ -72,6 +92,12 @@ export default function AdminDatabasePage() {
     e.preventDefault();
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
+    
+    const partnerNames = selectedPartners.map(id => {
+      const p = partners?.find(part => part.id === id);
+      return p ? p.restaurantName : 'Unknown';
+    });
+
     const newDish = {
       name: formData.get('name') as string,
       price: parseFloat(formData.get('price') as string),
@@ -83,13 +109,16 @@ export default function AdminDatabasePage() {
       createdAt: serverTimestamp(),
       totalOrders: 0,
       totalRevenue: 0,
-      restaurantId: ''
+      partnerIds: selectedPartners,
+      partnerNames: partnerNames
     };
 
     const dishesRef = collection(db, 'dishes');
     addDoc(dishesRef, newDish)
       .then(() => {
-        toast.success(`${newDish.name} is now live!`);
+        toast.success(`${newDish.name} added to catalog`);
+        setIsAddDishOpen(false);
+        setSelectedPartners([]);
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -101,7 +130,6 @@ export default function AdminDatabasePage() {
       })
       .finally(() => {
         setIsSaving(false);
-        setIsAddDishOpen(false);
       });
   };
 
@@ -111,6 +139,12 @@ export default function AdminDatabasePage() {
     
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
+
+    const partnerNames = selectedPartners.map(id => {
+      const p = partners?.find(part => part.id === id);
+      return p ? p.restaurantName : 'Unknown';
+    });
+
     const updatedData = {
       name: formData.get('name') as string,
       price: parseFloat(formData.get('price') as string),
@@ -118,6 +152,8 @@ export default function AdminDatabasePage() {
       description: formData.get('description') as string,
       image: formData.get('image') as string,
       isVeg: formData.get('isVeg') === 'on',
+      partnerIds: selectedPartners,
+      partnerNames: partnerNames,
       updatedAt: serverTimestamp()
     };
 
@@ -125,6 +161,9 @@ export default function AdminDatabasePage() {
     updateDoc(docRef, updatedData)
       .then(() => {
         toast.success("Dish records updated");
+        setIsEditOpen(false);
+        setEditingDish(null);
+        setSelectedPartners([]);
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -136,87 +175,102 @@ export default function AdminDatabasePage() {
       })
       .finally(() => {
         setIsSaving(false);
-        setIsEditOpen(false);
-        setEditingDish(null);
       });
   };
 
-  const handleMegaSeed500 = async () => {
+  const handleMegaSeed = async () => {
+    if (!partners || partners.length === 0) {
+      toast.error("Please onboard at least one Partner location first.");
+      return;
+    }
+    
     setIsSeeding(true);
     const seedToast = toast.loading("Seeding mega repository...");
     
     try {
-      const resSnap = await getDocs(collection(db, 'restaurants'));
-      let restaurantIds = resSnap.docs.map(d => d.id);
-
-      if (restaurantIds.length === 0) {
-        const batch = writeBatch(db);
-        const resNames = ['Royal Punjab', 'South Spice', 'The Pizza Co.', 'Burger King Indian', 'Street Delights'];
-        const newResIds: string[] = [];
-        resNames.forEach(name => {
-          const ref = doc(collection(db, 'restaurants'));
-          batch.set(ref, {
-            name,
-            address: 'Main Street, Bharat',
-            phone: '+91 9876543210',
-            email: `contact@${name.toLowerCase().replace(' ', '')}.com`,
-            imageURL: `https://picsum.photos/seed/${name}/600/400`,
-            averageRating: 4.5,
-            totalOrders: 0,
-            totalRevenue: 0
-          });
-          newResIds.push(ref.id);
-        });
-        await batch.commit();
-        restaurantIds = newResIds;
-      }
-
-      const templates: Record<string, { count: number; prefixes: string[]; items: string[]; keywords: string[] }> = {
-        PIZZAS: { count: 20, prefixes: ['Artisanal', 'Classic', 'Double Cheese', 'Spicy'], items: ['Margherita', 'Paneer Tikka', 'Veggie Delight'], keywords: ['pizza'] },
-        BURGERS: { count: 20, prefixes: ['Maharaja', 'Spicy', 'Crispy', 'Supreme'], items: ['Veggie Burger', 'Aloo Tikki', 'Paneer Burger'], keywords: ['burger'] }
-      };
-
-      const allItems: any[] = [];
-      Object.entries(templates).forEach(([category, config]) => {
-        for (let i = 0; i < config.count; i++) {
-          const prefix = config.prefixes[Math.floor(Math.random() * config.prefixes.length)];
-          const item = config.items[Math.floor(Math.random() * config.items.length)];
-          const name = `${prefix} ${item} #${i + 1}`;
-          allItems.push({
-            name, category, price: Math.floor(Math.random() * (450 - 60 + 1) + 60),
-            image: `https://picsum.photos/seed/${category.toLowerCase()}${i}/800/600`,
-            description: `Authentic ${name} prepared with premium ingredients.`,
-            isVeg: Math.random() > 0.15,
-            rating: parseFloat((Math.random() * (4.8 - 3.5) + 3.5).toFixed(1)),
-            totalOrders: Math.floor(Math.random() * 200),
-            totalRevenue: 0,
-            restaurantId: restaurantIds[Math.floor(Math.random() * restaurantIds.length)],
-            createdAt: serverTimestamp()
-          });
-        }
-      });
+      const templates = [
+        { category: 'PIZZAS', items: ['Margherita', 'Paneer Tikka', 'Double Cheese', 'Spicy Veggie'] },
+        { category: 'BURGERS', items: ['Maharaja', 'Aloo Tikki', 'Crispy Paneer', 'Veggie Supreme'] },
+        { category: 'NORTH_INDIAN', items: ['Dal Makhani', 'Paneer Butter Masala', 'Shahi Paneer', 'Mix Veg'] }
+      ];
 
       const batch = writeBatch(db);
-      allItems.forEach(item => {
-        const newDocRef = doc(collection(db, 'dishes'));
-        batch.set(newDocRef, item);
+      templates.forEach(tpl => {
+        tpl.items.forEach((itemName, i) => {
+          const newDocRef = doc(collection(db, 'dishes'));
+          const randomPartners = partners.sort(() => 0.5 - Math.random()).slice(0, 2);
+          
+          batch.set(newDocRef, {
+            name: `${itemName} #${Math.floor(Math.random() * 1000)}`,
+            category: tpl.category,
+            price: Math.floor(Math.random() * 400 + 100),
+            image: `https://picsum.photos/seed/${tpl.category.toLowerCase()}${i}/800/600`,
+            description: `Authentic ${itemName} curated for premium taste.`,
+            isVeg: true,
+            rating: 4.5,
+            totalOrders: Math.floor(Math.random() * 50),
+            totalRevenue: 0,
+            partnerIds: randomPartners.map(p => p.id),
+            partnerNames: randomPartners.map(p => p.restaurantName),
+            createdAt: serverTimestamp()
+          });
+        });
       });
       
-      batch.commit().catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'dishes',
-          operation: 'write',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-
-      toast.success(`Successfully added ${allItems.length} unique dishes.`, { id: seedToast });
+      await batch.commit();
+      toast.success(`Successfully seeded dishes across ${partners.length} partners.`, { id: seedToast });
     } catch (e: any) {
-      toast.error("Repository sync failed.", { id: seedToast });
+      toast.error("Seeding failed.", { id: seedToast });
     } finally {
       setIsSeeding(false);
     }
   };
+
+  const PartnerMultiSelect = ({ selected, onToggle }: { selected: string[], onToggle: (id: string) => void }) => (
+    <div className="space-y-2">
+      <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfilling Partners</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted">
+            <span className="truncate">
+              {selected.length === 0 ? "Select Partners..." : `${selected.length} Partners Selected`}
+            </span>
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[450px] p-0 rounded-2xl shadow-2xl border-none" align="start">
+          <ScrollArea className="h-[300px]">
+            <div className="p-4 space-y-1">
+              {partners?.map((p) => (
+                <div 
+                  key={p.id}
+                  onClick={() => onToggle(p.id)}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
+                    selected.includes(p.id) ? "bg-primary/5 text-primary" : "hover:bg-muted"
+                  )}
+                >
+                  <div className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                    selected.includes(p.id) ? "bg-primary border-primary" : "border-muted"
+                  )}>
+                    {selected.includes(p.id) && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm truncate">{p.restaurantName}</span>
+                    <span className="text-[10px] uppercase font-black opacity-40">{p.city}</span>
+                  </div>
+                </div>
+              ))}
+              {partners?.length === 0 && (
+                <div className="p-8 text-center opacity-30 italic text-sm">No partners found. Onboard partners first.</div>
+              )}
+            </div>
+          </ScrollArea>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
@@ -226,12 +280,12 @@ export default function AdminDatabasePage() {
             <Database className="w-10 h-10 text-primary" />
             Mega Repository
           </h1>
-          <p className="text-muted-foreground font-medium">Manage your catalog ({dishes?.length || 0} items found).</p>
+          <p className="text-muted-foreground font-medium">Standardized menu catalog ({filteredDishes.length} items).</p>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
           <Button 
             variant="default" 
-            onClick={handleMegaSeed500} 
+            onClick={handleMegaSeed} 
             disabled={isSeeding}
             className="rounded-xl bg-accent hover:bg-accent/90 text-white font-black h-11 px-6 shadow-lg shadow-accent/20 transition-all group overflow-hidden relative active:scale-95"
           >
@@ -240,131 +294,189 @@ export default function AdminDatabasePage() {
             ) : (
               <Sparkles className="w-4 h-4 mr-2 group-hover:animate-bounce" />
             )}
-            <span className="relative z-10">{isSeeding ? "SYNCING..." : "SYNC DATA"}</span>
+            <span className="relative z-10">{isSeeding ? "SYNCING..." : "SYNC ALL"}</span>
           </Button>
-          <div className="relative w-full md:w-64 group">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <Input 
-              placeholder="Search dishes..." 
-              className="pl-10 h-11 bg-white rounded-xl border shadow-sm transition-all"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64 group">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Input 
+                placeholder="Search dish..." 
+                className="pl-10 h-11 bg-white rounded-xl border shadow-sm transition-all"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-11 rounded-xl font-bold gap-2 px-4 shadow-sm border-none bg-white ring-1 ring-primary/10">
+                  <Filter className="w-4 h-4 text-primary" />
+                  {partnerFilter === 'All' ? 'All Partners' : partners?.find(p => p.id === partnerFilter)?.restaurantName}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2 rounded-2xl shadow-xl border-none">
+                <Button 
+                  variant="ghost" 
+                  className={cn("w-full justify-start rounded-xl mb-1", partnerFilter === 'All' && "bg-primary/10 text-primary font-black")}
+                  onClick={() => setPartnerFilter('All')}
+                >
+                  All Partners
+                </Button>
+                {partners?.map(p => (
+                  <Button 
+                    key={p.id}
+                    variant="ghost" 
+                    className={cn("w-full justify-start rounded-xl mb-1 text-left truncate", partnerFilter === p.id && "bg-primary/10 text-primary font-black")}
+                    onClick={() => setPartnerFilter(p.id)}
+                  >
+                    {p.restaurantName}
+                  </Button>
+                ))}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20 animate-in slide-in-from-top-4">
+        <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20">
           <AlertCircle className="w-6 h-6" />
-          <p className="font-bold">Error loading repository: {error.message}</p>
+          <p className="font-bold">Error loading catalog: {error.message}</p>
         </div>
       )}
 
-      <Card className="border shadow-sm rounded-3xl overflow-hidden bg-white">
-        <div className="p-6 border-b flex justify-between items-center bg-muted/20">
-          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-500" />
-            Catalog Stream
+      <Card className="border shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
+        <div className="p-8 border-b flex justify-between items-center bg-muted/20">
+          <h3 className="font-black text-xl text-foreground flex items-center gap-2">
+            <Flame className="w-6 h-6 text-orange-500" />
+            Repository Stream
           </h3>
-          <Dialog open={isAddDishOpen} onOpenChange={setIsAddDishOpen}>
+          <Dialog open={isAddDishOpen} onOpenChange={(open) => {
+             setIsAddDishOpen(open);
+             if(!open) setSelectedPartners([]);
+          }}>
             <DialogTrigger asChild>
-              <Button className="rounded-xl bg-primary hover:bg-primary/90 font-bold transition-transform active:scale-95">
-                <Plus className="w-4 h-4 mr-2" /> Manual Entry
+              <Button className="rounded-2xl bg-primary hover:bg-primary/90 font-black h-12 px-8 transition-transform active:scale-95 shadow-xl shadow-primary/20">
+                <Plus className="w-5 h-5 mr-2" /> Manual Entry
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] rounded-3xl">
+            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
               <DialogHeader>
-                <DialogTitle className="font-headline font-black text-2xl text-primary">Add New Dish</DialogTitle>
+                <DialogTitle className="font-headline font-black text-3xl text-primary">New Catalog Item</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleAddDish} className="space-y-4 py-4">
+              <form onSubmit={handleAddDish} className="space-y-6 py-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Dish Name</Label>
-                  <Input id="name" name="name" required placeholder="e.g. Paneer Tikka" className="rounded-xl" />
+                  <Label htmlFor="name" className="font-bold">Dish Name</Label>
+                  <Input id="name" name="name" required placeholder="e.g. Paneer Tikka" className="rounded-xl h-12" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (₹)</Label>
-                    <Input id="price" name="price" type="number" required placeholder="320" className="rounded-xl" />
+                    <Label htmlFor="price" className="font-bold">Price (₹)</Label>
+                    <Input id="price" name="price" type="number" required placeholder="320" className="rounded-xl h-12" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <select name="category" className="w-full h-10 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
+                    <Label htmlFor="category" className="font-bold">Category</Label>
+                    <select name="category" className="w-full h-12 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
                       {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                     </select>
                   </div>
                 </div>
+                
+                <PartnerMultiSelect 
+                  selected={selectedPartners} 
+                  onToggle={(id) => setSelectedPartners(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])} 
+                />
+
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" placeholder="Description..." className="rounded-xl min-h-[100px]" />
+                  <Label htmlFor="description" className="font-bold">Description</Label>
+                  <Textarea id="description" name="description" placeholder="Item description..." className="rounded-xl min-h-[80px]" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="image">Image URL</Label>
-                  <Input id="image" name="image" placeholder="https://picsum.photos/..." className="rounded-xl" />
+                  <Label htmlFor="image" className="font-bold">Image URL</Label>
+                  <Input id="image" name="image" placeholder="https://..." className="rounded-xl h-12" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="isVeg" name="isVeg" defaultChecked className="w-4 h-4 rounded border-green-600 text-green-600 accent-green-600" />
-                  <Label htmlFor="isVeg">Vegetarian</Label>
+                <div className="flex items-center gap-3 bg-muted/20 p-4 rounded-2xl">
+                  <input type="checkbox" id="isVeg" name="isVeg" defaultChecked className="w-5 h-5 rounded-lg border-green-600 text-green-600 accent-green-600" />
+                  <Label htmlFor="isVeg" className="font-black text-green-700">Vegetarian Option</Label>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={isSaving} className="w-full rounded-xl font-bold bg-primary h-12 shadow-lg active:scale-95">
-                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Save Dish"}
+                  <Button type="submit" disabled={isSaving} className="w-full rounded-2xl font-black bg-primary h-14 shadow-xl active:scale-95 text-lg">
+                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Finalize Entry"}
                   </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </div>
-        <div className="max-h-[700px] overflow-y-auto">
+        
+        <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-muted/30 sticky top-0 z-10">
-              <TableRow>
-                <TableHead className="font-bold p-6">Dish</TableHead>
-                <TableHead className="font-bold">Type</TableHead>
-                <TableHead className="font-bold">Category</TableHead>
-                <TableHead className="font-bold">Price</TableHead>
-                <TableHead className="font-bold text-right pr-6">Action</TableHead>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="border-none">
+                <TableHead className="font-black px-8 h-20 uppercase tracking-widest text-[10px]">Dish Info</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Type / Category</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Linked Partners</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Price</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-right pr-8">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-20">
-                    <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
                   </TableCell>
                 </TableRow>
-              ) : dishes?.filter(d => d.name?.toLowerCase().includes(search.toLowerCase())).map((dish) => (
-                <TableRow key={dish.id} className="hover:bg-muted/5 transition-colors group">
-                  <TableCell className="p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border bg-muted shrink-0 shadow-sm transition-transform group-hover:scale-110">
+              ) : filteredDishes.map((dish) => (
+                <TableRow key={dish.id} className="hover:bg-muted/5 transition-colors group border-b last:border-none">
+                  <TableCell className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden border bg-muted shrink-0 shadow-sm transition-transform group-hover:scale-110">
                         <img src={dish.image} alt={dish.name} className="object-cover w-full h-full" />
                       </div>
-                      <span className="font-bold text-sm text-foreground">{dish.name}</span>
+                      <div className="flex flex-col">
+                        <span className="font-black text-lg text-foreground leading-tight">{dish.name}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground truncate max-w-[200px]">{dish.description?.slice(0, 40)}...</span>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    {dish.isVeg ? (
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Veg</Badge>
-                    ) : (
-                      <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none">Non-Veg</Badge>
-                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <Badge className={cn("w-fit rounded-full px-3 py-0.5 text-[8px] border-none font-black uppercase", dish.isVeg ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                        {dish.isVeg ? 'Veg' : 'Non-Veg'}
+                      </Badge>
+                      <Badge variant="outline" className="w-fit rounded-full text-[9px] uppercase font-black text-muted-foreground border-muted-foreground/20">
+                        {dish.category?.replace('_', ' ')}
+                      </Badge>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="rounded-full text-[10px] uppercase font-bold text-muted-foreground">
-                      {dish.category?.replace('_', ' ')}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1 max-w-[250px]">
+                      {(dish.partnerNames || []).slice(0, 2).map((name: string, i: number) => (
+                        <Badge key={i} variant="secondary" className="rounded-full text-[8px] font-bold h-5 bg-primary/5 text-primary border-none">
+                          {name}
+                        </Badge>
+                      ))}
+                      {dish.partnerNames?.length > 2 && (
+                        <Badge variant="secondary" className="rounded-full text-[8px] font-black h-5">+{(dish.partnerNames.length - 2)} more</Badge>
+                      )}
+                      {!dish.partnerNames?.length && (
+                        <span className="text-[10px] font-bold text-destructive italic flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Unassigned
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="font-black text-primary">₹{dish.price}</TableCell>
-                  <TableCell className="text-right pr-6">
-                    <div className="flex justify-end gap-2">
+                  <TableCell className="font-black text-primary text-xl">₹{dish.price}</TableCell>
+                  <TableCell className="text-right pr-8">
+                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="rounded-lg text-muted-foreground hover:text-primary transition-all active:scale-90" 
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        className="rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-90" 
+                        onClick={() => {
                           setEditingDish(dish);
+                          setSelectedPartners(dish.partnerIds || []);
                           setIsEditOpen(true);
                         }}
                       >
@@ -373,11 +485,8 @@ export default function AdminDatabasePage() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="rounded-lg text-muted-foreground hover:text-destructive transition-all active:scale-90" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(dish.id, dish.name);
-                        }}
+                        className="rounded-xl text-muted-foreground hover:text-destructive transition-all active:scale-90" 
+                        onClick={() => handleDelete(dish.id, dish.name)}
                         disabled={isDeleting === dish.id}
                       >
                         {isDeleting === dish.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -386,13 +495,13 @@ export default function AdminDatabasePage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {dishes?.length === 0 && !isLoading && (
+              {filteredDishes.length === 0 && !isLoading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-24 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-32 text-muted-foreground">
                     <div className="flex flex-col items-center gap-4 opacity-40">
                       <Database className="w-16 h-16" />
-                      <p className="font-bold italic text-xl">Repository is empty</p>
-                      <p className="text-sm">Click Sync Data to onboard items</p>
+                      <p className="font-black italic text-2xl">Repository is empty</p>
+                      <p className="text-sm font-medium">Synchronize all or add manual entries to fulfill orders.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -402,44 +511,56 @@ export default function AdminDatabasePage() {
         </div>
       </Card>
 
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+      <Dialog open={isEditOpen} onOpenChange={(open) => {
+        setIsEditOpen(open);
+        if (!open) {
+          setEditingDish(null);
+          setSelectedPartners([]);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
           <DialogHeader>
-            <DialogTitle className="font-headline font-black text-2xl text-primary">Update Dish Info</DialogTitle>
+            <DialogTitle className="font-headline font-black text-3xl text-primary">Update Catalog Info</DialogTitle>
           </DialogHeader>
           {editingDish && (
-            <form onSubmit={handleUpdateDish} className="space-y-4 py-4">
+            <form onSubmit={handleUpdateDish} className="space-y-6 py-6">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Dish Name</Label>
-                <Input id="edit-name" name="name" defaultValue={editingDish.name} required className="rounded-xl" />
+                <Label htmlFor="edit-name" className="font-bold">Dish Name</Label>
+                <Input id="edit-name" name="name" defaultValue={editingDish.name} required className="rounded-xl h-12" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-price">Price (₹)</Label>
-                  <Input id="edit-price" name="price" type="number" defaultValue={editingDish.price} required className="rounded-xl" />
+                  <Label htmlFor="edit-price" className="font-bold">Price (₹)</Label>
+                  <Input id="edit-price" name="price" type="number" defaultValue={editingDish.price} required className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-category">Category</Label>
-                  <select name="category" defaultValue={editingDish.category} className="w-full h-10 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
+                  <Label htmlFor="edit-category" className="font-bold">Category</Label>
+                  <select name="category" defaultValue={editingDish.category} className="w-full h-12 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
                     {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                   </select>
                 </div>
               </div>
+
+              <PartnerMultiSelect 
+                selected={selectedPartners} 
+                onToggle={(id) => setSelectedPartners(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])} 
+              />
+
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea id="edit-description" name="description" defaultValue={editingDish.description} className="rounded-xl min-h-[100px]" />
+                <Label htmlFor="edit-description" className="font-bold">Description</Label>
+                <Textarea id="edit-description" name="description" defaultValue={editingDish.description} className="rounded-xl min-h-[80px]" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-image">Image URL</Label>
-                <Input id="edit-image" name="image" defaultValue={editingDish.image} placeholder="https://picsum.photos/..." className="rounded-xl" />
+                <Label htmlFor="edit-image" className="font-bold">Image URL</Label>
+                <Input id="edit-image" name="image" defaultValue={editingDish.image} placeholder="https://..." className="rounded-xl h-12" />
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="edit-isVeg" name="isVeg" defaultChecked={editingDish.isVeg} className="w-4 h-4 rounded border-green-600 text-green-600 accent-green-600" />
-                <Label htmlFor="edit-isVeg">Vegetarian</Label>
+              <div className="flex items-center gap-3 bg-muted/20 p-4 rounded-2xl">
+                <input type="checkbox" id="edit-isVeg" name="isVeg" defaultChecked={editingDish.isVeg} className="w-5 h-5 rounded-lg border-green-600 text-green-600 accent-green-600" />
+                <Label htmlFor="edit-isVeg" className="font-black text-green-700">Vegetarian Option</Label>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isSaving} className="w-full rounded-xl font-bold bg-primary h-12 shadow-lg active:scale-95">
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Update Records"}
+                <Button type="submit" disabled={isSaving} className="w-full rounded-2xl font-black bg-primary h-14 shadow-xl active:scale-95 text-lg">
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Update Records"}
                 </Button>
               </DialogFooter>
             </form>

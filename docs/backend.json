@@ -23,6 +23,26 @@
       },
       "required": ["uid", "email", "name", "role"]
     },
+    "Partner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Partner",
+      "type": "object",
+      "description": "Represents a restaurant partner location.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "restaurantName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "image": { "type": "string", "format": "uri" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "object" },
+        "updatedAt": { "type": "object" }
+      },
+      "required": ["name", "restaurantName", "email", "city"]
+    },
     "Dish": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Dish",
@@ -39,7 +59,8 @@
         "isVeg": { "type": "boolean" },
         "totalOrders": { "type": "number" },
         "totalRevenue": { "type": "number" },
-        "restaurantId": { "type": "string" }
+        "partnerIds": { "type": "array", "items": { "type": "string" } },
+        "partnerNames": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["name", "price", "category"]
     },
@@ -212,6 +233,10 @@
     "/favorites/{favoriteId}": {
       "schema": "Favorite",
       "description": "Stores user favorite dishes."
+    },
+    "/partners/{partnerId}": {
+      "schema": "Partner",
+      "description": "Stores restaurant partner details."
     }
   }
 }

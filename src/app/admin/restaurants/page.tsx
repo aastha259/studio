@@ -13,7 +13,10 @@ import {
   Phone, 
   MapPin, 
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { 
   Card, 
@@ -43,26 +46,27 @@ import {
 import { Label } from '@/components/ui/label';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc, query, where, getDocs, serverTimestamp, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
-export default function AdminRestaurantsPage() {
+export default function AdminPartnersPage() {
   const db = useFirestore();
   const { user } = useAuth();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [editingRestaurant, setEditingRestaurant] = useState<any>(null);
+  const [editingPartner, setEditingPartner] = useState<any>(null);
   const [viewingMenu, setViewingMenu] = useState<any>(null);
 
   const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
 
-  const restaurantsQuery = useMemoFirebase(() => {
+  const partnersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
-    return collection(db, 'restaurants');
+    return collection(db, 'partners');
   }, [db, isAuthorized]);
-  const { data: restaurants, isLoading, error: restaurantsError } = useCollection(restaurantsQuery);
+  const { data: partners, isLoading, error: partnersError } = useCollection(partnersQuery);
 
   const dishesQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;
@@ -70,58 +74,86 @@ export default function AdminRestaurantsPage() {
   }, [db, isAuthorized]);
   const { data: allDishes } = useCollection(dishesQuery);
 
-  const filteredRestaurants = useMemo(() => {
-    const query = search.toLowerCase().trim();
-    return restaurants?.filter(r => 
-      r.name?.toLowerCase().includes(query) ||
-      r.address?.toLowerCase().includes(query)
+  const filteredPartners = useMemo(() => {
+    const queryStr = search.toLowerCase().trim();
+    return partners?.filter(p => 
+      p.name?.toLowerCase().includes(queryStr) ||
+      p.restaurantName?.toLowerCase().includes(queryStr) ||
+      p.city?.toLowerCase().includes(queryStr)
     ) || [];
-  }, [restaurants, search]);
+  }, [partners, search]);
 
-  const handleSaveRestaurant = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSavePartner = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
-    const data = {
+    
+    const partnerData = {
       name: formData.get('name') as string,
-      address: formData.get('address') as string,
-      phone: formData.get('phone') as string,
+      restaurantName: formData.get('restaurantName') as string,
       email: formData.get('email') as string,
-      imageURL: formData.get('imageURL') as string || `https://picsum.photos/seed/restaurant-${Date.now()}/600/400`,
-      averageRating: parseFloat(formData.get('rating') as string) || 0,
-      totalOrders: editingRestaurant?.totalOrders || 0,
-      totalRevenue: editingRestaurant?.totalRevenue || 0
+      phone: formData.get('phone') as string,
+      address: formData.get('address') as string,
+      city: formData.get('city') as string,
+      status: formData.get('status') as string,
+      image: formData.get('image') as string || `https://picsum.photos/seed/partner-${Date.now()}/600/400`,
+      updatedAt: serverTimestamp()
     };
 
     try {
-      if (editingRestaurant) {
-        await updateDoc(doc(db, 'restaurants', editingRestaurant.id), data);
-        toast({ title: "Updated", description: "Restaurant record refreshed." });
-        setEditingRestaurant(null);
+      if (editingPartner) {
+        await updateDoc(doc(db, 'partners', editingPartner.id), partnerData);
+        toast({ title: "Partner Updated", description: "The partner record has been successfully refreshed." });
+        setEditingPartner(null);
       } else {
-        await addDoc(collection(db, 'restaurants'), data);
-        toast({ title: "Success", description: "Restaurant added to network." });
+        await addDoc(collection(db, 'partners'), {
+          ...partnerData,
+          createdAt: serverTimestamp()
+        });
+        toast({ title: "Partner Onboarded", description: "New location added to the network." });
         setIsAddOpen(false);
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Operation Failed", description: err.message });
+      toast({ variant: "destructive", title: "Action Failed", description: err.message });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteRestaurant = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this restaurant partner?')) return;
+  const handleDeletePartner = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to permanently remove "${name}"? This will also unbind them from all linked dishes.`)) return;
+    
+    const loadingToast = toast({ title: "Processing Removal", description: "Cleaning up dish associations..." });
     
     try {
-      await deleteDoc(doc(db, 'restaurants', id));
-      toast({ title: "Removed", description: "Partner removed from network." });
+      // 1. Find all dishes linked to this partner
+      const q = query(collection(db, 'dishes'), where('partnerIds', 'array-contains', id));
+      const dishSnap = await getDocs(q);
+      
+      const updatePromises = dishSnap.docs.map(dishDoc => {
+        const dishData = dishDoc.data();
+        const updatedPartnerNames = (dishData.partnerNames || []).filter((n: string, i: number) => {
+           return dishData.partnerIds[i] !== id;
+        });
+
+        return updateDoc(doc(db, 'dishes', dishDoc.id), {
+          partnerIds: arrayRemove(id),
+          partnerNames: updatedPartnerNames
+        });
+      });
+
+      await Promise.all(updatePromises);
+      
+      // 2. Delete the partner record
+      await deleteDoc(doc(db, 'partners', id));
+      
+      toast({ title: "Partner Removed", description: "Network record and all associations cleared." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message });
+      toast({ variant: "destructive", title: "Cleanup Error", description: err.message });
     }
   };
 
-  if (!isAuthorized) return null;
+  if (!isAuthorized) return <div className="p-20 text-center font-black opacity-20">UNAUTHORIZED ACCESS</div>;
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
@@ -131,13 +163,13 @@ export default function AdminRestaurantsPage() {
             <Store className="w-10 h-10 text-primary" />
             Partner Network
           </h1>
-          <p className="text-muted-foreground font-medium">Manage restaurant locations and performance.</p>
+          <p className="text-muted-foreground font-medium">Manage and audit your restaurant partner locations.</p>
         </div>
         
-        <Dialog open={isAddOpen || !!editingRestaurant} onOpenChange={(open) => {
+        <Dialog open={isAddOpen || !!editingPartner} onOpenChange={(open) => {
           if (!open) {
             setIsAddOpen(false);
-            setEditingRestaurant(null);
+            setEditingPartner(null);
           }
         }}>
           <DialogTrigger asChild>
@@ -146,43 +178,63 @@ export default function AdminRestaurantsPage() {
               Onboard Partner
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] rounded-[2rem]">
+          <DialogContent className="sm:max-w-[550px] rounded-[2rem]">
             <DialogHeader>
               <DialogTitle className="text-3xl font-headline font-black text-primary">
-                {editingRestaurant ? 'Edit Partner' : 'New Restaurant Partner'}
+                {editingPartner ? 'Edit Partner Records' : 'New Restaurant Partner'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSaveRestaurant} className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="font-bold">Restaurant Name</Label>
-                <Input id="name" name="name" defaultValue={editingRestaurant?.name} required placeholder="e.g. Royal Punjab" className="rounded-xl h-12" />
-              </div>
+            <form onSubmit={handleSavePartner} className="space-y-6 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="font-bold">Contact Phone</Label>
-                  <Input id="phone" name="phone" defaultValue={editingRestaurant?.phone} required placeholder="+91 ..." className="rounded-xl h-12" />
+                  <Label htmlFor="restaurantName" className="font-bold">Restaurant Name</Label>
+                  <Input id="restaurantName" name="restaurantName" defaultValue={editingPartner?.restaurantName} required placeholder="e.g. Royal Punjab" className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rating" className="font-bold">Initial Rating</Label>
-                  <Input id="rating" name="rating" type="number" step="0.1" max="5" defaultValue={editingRestaurant?.averageRating || 4.5} required className="rounded-xl h-12" />
+                  <Label htmlFor="name" className="font-bold">Manager Name</Label>
+                  <Input id="name" name="name" defaultValue={editingPartner?.name} required placeholder="Arjun Sharma" className="rounded-xl h-12" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="font-bold">Business Email</Label>
-                <Input id="email" name="email" type="email" defaultValue={editingRestaurant?.email} required placeholder="contact@restaurant.com" className="rounded-xl h-12" />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="font-bold">Business Email</Label>
+                  <Input id="email" name="email" type="email" defaultValue={editingPartner?.email} required placeholder="contact@royalpunjab.com" className="rounded-xl h-12" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="font-bold">Phone Number</Label>
+                  <Input id="phone" name="phone" defaultValue={editingPartner?.phone} required placeholder="+91 ..." className="rounded-xl h-12" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address" className="font-bold">Physical Address</Label>
-                <Input id="address" name="address" defaultValue={editingRestaurant?.address} required placeholder="Full street address..." className="rounded-xl h-12" />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city" className="font-bold">City</Label>
+                  <Input id="city" name="city" defaultValue={editingPartner?.city} required placeholder="Mumbai" className="rounded-xl h-12" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status" className="font-bold">Operational Status</Label>
+                  <select name="status" defaultValue={editingPartner?.status || 'active'} className="w-full h-12 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="imageURL" className="font-bold">Image URL (Optional)</Label>
-                <Input id="imageURL" name="imageURL" defaultValue={editingRestaurant?.imageURL} placeholder="https://..." className="rounded-xl h-12" />
+                <Label htmlFor="address" className="font-bold">Full Address</Label>
+                <Input id="address" name="address" defaultValue={editingPartner?.address} required placeholder="Unit 42, Bharat Plaza..." className="rounded-xl h-12" />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="image" className="font-bold">Logo/Image URL</Label>
+                <Input id="image" name="image" defaultValue={editingPartner?.image} placeholder="https://..." className="rounded-xl h-12" />
+              </div>
+
               <DialogFooter>
                 <Button type="submit" disabled={isSaving} className="w-full h-14 rounded-2xl font-black bg-primary text-lg shadow-lg">
                   {isSaving ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : null}
-                  {editingRestaurant ? 'Update Records' : 'Finalize Onboarding'}
+                  {editingPartner ? 'Save Changes' : 'Finalize Onboarding'}
                 </Button>
               </DialogFooter>
             </form>
@@ -190,17 +242,17 @@ export default function AdminRestaurantsPage() {
         </Dialog>
       </div>
 
-      {restaurantsError && (
+      {partnersError && (
         <div className="bg-destructive/10 text-destructive p-6 rounded-3xl flex items-center gap-4 border border-destructive/20">
           <AlertCircle className="w-6 h-6" />
-          <p className="font-bold">Error syncing partner network: {restaurantsError.message}</p>
+          <p className="font-bold">Error syncing partner network: {partnersError.message}</p>
         </div>
       )}
 
       <div className="relative w-full max-w-md">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input 
-          placeholder="Search by name or location..." 
+          placeholder="Search by restaurant or city..." 
           className="pl-12 h-14 bg-white rounded-2xl shadow-sm border-none ring-1 ring-primary/10 focus-visible:ring-primary transition-all text-lg"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -212,48 +264,47 @@ export default function AdminRestaurantsPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent border-none">
-                <TableHead className="font-black px-10 h-20 uppercase tracking-widest text-[10px]">Restaurant</TableHead>
+                <TableHead className="font-black px-10 h-20 uppercase tracking-widest text-[10px]">Restaurant Partner</TableHead>
                 <TableHead className="font-black h-20 uppercase tracking-widest text-[10px]">Location</TableHead>
-                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-center">Orders</TableHead>
-                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-center">Rating</TableHead>
-                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-right pr-10">Actions</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-center">Status</TableHead>
+                <TableHead className="font-black h-20 uppercase tracking-widest text-[10px] text-right pr-10">Management</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRestaurants.map((res) => {
-                const restaurantMenu = allDishes?.filter(f => f.restaurantId === res.id) || [];
+              {filteredPartners.map((res) => {
+                const restaurantMenu = allDishes?.filter(f => f.partnerIds?.includes(res.id)) || [];
                 
                 return (
                   <TableRow key={res.id} className="hover:bg-muted/5 transition-colors border-b last:border-none group">
                     <TableCell className="px-10 py-6">
                       <div className="flex items-center gap-4">
                         <div className="h-16 w-16 rounded-2xl border-2 border-primary/10 shadow-md overflow-hidden bg-muted">
-                          <img src={res.imageURL} className="object-cover w-full h-full" alt={res.name} />
+                          <img src={res.image} className="object-cover w-full h-full" alt={res.name} />
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-black text-lg text-foreground">{res.name}</span>
+                          <span className="font-black text-lg text-foreground leading-tight">{res.restaurantName}</span>
                           <span className="text-xs text-muted-foreground flex items-center gap-1 font-bold">
-                            <Phone className="w-3 h-3" /> {res.phone}
+                            <Building2 className="w-3 h-3" /> MGR: {res.name}
                           </span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium max-w-[200px]">
-                        <MapPin className="w-4 h-4 text-primary shrink-0" />
-                        <span className="truncate">{res.address}</span>
+                      <div className="flex flex-col gap-1 max-w-[200px]">
+                        <span className="text-sm font-black text-foreground">{res.city}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
+                          <MapPin className="w-3 h-3 text-primary shrink-0" />
+                          <span className="truncate">{res.address}</span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex flex-col items-center">
-                        <span className="font-black text-xl text-primary">{res.totalOrders || 0}</span>
-                        <span className="text-[10px] uppercase font-black tracking-tighter opacity-40">Orders</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className="rounded-full bg-green-100 text-green-700 hover:bg-green-100 border-none font-black px-3 py-1 gap-1">
-                        <Star className="w-3 h-3 fill-current" />
-                        {res.averageRating || 'N/A'}
+                      <Badge className={cn(
+                        "rounded-full font-black px-3 py-1 gap-1 border-none",
+                        res.status === 'active' ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+                      )}>
+                        {res.status === 'active' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {res.status?.toUpperCase() || 'UNKNOWN'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right pr-10">
@@ -265,21 +316,21 @@ export default function AdminRestaurantsPage() {
                           onClick={() => setViewingMenu(res)}
                         >
                           <Utensils className="w-4 h-4 mr-2" />
-                          Menu ({restaurantMenu.length})
+                          Linked Dishes ({restaurantMenu.length})
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="rounded-xl text-muted-foreground hover:text-primary"
-                          onClick={() => setEditingRestaurant(res)}
+                          className="rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-90"
+                          onClick={() => setEditingPartner(res)}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="rounded-xl text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteRestaurant(res.id)}
+                          className="rounded-xl text-muted-foreground hover:text-destructive transition-all active:scale-90"
+                          onClick={() => handleDeletePartner(res.id, res.restaurantName)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -288,19 +339,19 @@ export default function AdminRestaurantsPage() {
                   </TableRow>
                 );
               })}
-              {filteredRestaurants.length === 0 && !isLoading && !restaurantsError && (
+              {filteredPartners.length === 0 && !isLoading && !partnersError && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-24">
+                  <TableCell colSpan={4} className="text-center py-24">
                     <div className="flex flex-col items-center opacity-30">
                       <Store className="w-20 h-20 mb-4" />
-                      <p className="text-xl font-black italic">No partner restaurants found</p>
+                      <p className="text-xl font-black italic">No partners found matching "{search}"</p>
                     </div>
                   </TableCell>
                 </TableRow>
               )}
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-24">
+                  <TableCell colSpan={4} className="text-center py-24">
                     <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
                   </TableCell>
                 </TableRow>
@@ -315,12 +366,12 @@ export default function AdminRestaurantsPage() {
           <div className="bg-primary p-10 text-white relative">
             <div className="flex items-center gap-6">
               <div className="h-24 w-24 rounded-3xl border-4 border-white/20 shadow-2xl overflow-hidden bg-white/10">
-                <img src={viewingMenu?.imageURL} className="object-cover w-full h-full" alt={viewingMenu?.name} />
+                <img src={viewingMenu?.image} className="object-cover w-full h-full" alt={viewingMenu?.restaurantName} />
               </div>
               <div>
-                <h2 className="text-4xl font-headline font-black leading-tight">{viewingMenu?.name}</h2>
-                <p className="text-white/70 font-bold flex items-center gap-2 mt-1">
-                  <MapPin className="w-4 h-4" /> {viewingMenu?.address}
+                <h2 className="text-4xl font-headline font-black leading-tight">{viewingMenu?.restaurantName}</h2>
+                <p className="text-white/70 font-bold flex items-center gap-2 mt-1 uppercase tracking-widest text-xs">
+                  <MapPin className="w-4 h-4" /> {viewingMenu?.city}, Bharat
                 </p>
               </div>
             </div>
@@ -329,25 +380,22 @@ export default function AdminRestaurantsPage() {
           <div className="flex-1 p-10 overflow-y-auto bg-offwhite/50">
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b pb-4">
-                <h3 className="text-xl font-headline font-black text-foreground">Digital Menu Catalog</h3>
+                <h3 className="text-xl font-headline font-black text-foreground">Fulfillment Catalog</h3>
                 <Badge variant="outline" className="rounded-full px-4 py-1 font-black">
-                  {allDishes?.filter(f => f.restaurantId === viewingMenu?.id).length || 0} ITEMS TOTAL
+                  {allDishes?.filter(f => f.partnerIds?.includes(viewingMenu?.id)).length || 0} ITEMS ACTIVE
                 </Badge>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {allDishes?.filter(f => f.restaurantId === viewingMenu?.id).map((food) => (
+                {allDishes?.filter(f => f.partnerIds?.includes(viewingMenu?.id)).map((food) => (
                   <div key={food.id} className="bg-white border p-4 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted border shadow-sm">
-                        <img src={food.image || food.imageURL} alt={food.name} className="object-cover w-full h-full" />
+                        <img src={food.image} alt={food.name} className="object-cover w-full h-full" />
                       </div>
                       <div>
                         <p className="font-black text-foreground leading-none">{food.name}</p>
                         <p className="text-xs text-muted-foreground mt-1 font-bold">₹{food.price}</p>
-                        {food.trending && (
-                          <Badge className="mt-2 h-4 text-[8px] bg-accent font-black uppercase">Trending</Badge>
-                        )}
                       </div>
                     </div>
                   </div>

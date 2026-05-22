@@ -35,7 +35,7 @@ service cloud.firestore {
       // Allow read/delete if user owns the document (ID check for get/delete, Data check for list)
       allow read: if isSignedIn() && (
         (resource == null && favId.split('_')[0] == request.auth.uid) ||
-        (resource != null && resource.data.userId == request.auth.uid)
+        (resource != null && (resource.data.userId == request.auth.uid || favId.split('_')[0] == request.auth.uid))
       );
       allow update, delete: if isSignedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
@@ -99,7 +99,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
-    // RESTAURANTS: Public read, Admin write.
+    // PARTNERS: Public read, Admin write.
+    match /partners/{pId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Legacy support for restaurants collection
     match /restaurants/{rId} {
       allow read: if true;
       allow write: if isAdmin();

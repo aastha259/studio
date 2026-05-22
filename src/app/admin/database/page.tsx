@@ -31,8 +31,8 @@ export const MENU_CATEGORIES = [
 ];
 
 /**
- * PRODUCTION-GRADE COMPONENT: PartnerMultiSelect
- * Uses pointer-event isolation to bypass Dialog/Popover focus conflicts.
+ * STABLE COMPONENT: PartnerMultiSelect
+ * Uses aggressive pointer-event isolation to bypass focus conflicts in nested Radix modals.
  */
 const PartnerMultiSelect = ({ 
   partners, 
@@ -79,6 +79,7 @@ const PartnerMultiSelect = ({
                   <div
                     key={p.id}
                     onPointerDown={(e) => {
+                      // CRITICAL: Prevent Radix from taking focus which breaks the checkbox click
                       e.preventDefault();
                       e.stopPropagation();
                       onToggle(p.id);
@@ -163,6 +164,7 @@ export default function AdminDatabasePage() {
     });
   }, [dishes, search, partnerFilter]);
 
+  // Sync selectedPartners state with modal open/close
   useEffect(() => {
     if (editingDish && isEditOpen) {
       setSelectedPartners(editingDish.partnerIds || []);
@@ -210,6 +212,7 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     
+    // Resolve partner names from IDs
     const partnerNames = selectedPartners.map(id => {
       const p = partners?.find(part => part.id === id);
       return p ? p.restaurantName : 'Unknown';

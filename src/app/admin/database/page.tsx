@@ -79,17 +79,16 @@ const PartnerMultiSelect = ({
                 )}
               >
                 <div className={cn(
-                  "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors",
+                  "h-5 w-5 rounded-md border-2 flex items-center justify-center transition-colors",
                   selected.includes(p.id) ? "bg-primary border-primary" : "border-muted-foreground/30"
                 )}>
-                  {selected.includes(p.id) && <Check className="w-3 h-3 text-white stroke-[4px]" />}
+                  {selected.includes(p.id) && <Check className="h-3 w-3 text-white stroke-[4px]" />}
                 </div>
               
                 <div className="flex flex-col min-w-0">
                   <span className="font-bold text-sm truncate">
                     {p.restaurantName}
                   </span>
-              
                   <span className="text-[10px] uppercase font-black opacity-40">
                     {p.city}
                   </span>
@@ -211,7 +210,7 @@ export default function AdminDatabasePage() {
     addDoc(dishesRef, newDish)
       .then(() => {
         toast.success(`${newDish.name} added to catalog`);
-        setIsAddDishOpen(false);
+        setIsAddOpen(false);
         setSelectedPartners([]);
       })
       .catch(async (serverError) => {

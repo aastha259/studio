@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
@@ -41,8 +42,13 @@ export default function AdminDatabasePage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Multi-select partners state
+  // FIXED: Multi-select partners state
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
+
+  // DEBUG: Monitor state updates
+  useEffect(() => {
+    console.log("Active Partner Selections:", selectedPartners);
+  }, [selectedPartners]);
 
   const dishesQuery = useMemoFirebase(() => {
     return query(collection(db, 'dishes'), orderBy('name', 'asc'));
@@ -63,6 +69,21 @@ export default function AdminDatabasePage() {
       return matchesSearch && matchesPartner;
     });
   }, [dishes, search, partnerFilter]);
+
+  // FIXED: Pre-load partners when editing starts
+  useEffect(() => {
+    if (editingDish && isEditOpen) {
+      setSelectedPartners(editingDish.partnerIds || []);
+    }
+  }, [editingDish, isEditOpen]);
+
+  const togglePartner = (partnerId: string) => {
+    setSelectedPartners((prev) =>
+      prev.includes(partnerId)
+        ? prev.filter((id) => id !== partnerId)
+        : [...prev, partnerId]
+    );
+  };
 
   const handleDelete = (id: string, name: string) => {
     if (!id) return;
@@ -249,16 +270,15 @@ export default function AdminDatabasePage() {
                   key={p.id}
                   onClick={() => onToggle(p.id)}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
-                    selected.includes(p.id) ? "bg-primary/5 text-primary" : "hover:bg-muted"
+                    "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-transparent",
+                    selected.includes(p.id) ? "bg-primary/5 border-primary/20 text-primary" : "hover:bg-muted"
                   )}
                 >
-                  <div className={cn(
-                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                    selected.includes(p.id) ? "bg-primary border-primary" : "border-muted"
-                  )}>
-                    {selected.includes(p.id) && <Check className="w-3 h-3 text-white" />}
-                  </div>
+                  <Checkbox 
+                    checked={selected.includes(p.id)}
+                    onCheckedChange={() => onToggle(p.id)}
+                    className="pointer-events-none"
+                  />
                   <div className="flex flex-col min-w-0">
                     <span className="font-bold text-sm truncate">{p.restaurantName}</span>
                     <span className="text-[10px] uppercase font-black opacity-40">{p.city}</span>
@@ -390,7 +410,7 @@ export default function AdminDatabasePage() {
                 
                 <PartnerMultiSelect 
                   selected={selectedPartners} 
-                  onToggle={(id) => setSelectedPartners(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])} 
+                  onToggle={togglePartner} 
                 />
 
                 <div className="space-y-2">
@@ -482,7 +502,6 @@ export default function AdminDatabasePage() {
                         className="rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-90" 
                         onClick={() => {
                           setEditingDish(dish);
-                          setSelectedPartners(dish.partnerIds || []);
                           setIsEditOpen(true);
                         }}
                       >
@@ -552,7 +571,7 @@ export default function AdminDatabasePage() {
 
               <PartnerMultiSelect 
                 selected={selectedPartners} 
-                onToggle={(id) => setSelectedPartners(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])} 
+                onToggle={togglePartner} 
               />
 
               <div className="space-y-2">

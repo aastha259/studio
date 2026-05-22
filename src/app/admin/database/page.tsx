@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -30,8 +31,8 @@ export const MENU_CATEGORIES = [
 ];
 
 /**
- * STABLE COMPONENT: PartnerMultiSelect
- * Uses a direct row-click pattern to ensure stability inside nested Dialog/Popover overlays.
+ * PRODUCTION-GRADE COMPONENT: PartnerMultiSelect
+ * Uses pointer-event isolation to bypass Dialog/Popover focus conflicts.
  */
 const PartnerMultiSelect = ({ 
   partners, 
@@ -41,79 +42,93 @@ const PartnerMultiSelect = ({
   partners: any[] | null, 
   selected: string[], 
   onToggle: (id: string) => void 
-}) => (
-  <div className="space-y-2">
-    <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfillment Partners</Label>
-    <Popover modal={false}>
-      <PopoverTrigger asChild>
-        <Button 
-          type="button"
-          variant="outline" 
-          className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted cursor-pointer"
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Fulfillment Assignment</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            type="button"
+            variant="outline" 
+            className="w-full h-14 justify-between rounded-2xl px-6 font-bold border-muted-foreground/20 bg-white hover:bg-white text-foreground shadow-sm transition-all"
+          >
+            <span className="truncate">
+              {selected.length === 0 ? "Select Fulfilling Partners..." : `${selected.length} Partners Assigned`}
+            </span>
+            <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform opacity-50", open && "rotate-180")} />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-[var(--radix-popover-trigger-width)] p-0 rounded-3xl shadow-2xl border-none z-[110]" 
+          align="start"
+          sideOffset={8}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <span className="truncate">
-            {selected.length === 0 ? "Select Partners..." : `${selected.length} Partners Selected`}
-          </span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-[350px] p-0 rounded-2xl shadow-2xl border-none z-[100]" 
-        align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <ScrollArea className="h-[300px]">
-          <div className="p-3 space-y-1">
-            {partners?.map((p) => {
-              const isChecked = selected.includes(p.id);
-              
-              return (
-                <div
-                  key={p.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onToggle(p.id);
-                  }}
-                  className={cn(
-                    "flex items-center gap-4 p-3 rounded-xl transition-all border-2 cursor-pointer group select-none",
-                    isChecked
-                      ? "bg-primary/5 border-primary/30 shadow-sm"
-                      : "border-transparent hover:bg-muted/50"
-                  )}
-                >
-                  <div className={cn(
-                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                    isChecked 
-                      ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" 
-                      : "border-primary/40 group-hover:border-primary"
-                  )}>
-                    {isChecked && <Check className="h-4 w-4 stroke-[3px]" />}
-                  </div>
-                  
-                  <div className="flex flex-col min-w-0">
-                    <span className={cn(
-                      "font-bold text-sm truncate leading-none mb-1",
-                      isChecked ? "text-primary" : "text-foreground"
-                    )}>
-                      {p.restaurantName}
-                    </span>
-                    <span className="text-[10px] uppercase font-black opacity-30 leading-none tracking-widest">
-                      {p.city}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-            {partners?.length === 0 && (
-              <div className="p-8 text-center opacity-30 italic text-sm">No partners found. Onboard partners first.</div>
-            )}
+          <div className="p-2 border-b bg-muted/20">
+            <p className="text-[10px] font-black uppercase tracking-widest text-center py-1 opacity-40">Choose from Network</p>
           </div>
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
-  </div>
-);
+          <ScrollArea className="h-[300px]">
+            <div className="p-3 space-y-1">
+              {partners?.map((p) => {
+                const isChecked = selected.includes(p.id);
+                
+                return (
+                  <div
+                    key={p.id}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggle(p.id);
+                    }}
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-2xl transition-all border-2 cursor-pointer group select-none relative",
+                      isChecked
+                        ? "bg-primary/5 border-primary/30 shadow-inner"
+                        : "border-transparent hover:bg-muted/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
+                      isChecked 
+                        ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" 
+                        : "border-primary/20 group-hover:border-primary/50 bg-white"
+                    )}>
+                      {isChecked && <Check className="h-3.5 w-3.5 stroke-[4px]" />}
+                    </div>
+                    
+                    <div className="flex flex-col min-w-0">
+                      <span className={cn(
+                        "font-black text-sm truncate leading-none mb-1",
+                        isChecked ? "text-primary" : "text-foreground"
+                      )}>
+                        {p.restaurantName}
+                      </span>
+                      <div className="flex items-center gap-1 opacity-40">
+                        <Store className="w-3 h-3" />
+                        <span className="text-[10px] uppercase font-black tracking-widest truncate">
+                          {p.city}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {partners?.length === 0 && (
+                <div className="p-12 text-center flex flex-col items-center gap-3 opacity-30">
+                  <AlertCircle className="w-8 h-8" />
+                  <p className="font-bold text-xs italic">No active partners found.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
 
 export default function AdminDatabasePage() {
   const db = useFirestore();
@@ -415,7 +430,7 @@ export default function AdminDatabasePage() {
               </Button>
             </DialogTrigger>
             <DialogContent
-              className="sm:max-w-[500px] rounded-[2.5rem] p-10"
+              className="sm:max-w-[550px] rounded-[2.5rem] p-10 max-h-[90vh] overflow-y-auto"
               onInteractOutside={(e) => e.preventDefault()}
             >
               <DialogHeader>
@@ -426,17 +441,17 @@ export default function AdminDatabasePage() {
               </DialogHeader>
               <form onSubmit={handleAddDish} className="space-y-6 py-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="font-bold">Dish Name</Label>
-                  <Input id="name" name="name" required placeholder="e.g. Paneer Tikka" className="rounded-xl h-12" />
+                  <Label htmlFor="name" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Dish Identity</Label>
+                  <Input id="name" name="name" required placeholder="e.g. Paneer Tikka" className="rounded-2xl h-14 bg-muted/30 border-none shadow-inner" />
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="price" className="font-bold">Price (₹)</Label>
-                    <Input id="price" name="price" type="number" required placeholder="320" className="rounded-xl h-12" />
+                    <Label htmlFor="price" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Market Price (₹)</Label>
+                    <Input id="price" name="price" type="number" required placeholder="320" className="rounded-2xl h-14 bg-muted/30 border-none shadow-inner" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="category" className="font-bold">Category</Label>
-                    <select name="category" className="w-full h-12 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
+                    <Label htmlFor="category" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Food Category</Label>
+                    <select name="category" className="w-full h-14 px-4 border-none rounded-2xl bg-muted/30 text-sm focus:ring-2 focus:ring-primary/20 font-bold" required>
                       {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                     </select>
                   </div>
@@ -449,20 +464,23 @@ export default function AdminDatabasePage() {
                 />
 
                 <div className="space-y-2">
-                  <Label htmlFor="description" className="font-bold">Description</Label>
-                  <Textarea id="description" name="description" placeholder="Item description..." className="rounded-xl min-h-[80px]" />
+                  <Label htmlFor="description" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Palate Description</Label>
+                  <Textarea id="description" name="description" placeholder="Describe the flavors..." className="rounded-2xl min-h-[100px] bg-muted/30 border-none p-4" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="image" className="font-bold">Image URL</Label>
-                  <Input id="image" name="image" placeholder="https://..." className="rounded-xl h-12" />
+                  <Label htmlFor="image" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Visual Asset URL</Label>
+                  <Input id="image" name="image" placeholder="https://..." className="rounded-2xl h-14 bg-muted/30 border-none" />
                 </div>
-                <div className="flex items-center gap-3 bg-muted/20 p-4 rounded-2xl">
-                  <input type="checkbox" id="isVeg" name="isVeg" defaultChecked className="w-5 h-5 rounded-lg border-green-600 text-green-600 accent-green-600" />
-                  <Label htmlFor="isVeg" className="font-black text-green-700">Vegetarian Option</Label>
+                <div className="flex items-center gap-4 bg-green-50/50 p-5 rounded-[2rem] border border-green-100">
+                  <input type="checkbox" id="isVeg" name="isVeg" defaultChecked className="w-6 h-6 rounded-lg border-green-600 text-green-600 accent-green-600 cursor-pointer" />
+                  <div className="flex flex-col">
+                    <Label htmlFor="isVeg" className="font-black text-green-700 cursor-pointer">Vegetarian Item</Label>
+                    <p className="text-[10px] text-green-600/70 font-bold uppercase tracking-widest">Mark as meat-free selection</p>
+                  </div>
                 </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={isSaving} className="w-full rounded-2xl font-black bg-primary h-14 shadow-xl active:scale-95 text-lg">
-                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Finalize Entry"}
+                <DialogFooter className="pt-4">
+                  <Button type="submit" disabled={isSaving} className="w-full rounded-[2rem] font-black bg-primary h-16 shadow-2xl active:scale-95 text-xl transition-all">
+                    {isSaving ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : "Publish to Catalog"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -573,7 +591,7 @@ export default function AdminDatabasePage() {
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent
-          className="sm:max-w-[500px] rounded-[2.5rem] p-10"
+          className="sm:max-w-[550px] rounded-[2.5rem] p-10 max-h-[90vh] overflow-y-auto"
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
@@ -585,17 +603,17 @@ export default function AdminDatabasePage() {
           {editingDish && (
             <form onSubmit={handleUpdateDish} className="space-y-6 py-6">
               <div className="space-y-2">
-                <Label htmlFor="edit-name" className="font-bold">Dish Name</Label>
-                <Input id="edit-name" name="name" defaultValue={editingDish.name} required className="rounded-xl h-12" />
+                <Label htmlFor="edit-name" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Dish Identity</Label>
+                <Input id="edit-name" name="name" defaultValue={editingDish.name} required className="rounded-2xl h-14 bg-muted/30 border-none shadow-inner" />
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-price" className="font-bold">Price (₹)</Label>
-                  <Input id="edit-price" name="price" type="number" defaultValue={editingDish.price} required className="rounded-xl h-12" />
+                  <Label htmlFor="edit-price" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Market Price (₹)</Label>
+                  <Input id="edit-price" name="price" type="number" defaultValue={editingDish.price} required className="rounded-2xl h-14 bg-muted/30 border-none shadow-inner" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-category" className="font-bold">Category</Label>
-                  <select name="category" defaultValue={editingDish.category} className="w-full h-12 px-3 border rounded-xl bg-white text-sm focus:ring-primary/20" required>
+                  <Label htmlFor="edit-category" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Food Category</Label>
+                  <select name="category" defaultValue={editingDish.category} className="w-full h-14 px-4 border-none rounded-2xl bg-muted/30 text-sm focus:ring-2 focus:ring-primary/20 font-bold" required>
                     {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                   </select>
                 </div>
@@ -608,20 +626,23 @@ export default function AdminDatabasePage() {
               />
 
               <div className="space-y-2">
-                <Label htmlFor="edit-description" className="font-bold">Description</Label>
-                <Textarea id="edit-description" name="description" defaultValue={editingDish.description} className="rounded-xl min-h-[80px]" />
+                <Label htmlFor="edit-description" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Palate Description</Label>
+                <Textarea id="edit-description" name="description" defaultValue={editingDish.description} className="rounded-2xl min-h-[100px] bg-muted/30 border-none p-4" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-image" className="font-bold">Image URL</Label>
-                <Input id="edit-image" name="image" defaultValue={editingDish.image} placeholder="https://..." className="rounded-xl h-12" />
+                <Label htmlFor="edit-image" className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-1">Visual Asset URL</Label>
+                <Input id="edit-image" name="image" defaultValue={editingDish.image} placeholder="https://..." className="rounded-2xl h-14 bg-muted/30 border-none" />
               </div>
-              <div className="flex items-center gap-3 bg-muted/20 p-4 rounded-2xl">
-                <input type="checkbox" id="edit-isVeg" name="isVeg" defaultChecked={editingDish.isVeg} className="w-5 h-5 rounded-lg border-green-600 text-green-600 accent-green-600" />
-                <Label htmlFor="edit-isVeg" className="font-black text-green-700">Vegetarian Option</Label>
+              <div className="flex items-center gap-4 bg-green-50/50 p-5 rounded-[2rem] border border-green-100">
+                <input type="checkbox" id="edit-isVeg" name="isVeg" defaultChecked={editingDish.isVeg} className="w-6 h-6 rounded-lg border-green-600 text-green-600 accent-green-600 cursor-pointer" />
+                <div className="flex flex-col">
+                  <Label htmlFor="edit-isVeg" className="font-black text-green-700 cursor-pointer">Vegetarian Item</Label>
+                  <p className="text-[10px] text-green-600/70 font-bold uppercase tracking-widest">Mark as meat-free selection</p>
+                </div>
               </div>
-              <DialogFooter>
-                <Button type="submit" disabled={isSaving} className="w-full rounded-2xl font-black bg-primary h-14 shadow-xl active:scale-95 text-lg">
-                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Update Records"}
+              <DialogFooter className="pt-4">
+                <Button type="submit" disabled={isSaving} className="w-full rounded-[2rem] font-black bg-primary h-16 shadow-2xl active:scale-95 text-xl transition-all">
+                  {isSaving ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : "Update Records"}
                 </Button>
               </DialogFooter>
             </form>

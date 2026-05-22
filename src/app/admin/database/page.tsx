@@ -93,6 +93,7 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     
+    // Resolve partner names from the selection
     const partnerNames = selectedPartners.map(id => {
       const p = partners?.find(part => part.id === id);
       return p ? p.restaurantName : 'Unknown';
@@ -140,6 +141,7 @@ export default function AdminDatabasePage() {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
 
+    // Resolve partner names from the updated selection
     const partnerNames = selectedPartners.map(id => {
       const p = partners?.find(part => part.id === id);
       return p ? p.restaurantName : 'Unknown';
@@ -229,7 +231,7 @@ export default function AdminDatabasePage() {
 
   const PartnerMultiSelect = ({ selected, onToggle }: { selected: string[], onToggle: (id: string) => void }) => (
     <div className="space-y-2">
-      <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfilling Partners</Label>
+      <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfillment Partners</Label>
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="outline" className="w-full h-12 justify-between rounded-xl px-4 font-bold border-muted">
@@ -364,7 +366,7 @@ export default function AdminDatabasePage() {
             <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
               <DialogHeader>
                 <DialogTitle className="font-headline font-black text-3xl text-primary">New Catalog Item</DialogTitle>
-                <DialogDescription className="sr-only">
+                <DialogDescription>
                   Add a new dish to the centralized menu catalog and assign it to fulfilling partners.
                 </DialogDescription>
               </DialogHeader>
@@ -525,7 +527,7 @@ export default function AdminDatabasePage() {
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
           <DialogHeader>
             <DialogTitle className="font-headline font-black text-3xl text-primary">Update Catalog Info</DialogTitle>
-            <DialogDescription className="sr-only">
+            <DialogDescription>
               Modify the details of an existing menu item.
             </DialogDescription>
           </DialogHeader>

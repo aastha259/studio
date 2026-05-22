@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import toast from 'react-hot-toast';
@@ -31,7 +32,7 @@ export const MENU_CATEGORIES = [
 
 /**
  * STABLE COMPONENT: PartnerMultiSelect
- * Defined outside the main page to prevent remounting/focus loss issues.
+ * Uses controlled Checkbox + Label pattern for reliable interaction inside Dialogs.
  */
 const PartnerMultiSelect = ({ 
   partners, 
@@ -44,7 +45,7 @@ const PartnerMultiSelect = ({
 }) => (
   <div className="space-y-2">
     <Label className="font-bold text-xs uppercase tracking-widest opacity-50">Assign Fulfillment Partners</Label>
-    <Popover>
+    <Popover modal={false}>
       <PopoverTrigger asChild>
         <Button 
           type="button"
@@ -58,43 +59,47 @@ const PartnerMultiSelect = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[450px] p-0 rounded-2xl shadow-2xl border-none" 
+        className="w-[450px] p-0 rounded-2xl shadow-2xl border-none z-[100]" 
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <ScrollArea className="h-[300px]">
           <div className="p-4 space-y-1">
-            {partners?.map((p) => (
-              <div
-                key={p.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggle(p.id);
-                }}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 select-none",
-                  selected.includes(p.id)
-                    ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
-                    : "border-transparent hover:bg-muted"
-                )}
-              >
-                <div className={cn(
-                  "h-5 w-5 rounded-md border-2 flex items-center justify-center transition-colors",
-                  selected.includes(p.id) ? "bg-primary border-primary" : "border-muted-foreground/30"
-                )}>
-                  {selected.includes(p.id) && <Check className="h-3 w-3 text-white stroke-[4px]" />}
-                </div>
+            {partners?.map((p) => {
+              const isChecked = selected.includes(p.id);
+              const checkboxId = `partner-select-${p.id}`;
               
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-sm truncate">
-                    {p.restaurantName}
-                  </span>
-                  <span className="text-[10px] uppercase font-black opacity-40">
-                    {p.city}
-                  </span>
+              return (
+                <div
+                  key={p.id}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl transition-all border-2 select-none",
+                    isChecked
+                      ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
+                      : "border-transparent hover:bg-muted"
+                  )}
+                >
+                  <Checkbox 
+                    id={checkboxId}
+                    checked={isChecked}
+                    onCheckedChange={() => onToggle(p.id)}
+                    className="h-5 w-5 border-2 rounded-md transition-all data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  
+                  <Label
+                    htmlFor={checkboxId}
+                    className="flex-1 flex flex-col min-w-0 cursor-pointer py-0.5"
+                  >
+                    <span className="font-bold text-sm truncate leading-none mb-1">
+                      {p.restaurantName}
+                    </span>
+                    <span className="text-[10px] uppercase font-black opacity-40 leading-none">
+                      {p.city}
+                    </span>
+                  </Label>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {partners?.length === 0 && (
               <div className="p-8 text-center opacity-30 italic text-sm">No partners found. Onboard partners first.</div>
             )}
@@ -210,7 +215,7 @@ export default function AdminDatabasePage() {
     addDoc(dishesRef, newDish)
       .then(() => {
         toast.success(`${newDish.name} added to catalog`);
-        setIsAddOpen(false);
+        setIsAddDishOpen(false);
         setSelectedPartners([]);
       })
       .catch(async (serverError) => {
@@ -405,7 +410,10 @@ export default function AdminDatabasePage() {
                 <Plus className="w-5 h-5 mr-2" /> Manual Entry
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
+            <DialogContent
+              className="sm:max-w-[500px] rounded-[2.5rem] p-10"
+              onInteractOutside={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle className="font-headline font-black text-3xl text-primary">New Catalog Item</DialogTitle>
                 <DialogDescription>
@@ -431,7 +439,7 @@ export default function AdminDatabasePage() {
                 </div>
                 
                 <PartnerMultiSelect 
-                  partners={partners}
+                  partners={partners || []}
                   selected={selectedPartners} 
                   onToggle={togglePartner} 
                 />
@@ -560,7 +568,10 @@ export default function AdminDatabasePage() {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
+        <DialogContent
+          className="sm:max-w-[500px] rounded-[2.5rem] p-10"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="font-headline font-black text-3xl text-primary">Update Catalog Info</DialogTitle>
             <DialogDescription>
@@ -587,7 +598,7 @@ export default function AdminDatabasePage() {
               </div>
 
               <PartnerMultiSelect 
-                partners={partners}
+                partners={partners || []}
                 selected={selectedPartners} 
                 onToggle={togglePartner} 
               />

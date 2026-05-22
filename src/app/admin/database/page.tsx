@@ -10,7 +10,7 @@ import { Trash2, Plus, Search, Database, Loader2, Sparkles, Flame, AlertCircle, 
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, deleteDoc, addDoc, updateDoc, writeBatch, getDocs, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -197,7 +197,7 @@ export default function AdminDatabasePage() {
       const batch = writeBatch(db);
       templates.forEach(tpl => {
         tpl.items.forEach((itemName, i) => {
-          const newDocRef = doc(collection(db, 'dishes'));
+          const new docRef = doc(collection(db, 'dishes'));
           const randomPartners = partners.sort(() => 0.5 - Math.random()).slice(0, 2);
           
           batch.set(newDocRef, {
@@ -363,6 +363,9 @@ export default function AdminDatabasePage() {
             <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
               <DialogHeader>
                 <DialogTitle className="font-headline font-black text-3xl text-primary">New Catalog Item</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Add a new dish to the centralized menu catalog and assign it to fulfilling partners.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddDish} className="space-y-6 py-6">
                 <div className="space-y-2">
@@ -521,6 +524,9 @@ export default function AdminDatabasePage() {
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-10">
           <DialogHeader>
             <DialogTitle className="font-headline font-black text-3xl text-primary">Update Catalog Info</DialogTitle>
+            <DialogDescription className="sr-only">
+              Modify the details of an existing menu item.
+            </DialogDescription>
           </DialogHeader>
           {editingDish && (
             <form onSubmit={handleUpdateDish} className="space-y-6 py-6">

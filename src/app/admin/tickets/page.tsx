@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useMemo, useState } from 'react';
@@ -13,7 +14,7 @@ import { collection, doc, deleteDoc, updateDoc, query, orderBy, arrayUnion, Time
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -293,10 +294,10 @@ export default function AdminTicketsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <DialogTitle className="text-3xl font-headline font-black">Support Inquiry</DialogTitle>
-                    <p className="text-white/70 font-bold mt-1 flex items-center gap-2">
+                    <DialogDescription className="text-white/70 font-bold mt-1 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       {activeTicket.createdAt ? format(activeTicket.createdAt.toDate ? activeTicket.createdAt.toDate() : new Date(activeTicket.createdAt), 'MMMM dd, yyyy') : 'Recently received'}
-                    </p>
+                    </DialogDescription>
                   </div>
                   <Badge className={cn(
                     "rounded-full px-4 py-1.5 font-black text-[10px] uppercase border-none",

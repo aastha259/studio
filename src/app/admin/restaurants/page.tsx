@@ -40,6 +40,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
+  DialogDescription,
   DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog';
@@ -183,6 +184,9 @@ export default function AdminPartnersPage() {
               <DialogTitle className="text-3xl font-headline font-black text-primary">
                 {editingPartner ? 'Edit Partner Records' : 'New Restaurant Partner'}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Fill in the restaurant details to onboard a new partner location.
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSavePartner} className="space-y-6 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -369,10 +373,10 @@ export default function AdminPartnersPage() {
                 <img src={viewingMenu?.image} className="object-cover w-full h-full" alt={viewingMenu?.restaurantName} />
               </div>
               <div>
-                <h2 className="text-4xl font-headline font-black leading-tight">{viewingMenu?.restaurantName}</h2>
-                <p className="text-white/70 font-bold flex items-center gap-2 mt-1 uppercase tracking-widest text-xs">
+                <DialogTitle className="text-4xl font-headline font-black leading-tight">{viewingMenu?.restaurantName}</DialogTitle>
+                <DialogDescription className="text-white/70 font-bold flex items-center gap-2 mt-1 uppercase tracking-widest text-xs">
                   <MapPin className="w-4 h-4" /> {viewingMenu?.city}, Bharat
-                </p>
+                </DialogDescription>
               </div>
             </div>
           </div>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -30,7 +29,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { cn, computeOrderStatus, STATUS_LABELS } from '@/lib/utils';
+import { cn, computeOrderStatus, STATUS_LABELS, isAdminEmail } from '@/lib/utils';
 import { normalizeOrder } from '@/lib/normalizeOrder';
 
 export default function AdminOrdersPage() {
@@ -47,7 +46,7 @@ export default function AdminOrdersPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   const ordersRef = useMemoFirebase(() => {
     if (!isAuthorized) return null;

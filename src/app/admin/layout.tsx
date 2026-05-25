@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useEffect, useState } from 'react';
@@ -24,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { cn } from '@/lib/utils';
+import { cn, isAdminEmail } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AdminNotificationBell from '@/components/AdminNotificationBell';
 import UserNav from '@/components/UserNav';
@@ -41,8 +40,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (mounted && !loading) {
-      // Airtight check: If the user is not authenticated or the email is NOT the authorized admin, kick them out.
-      if (!user || !user.isAdmin || user.email !== 'pqr@admin.com') {
+      // Airtight check: If the user is not authenticated or the email is NOT in the authorized list, kick them out.
+      if (!user || !user.isAdmin || !isAdminEmail(user.email)) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('bhartiya_swad_admin');
         }
@@ -64,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
   
-  if (!user || !user.isAdmin || user.email !== 'pqr@admin.com') return null;
+  if (!user || !user.isAdmin || !isAdminEmail(user.email)) return null;
 
   const navItems = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },

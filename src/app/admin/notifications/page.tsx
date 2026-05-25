@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo, useState } from 'react';
@@ -23,7 +22,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection, query, limit, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, isAdminEmail } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 export default function AdminNotificationsPage() {
@@ -32,7 +31,7 @@ export default function AdminNotificationsPage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;

@@ -1,4 +1,3 @@
-
 "use client"
 import { normalizeOrder } from '@/lib/normalizeOrder';
 import React, { useMemo, useState, useEffect } from 'react';
@@ -21,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn, computeOrderStatus, STATUS_LABELS } from '@/lib/utils';
+import { cn, computeOrderStatus, STATUS_LABELS, isAdminEmail } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection, query, where, limit, orderBy } from 'firebase/firestore';
@@ -47,7 +46,7 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!isAuthorized || !currentTime) return null;

@@ -1,9 +1,9 @@
-
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase';
 import { browserLocalPersistence, setPersistence, signOut } from 'firebase/auth';
+import { isAdminEmail } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 type Role = 'user' | 'admin' | null;
@@ -55,9 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (firebaseUser) {
-      const isEmailAdmin = firebaseUser.email === 'pqr@admin.com';
+      const isAuthorizedAdmin = isAdminEmail(firebaseUser.email);
       const isAdminSession = typeof window !== 'undefined' && localStorage.getItem('bhartiya_swad_admin') === 'true';
-      const isAdmin = isEmailAdmin || (isAdminSession && firebaseUser.email === 'pqr@admin.com');
+      const isAdmin = isAuthorizedAdmin || (isAdminSession && isAuthorizedAdmin);
 
       setUser({
         uid: firebaseUser.uid,

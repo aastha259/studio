@@ -11,6 +11,7 @@ import { personalizedFoodRecommendations } from '@/ai/flows/personalized-food-re
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { isAdminEmail } from '@/lib/utils';
 
 export default function AdminRecommendationsPage() {
   const db = useFirestore();
@@ -19,7 +20,7 @@ export default function AdminRecommendationsPage() {
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
 
   // Strict authorized email guard
-  const isAuthorized = currentUser?.isAdmin && currentUser.email === 'pqr@admin.com';
+  const isAuthorized = currentUser?.isAdmin && isAdminEmail(currentUser.email);
 
   const usersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;

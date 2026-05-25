@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from 'react';
@@ -22,12 +21,13 @@ import { collection, query, where, limit, orderBy } from 'firebase/firestore';
 import { format, subDays, startOfWeek, isSameDay, isSameWeek, startOfDay } from 'date-fns';
 import { TrendingUp, ShoppingBag, BarChart3 } from 'lucide-react';
 import { normalizeOrder } from '@/lib/normalizeOrder';
+import { isAdminEmail } from '@/lib/utils';
 
 export default function AdminSalesPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   // Fetch orders from last 30 days for primary intelligence view
   const ordersQuery = useMemoFirebase(() => {

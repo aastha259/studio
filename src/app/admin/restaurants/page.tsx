@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo } from 'react';
@@ -68,7 +67,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection, doc, addDoc, updateDoc, deleteDoc, query, where, getDocs, serverTimestamp, arrayRemove, orderBy, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, isAdminEmail } from '@/lib/utils';
 import { 
   AreaChart, 
   Area, 
@@ -104,7 +103,7 @@ export default function AdminPartnersPage() {
   const [sortBy, setSortBy] = useState<SortOption>('performance');
   const [viewMode, setViewViewMode] = useState<'grid' | 'list'>('grid');
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   const partnersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;

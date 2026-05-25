@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from 'react';
@@ -10,6 +9,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { collection } from 'firebase/firestore';
 import { normalizeOrder } from '@/lib/normalizeOrder';
+import { isAdminEmail } from '@/lib/utils';
 import { 
   BarChart, 
   Bar, 
@@ -24,7 +24,7 @@ export default function AdminCustomersPage() {
   const db = useFirestore();
   const { user } = useAuth();
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   const usersQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;

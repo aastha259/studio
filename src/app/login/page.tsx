@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { useAuth as useFirebaseService, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { isAdminEmail } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 import { 
@@ -36,7 +37,7 @@ function LoginForm() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        if (user.email === 'pqr@admin.com') {
+        if (isAdminEmail(user.email)) {
           router.push('/admin/dashboard');
         } else {
           const lastPage = localStorage.getItem('bhartiya_swad_last_page');
@@ -76,17 +77,20 @@ function LoginForm() {
       let userCredential;
 
       if (role === 'admin') {
+        const isAuthorizedAdmin = isAdminEmail(email);
+        
+        if (!isAuthorizedAdmin) {
+          toast.error("Access denied. Unauthorized administrator account.", { id: loginToastId });
+          setLoading(false);
+          return;
+        }
+
         try {
           userCredential = await signInWithEmailAndPassword(auth, email, password);
-          
-          if (email !== 'pqr@admin.com') {
-            toast.error("Access denied. Unauthorized administrator account.", { id: loginToastId });
-            setLoading(false);
-            return;
-          }
         } catch (err: any) {
-          const isBootstrapAccount = email === 'pqr@admin.com' && password === 'aastha123';
-          const canAttemptCreation = err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential';
+          // Automatic bootstrapping logic for recognized admin emails
+          const isBootstrapAccount = isAuthorizedAdmin && password === 'aastha123';
+          const canAttemptCreation = err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email';
           
           if (isBootstrapAccount && canAttemptCreation) {
             try {

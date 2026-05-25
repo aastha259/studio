@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -13,7 +12,7 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid)) ||
-        request.auth.token.email == 'pqr@admin.com'
+        request.auth.token.email in ['pqr@admin.com', 'admin@bhartiyaswad.com']
       );
     }
 
@@ -58,7 +57,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ADMIN NOTIFICATIONS: Restricted to system admins
+    // ADMIN NOTIFICATIONS: Restricted to system administrators
     match /notifications_admin/{notificationId} {
       allow read, update, delete: if isAdmin();
       allow create: if true; 

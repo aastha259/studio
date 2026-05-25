@@ -1,10 +1,26 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+/**
+ * Authorized administrative emails for Bhartiya Swad.
+ * Add new admin emails to this list to grant them access to the Management Console.
+ */
+export const ADMIN_EMAILS = [
+  'pqr@admin.com',
+  'admin@bhartiyaswad.com'
+];
+
+/**
+ * Helper to check if an email belongs to the authorized admin list.
+ */
+export const isAdminEmail = (email: string | null | undefined): boolean => {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+};
 
 /**
  * Computes the standardized order status key based on time elapsed since creation.

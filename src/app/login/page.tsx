@@ -89,7 +89,7 @@ function LoginForm() {
           userCredential = await signInWithEmailAndPassword(auth, email, password);
         } catch (err: any) {
           // Automatic bootstrapping logic for recognized admin emails
-          const isBootstrapAccount = isAuthorizedAdmin && password === 'aastha123';
+          const isBootstrapAccount = isAuthorizedAdmin && password === 'aastha@123';
           const canAttemptCreation = err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email';
           
           if (isBootstrapAccount && canAttemptCreation) {

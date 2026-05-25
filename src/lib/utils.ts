@@ -11,7 +11,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export const ADMIN_EMAILS = [
   'pqr@admin.com',
-  'admin@bhartiyaswad.com',
+  'trial@admin.com',
   'superadmin@bhartiyaswad.com'
 ];
 

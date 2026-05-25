@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
@@ -18,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, isAdminEmail } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
@@ -31,7 +30,8 @@ export default function AdminNotificationBell() {
   const lastProcessedId = useRef<string | null>(null);
   const isFirstLoad = useRef(true);
 
-  const isAuthorized = user?.isAdmin && user.email === 'pqr@admin.com';
+  // Use centralized admin email check
+  const isAuthorized = user?.isAdmin && isAdminEmail(user.email);
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!isAuthorized) return null;

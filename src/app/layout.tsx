@@ -8,6 +8,7 @@ import { AuthProvider } from '@/lib/contexts/auth-context';
 import { FavoritesProvider } from '@/lib/contexts/favorites-context';
 import { FirebaseClientProvider } from '@/firebase';
 import PushNotificationManager from '@/components/PushNotificationManager';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: 'Bhartiya Swad – Taste of India at Your Doorstep',
@@ -39,6 +40,7 @@ export default function RootLayout({
             </FavoritesProvider>
           </AuthProvider>
         </FirebaseClientProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
